@@ -1,0 +1,36 @@
+# Logs & Execution Trace
+logs/
+log/
+*.log
+log.txt
+
+# Competition Planning & Internal Notes
+plan/
+notes/
+*.notes
+*.tmp
+*.draft
+*.pdf
+
+# IDE, Agent & Tool Artifacts
+.gemini/
+.codex/
+.kiro/
+.claude/
+.brain/
+.agents/scratch/
+.vs/
+.vscode/
+.idea/
+pdf-forge-exports/
+
+# Build & Dependency Artifacts
+node_modules/
+dist/
+build/
+.next/
+.out/
+
+# OS Artifacts
+.DS_Store
+Thumbs.db
