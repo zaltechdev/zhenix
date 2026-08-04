@@ -20,7 +20,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: m.metadata_title({}, { locale }),
     description: m.metadata_description({}, { locale }),
-    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000")
+    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+    appleWebApp: {
+      title: "Aksa"
+    },
+    icons: {
+      icon: [
+        { url: "/icon1.png", type: "image/png" },
+        { url: "/icon0.svg", type: "image/svg+xml" }
+      ],
+      apple: "/apple-icon.png"
+    }
   };
 }
 
