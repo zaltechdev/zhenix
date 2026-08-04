@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+:root {
+  --color-aksa-electric: #47d2bc;
+  --color-aksa-cyan-soft: #86b5c4;
+  --color-aksa-mint-soft: #c8f5ed;
+  --color-aksa-teal-deep: #25a894;
+  --color-aksa-blue-accent: #4f8cf7;
+  --color-aksa-charcoal: #1a1a1e;
+  --color-aksa-dark-canvas: #121214;
+
+  --color-aksa-paper: #f8fafc;
+  --color-aksa-cloud: #ffffff;
+  --color-aksa-ink: #0f172a;
+  --color-aksa-muted: #64748b;
+  --color-aksa-faint: #94a3b8;
+  --color-aksa-line: #e2e8f0;
+  --color-aksa-teal: #47d2bc;
+  --color-aksa-teal-soft: #c8f5ed;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-round: 999px;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-calm: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --line-height-h1: 1.02;
+  --line-height-body: 1.6;
+
+  --shadow-aksa-raised: 0 8px 24px rgb(15 23 42 / 8%);
+  --shadow-aksa-overlay: 0 20px 60px rgb(15 23 42 / 14%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-aksa-paper: #121214;
+    --color-aksa-cloud: #1a1a1e;
+    --color-aksa-ink: #f1f5f9;
+    --color-aksa-muted: #94a3b8;
+    --color-aksa-faint: #64748b;
+    --color-aksa-line: #27272a;
+    --color-aksa-teal-soft: rgb(71 210 188 / 15%);
+  }
+}
+
+@theme inline {
+  --color-paper: var(--color-aksa-paper);
+  --color-cloud: var(--color-aksa-cloud);
+  --color-ink: var(--color-aksa-ink);
+  --color-muted: var(--color-aksa-muted);
+  --color-faint: var(--color-aksa-faint);
+  --color-line: var(--color-aksa-line);
+  --color-teal: var(--color-aksa-teal);
+  --color-teal-soft: var(--color-aksa-teal-soft);
+  --font-heading: var(--font-host-grotesk);
+  --font-body: var(--font-inter);
+  --leading-h1: var(--line-height-h1);
+  --leading-body: var(--line-height-body);
+  --radius-control: var(--radius-md);
+  --radius-card: var(--radius-lg);
+  --radius-panel: var(--radius-xl);
+  --shadow-raised: var(--shadow-aksa-raised);
+  --shadow-overlay: var(--shadow-aksa-overlay);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-aksa-paper);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--color-aksa-paper);
+  color: var(--color-aksa-ink);
+  font-family: var(--font-inter), sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-host-grotesk), sans-serif;
+  text-wrap: balance;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-aksa-teal);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--color-aksa-mint-soft);
+  color: var(--color-aksa-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
