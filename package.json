@@ -27,6 +27,7 @@
     "pretest": "bun run i18n:compile"
   },
   "dependencies": {
+    "@icons-pack/react-simple-icons": "^13.13.0",
     "@libsql/client": "0.17.4",
     "@mediapipe/tasks-vision": "1.0.1",
     "@tiptap/core": "3.29.2",
@@ -34,13 +35,16 @@
     "@tiptap/react": "3.29.2",
     "@tiptap/starter-kit": "3.29.2",
     "ai": "7.0.50",
+    "country-flag-icons": "^1.6.20",
     "drizzle-orm": "0.45.2",
+    "lucide-react": "^1.28.0",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@inlang/paraglide-js": "2.23.1",
     "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "4.3.3",
@@ -51,6 +55,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
+    "drizzle-kit": "0.31.10",
     "eslint": "9.39.1",
     "eslint-config-next": "16.3.0",
     "jsdom": "30.0.1",
@@ -58,7 +63,6 @@
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vite": "8.2.0",
-    "vitest": "4.1.10",
-    "drizzle-kit": "0.31.10"
+    "vitest": "4.1.10"
   }
 }
