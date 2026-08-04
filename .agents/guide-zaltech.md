@@ -132,7 +132,7 @@ A backend change is complete when:
 - Real integrations pass their relevant tests.
 - Logs expose operational facts without secrets or hidden model reasoning.
 - Deployment smoke tests cover the primary demo.
-- Documentation and `logs/log.md` reflect verified work.
+- Documentation and `logs/log-zaltech.md` reflect verified work.
 
 ## QA Release Gate
 

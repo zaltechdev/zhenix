@@ -201,6 +201,9 @@ Enforced on every frontend change.
 - One status message never mixes languages.
 - Indonesian is treated as the longer layout case when uncertain.
 
+### 13.1 Localization Compilation Workflow
+- Whenever adding or modifying message keys in `messages/*.json`, you MUST run `bun run i18n:compile` before running test suites or starting the dev server. Never import uncompiled message functions from `@/paraglide/messages.js`.
+
 ## 14. Testing Rules
 
 | Change type | Minimum required tests |
@@ -234,7 +237,7 @@ A change is not done until all of these hold.
 7. Accessibility checks pass on changed screens.
 8. Indonesian and English render correctly on changed screens.
 9. New shared patterns are documented in the owning document.
-10. `logs/log.md` has the session entry.
+10. `logs/log-{devname}.md` (e.g. `logs/log-henix.md` or `logs/log-zaltech.md`) has the session entry.
 
 Release is blocked when any primary demo path fabricates a result, skips confirmation for a consequential action, cannot report partial completion, leaks credentials or private data, exposes reasoning traces, fails an authorization check, or cannot recover from a timeout.
 
@@ -261,7 +264,7 @@ Release is blocked when any primary demo path fabricates a result, skips confirm
 | New or changed feature behavior | the matching `.agents/features/*.md` |
 | Verified frontend defect and fix | `.agents/debug-henix.md` |
 | Verified backend defect and fix | `.agents/debug-zaltech.md` |
-| Any completed prompt or sprint | `logs/log.md` |
+| Any completed prompt or sprint | `logs/log-{devname}.md` |
 
 Rules:
 

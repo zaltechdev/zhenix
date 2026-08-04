@@ -16,7 +16,7 @@ Existing `AGENTS.md`, `.agents/` guidance, and logo assets were preserved. The s
 - Shared UI: `src/components/foundation/foundation-view.tsx`, `src/components/shared/locale-switcher.tsx`
 - Configuration boundaries: `drizzle.config.ts`, `src/lib/i18n/request.ts`, `src/lib/server/db/`, `src/lib/server/ai/`, `src/lib/server/validation/`, `src/lib/client/editor/`, `src/lib/client/vision/`, `src/lib/client/state/`
 - Test setup: `vitest.config.ts`, `playwright.config.ts`, `src/test/setup.ts`, `tests/unit/foundation.test.tsx`, `tests/e2e/foundation.spec.ts`
-- Execution log: `logs/log.md`
+- Execution log: `logs/log-{devname}.md` (`logs/log-henix.md`, `logs/log-zaltech.md`)
 
 ## Commands run
 

@@ -65,7 +65,7 @@ Say `Completed` only after verification. Show partial completion and unknown sta
 
 ### Style: Calm Computational Nature
 
-Aksa combines an editorial landing page, calm nature imagery, restrained product previews, subtle ASCII texture, and generous spacing. The supplied reference image informs composition only: compact navigation, asymmetric hero, thin section rules, and three clear value cards. Do not copy its brand, wording, or product UI.
+Aksa combines an editorial landing page, calm nature imagery, restrained product previews, the supplied image's decorative ASCII treatment, generous spacing, and a framed inset canvas architecture. Instead of a full-bleed edge-to-edge background, the page canvas (`.landing-shell`) uses an inset framed container with a small outer margin (`1rem`), rounded corners (`--radius-xl`), a subtle border (`1px solid var(--color-aksa-line)`), and an elevated surface shadow. The landscape background (`public/landing.webp`) and reading gradient are contained inside this rounded inset canvas shell.
 
 ### Logo
 
@@ -93,11 +93,11 @@ Open question: select and license the final hero and value-card images.
 
 ### ASCII texture
 
-ASCII texture is decorative atmosphere. Keep it sparse, low contrast, and outside reading order. Mark it `aria-hidden="true"`. Do not use monospace text for interface labels.
+ASCII texture is decorative atmosphere. The selected `public/landing.webp` asset already contains the hero treatment, so do not add another ASCII layer. Keep any separate texture sparse, low contrast, and outside reading order. Mark it `aria-hidden="true"`. Do not use monospace text for interface labels.
 
 ### Glass
 
-Use limited translucency for the floating product preview and compact overlays. Pair it with an opaque fallback and a visible border. Avoid stacked translucent layers.
+Use a white or cloud surface for the product preview, with a visible border and restrained shadow. Pair compact overlays with an opaque fallback. Avoid stacked translucency, excessive glass, and blur.
 
 ### Light mode
 
@@ -166,7 +166,7 @@ Open question: destructive, warning, and verified-success semantic tokens need H
 | Small | Inter | 400 or 500 | `0.875rem` / `1.45` |
 | Label and button | Inter | 600 | `0.875rem` / `1.2` |
 
-Use Host Grotesk for brand and headings. Use Inter for body and UI. Do not use monospace UI text. Keep paragraph measure between 45 and 70 characters.
+Use Host Grotesk for brand and headings. Use Inter for body and UI. Do not use monospace UI text. Keep paragraph measure between 45 and 70 characters. Do not use em dash characters, double hyphens (--), or en dash characters in UI microcopy or documentation; use colons, inline spacing, or parentheses for metadata and subtitles.
 
 Open question: confirm font licensing and delivery method before implementation.
 
@@ -215,9 +215,12 @@ In dark mode, rely on surface and border contrast first. Reduce shadow opacity. 
 
 ### Icons
 
-Use one rounded outline icon family. Default size is 20 px, 24 px for primary actions, and 16 px inside chips. Every icon-only button needs an accessible name and at least a 44 by 44 px target.
+Use standard production icon libraries (`lucide-react` or `@icons-pack/react-simple-icons`). Do NOT use quirky, hand-coded, or hallucinated AI inline SVG icons. Default size is 20 px, 24 px for primary actions, and 16 px inside chips. Every icon-only button needs an accessible name and at least a 44 by 44 px target.
 
-Open question: select the production icon library.
+### Humanized Copy & Target Sizes (WCAG 2.2 AA)
+
+- **No Developer Jargon**: Never display developer abbreviations (`a11y`, `i18n`, `CTA`, `PR`) in user-facing UI copy. Always use natural, human-first language (*Aksesibilitas*, *Language*, *Coba Aksa*).
+- **Target Size (WCAG 2.5.8 / 2.5.5)**: Every interactive element (buttons, triggers, dropdown items, option items, close buttons) MUST have a minimum height and width of `44px` (`min-height: 44px; min-width: 44px;`).
 
 ### Focus
 
@@ -232,11 +235,11 @@ Use a 2 px `--color-aksa-teal` outline with a 3 px offset. Add a surface-colored
 | `--duration-slow` | `320ms` | Panel entrance |
 | `--ease-calm` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | Standard easing |
 
-Animate opacity and transform. Avoid parallax, cursor trails, and constant ambient motion. Under `prefers-reduced-motion: reduce`, remove nonessential animation and show dwell progress through a static changing indicator.
+Animate opacity and transform. Avoid parallax, cursor trails, and constant ambient motion. Under `prefers-reduced-motion: reduce`, remove nonessential animation, replace the hero typewriter effect with its static accessible sentence, and show dwell progress through a static changing indicator.
 
 ### Scrollbars
 
-Use thin scrollbars. The thumb uses `--color-aksa-faint`, changes to `--color-aksa-muted` on hover, and keeps a transparent track. Do not hide scrollbars in scrollable regions.
+Use thin custom scrollbars. The track uses `--color-aksa-paper` matching the outer canvas. The scrollbar thumb uses the brand Teal accent `--color-aksa-teal`, changing to `--color-aksa-teal-deep` on hover. Do not hide scrollbars in scrollable regions.
 
 ## 6. Layout System
 
@@ -246,7 +249,7 @@ Use thin scrollbars. The thumb uses `--color-aksa-faint`, changes to `--color-ak
 | --- | --- |
 | 320 to 767 px | Single column, compact navigation, stacked previews |
 | 768 to 1023 px | Flexible two-column sections where readable |
-| 1024 to 1439 px | Full navigation, asymmetric hero, three-card grid |
+| 1024 to 1439 px | Full-width quiet navigation, centered hero, three-card grid |
 | 1440 px and above | Preserve content width, grow outer whitespace |
 
 Breakpoints serve content. Components may wrap earlier when copy or controls need room.
@@ -271,7 +274,7 @@ Breakpoints serve content. Components may wrap earlier when copy or controls nee
 
 ### Section rhythm
 
-Each section uses eyebrow or label, heading, one short description, then its content. Landing sections should not exceed one primary message and one primary action.
+Each section starts directly with a heading (H1 or H2), followed by one short description, then its content. Do not use eyebrows, kickers, or pre-heading labels. Landing sections should not exceed one primary message and one primary action.
 
 ## 7. Shared Components
 
@@ -318,6 +321,11 @@ Use real item names and counts when known. If verification is pending, say `Chec
 ## 9. Accessibility System
 
 Target WCAG 2.2 AA. Primary flows must not depend on fine motor control.
+
+### Accessibility Tooling Strategy
+
+1. **User-Side Widget:** Stick to native, built-in UI controls for accessibility preferences (e.g., our custom floating widget). Do not use third-party runtime overlays (like Accessify or Sienna) to avoid DOM mutation and screen-reader conflicts.
+2. **Dev-Side Auditing:** Use `eslint-plugin-jsx-a11y` (via `eslint-config-next`) for static analysis to block structurally inaccessible code in development. Use `@axe-core/playwright` in E2E tests for automated DOM runtime auditing and catching contrast violations.
 
 ### Head control calibration
 
@@ -400,17 +408,21 @@ The landing page explains Aksa in under one viewport, then proves control and sa
 | Primary action | `Try Aksa` |
 | Mobile | Brand, primary action, menu button; menu opens a labeled dialog |
 
-Navigation is visually quiet, 64 to 72 px tall, and separated by whitespace or a thin rule. Do not use a floating pill around the entire navigation.
+Navigation is a normal quiet full-width region, 64 to 72 px tall, separated by whitespace or a thin rule. Keep the wordmark, links, controls, and primary action within the content container. Do not use a floating pill around the entire navigation.
 
 ### 10.2 Hero
 
-Eyebrow: `Accessible AI workspace`
+Use one landscape background from `public/landing.webp` contained within the framed inset canvas (`.landing-shell`). The image already contains its decorative treatment, so do not add another ASCII layer. Apply a subtle readability gradient instead of a large opaque text panel.
+
+Desktop uses a centered composition within the inset canvas frame: centered headline, description, CTA pair, then a large Aksa product preview centered below the copy (tighter copy-to-preview spacing). The preview overlaps the meadow and begins within the first viewport. Keep its top portion visible at `1366 × 768`; preserve the stream and flowers around its sides. All hero text and interactive controls must meet strict WCAG 2.2 AA contrast standards (no low-contrast mint-on-light or muted-on-dark text).
 
 Headline:
 
 > Say the task.
 >
 > Aksa handles the steps.
+
+Keep the headline to two lines maximum on desktop. The hero copy has a maximum width around `720px`. Target a two-line description where space permits without splitting translated strings in components.
 
 Description:
 
@@ -421,24 +433,19 @@ Actions:
 - Primary: `Try Aksa`
 - Secondary: `See how it works`
 
-Capability chips:
+Product preview requirements:
 
-- `Face control ready`
-- `Voice supported`
-- `Review before action`
-
-Hero visual requirements:
-
-- Calm nature image forms the back plane.
-- Subtle ASCII texture remains decorative.
-- A floating Aksa preview sits above the image.
+- Maximum width around `1120px`; target `72vw` to `78vw` on desktop.
 - Preview shows `Programming Assignment 04`.
-- `Testing` is highlighted.
-- Compact status reads `You stopped at Testing.`
-- Product preview has no fake browser or operating-system frame.
-- All preview copy stays readable in light and dark modes.
+- `Testing` is the active stage.
+- Visible status reads `You stopped at Testing.`.
+- Include one visible voice continuation control and one compact task-status element.
+- Mark the preview clearly as illustrative. Do not present mock content as a real completed task.
+- Use a white or cloud surface, visible border, restrained shadow, and `--radius-xl`.
+- Do not add a fake browser or operating-system frame.
+- Keep all preview copy readable in light and dark modes.
 
-Desktop uses a 5:7 copy-to-visual ratio. Mobile puts copy, actions, chips, then preview in that order.
+Mobile order is navigation, copy, actions, then preview. The hero must communicate value and show the primary CTA without scrolling at `1366 × 768`.
 
 ### 10.3 Value cards
 
@@ -515,7 +522,9 @@ Open questions:
 - Heading hierarchy and landmark structure are valid.
 - Every interactive element has a visible focus state and 44 by 44 px target.
 - Hero visuals do not block copy or actions.
-- Decorative texture and images are hidden from assistive technology.
+- The hero uses one full-bleed `public/landing.webp` background with a subtle readability gradient.
+- Decorative background imagery is hidden from assistive technology.
+- The preview overlaps the meadow, starts within the first viewport, and retains visible stream and flowers around it.
 - Meaningful preview content has a text equivalent.
 - The demo supports captions, pause, keyboard control, and reduced motion.
 - Light and dark modes meet WCAG AA contrast.
