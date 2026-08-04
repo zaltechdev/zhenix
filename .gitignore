@@ -30,6 +30,16 @@ dist/
 build/
 .next/
 .out/
+.vercel/
+coverage/
+playwright-report/
+test-results/
+src/paraglide/
+*.tsbuildinfo
+
+# Environment and local configuration
+.env*
+!.env.example
 
 # OS Artifacts
 .DS_Store
