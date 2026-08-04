@@ -1,0 +1,19 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "metadata_title": "Aksa foundation",
+  "metadata_description": "Aksa foundation for an accessible AI workspace.",
+  "skip_to_content": "Skip to content",
+  "foundation_title": "Aksa foundation is ready",
+  "foundation_description": "The minimal project foundation is ready for the accessible AI workspace.",
+  "foundation_status_heading": "Foundation boundaries",
+  "foundation_ready": "Foundation ready",
+  "foundation_nextjs": "Next.js App Router with Server Components by default.",
+  "foundation_styling": "Tailwind CSS with Aksa design tokens.",
+  "foundation_localization": "Paraglide JS for Indonesian and English.",
+  "foundation_testing": "Vitest and Playwright test setup.",
+  "foundation_note": "Authentication, databases, AI agents, Google APIs, and computer vision are not implemented yet.",
+  "language_switcher_label": "Language",
+  "language_english": "English",
+  "language_indonesian": "Indonesian",
+  "language_current": "Current language: {language}"
+}
