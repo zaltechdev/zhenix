@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   typedRoutes: true,
   allowedDevOrigins: ["127.0.0.1"],
+  images: {
+    qualities: [75, 95],
+  },
   async headers() {
     return [
       {

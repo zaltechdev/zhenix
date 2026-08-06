@@ -43,6 +43,14 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        {/* Blocking script: set data-theme before paint to prevent flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('aksa-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=t?t:(d?'dark':'light');}catch(e){}})();`
+          }}
+        />
+      </head>
       <body className={`${hostGrotesk.variable} ${inter.variable} font-body`}>
         <a
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-cloud focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-ink"

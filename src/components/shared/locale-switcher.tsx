@@ -39,7 +39,9 @@ export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
     // eslint-disable-next-line
     document.cookie = `PARAGLIDE_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
     setLocale(newLocale, { reload: false });
-    router.refresh();
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
   }
 
   const options: { code: Locale; label: string }[] = [

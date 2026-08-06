@@ -6,9 +6,10 @@ export default async function Loading() {
 
   return (
     <main className="grid min-h-screen place-items-center bg-paper px-5 text-ink">
-      <p aria-busy="true" className="text-sm text-muted">
-        {m.foundation_ready({}, { locale })}
-      </p>
+      <div aria-busy="true" className="flex items-center gap-3 text-sm text-muted">
+        <span className="aksa-button__loading-indicator" />
+        <span>{m.state_loading({}, { locale })}</span>
+      </div>
     </main>
   );
 }
