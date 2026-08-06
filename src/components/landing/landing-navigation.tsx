@@ -5,9 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import { LocaleSwitcher } from "@/components/shared/locale-switcher";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { ButtonLink } from "@/components/shared/button";
+import { IconButton } from "@/components/shared/icon-button";
 import DefaultLogo from "../../../logo/Default.svg";
 
-import { Menu, Moon, Sun, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 type NavigationLink = {
   href: string;
@@ -19,56 +22,6 @@ function MenuIcon({ close = false }: { close?: boolean }) {
     <X aria-hidden="true" className="landing-icon" />
   ) : (
     <Menu aria-hidden="true" className="landing-icon" />
-  );
-}
-
-function ThemeIcon({ dark }: { dark: boolean }) {
-  return dark ? (
-    <Moon aria-hidden="true" className="landing-icon" />
-  ) : (
-    <Sun aria-hidden="true" className="landing-icon" />
-  );
-}
-
-function ThemeToggle({ locale }: { locale: Locale }) {
-  const [mounted, setMounted] = useState(false);
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line
-    setMounted(true);
-    const storedTheme = window.localStorage.getItem("aksa-theme");
-    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-    const nextIsDark = storedTheme === "dark" || (storedTheme === null && prefersDark);
-
-    document.documentElement.dataset.theme = nextIsDark ? "dark" : "light";
-    setIsDark(nextIsDark);
-  }, []);
-
-  function toggleTheme() {
-    const nextIsDark = !isDark;
-    setIsDark(nextIsDark);
-    document.documentElement.dataset.theme = nextIsDark ? "dark" : "light";
-    window.localStorage.setItem("aksa-theme", nextIsDark ? "dark" : "light");
-  }
-
-  const ariaLabel = !mounted
-    ? m.navigation_switch_to_dark({}, { locale })
-    : isDark
-      ? m.navigation_switch_to_light({}, { locale })
-      : m.navigation_switch_to_dark({}, { locale });
-
-  return (
-    <button
-      aria-label={ariaLabel}
-      className="landing-theme-control"
-      data-mobile-focusable="true"
-      onClick={toggleTheme}
-      title={ariaLabel}
-      type="button"
-    >
-      <ThemeIcon dark={mounted ? isDark : false} />
-    </button>
   );
 }
 
@@ -84,16 +37,15 @@ function NavigationLinks({ links, onNavigate }: { links: NavigationLink[]; onNav
   );
 }
 
-export function LandingNavigation({ locale }: { locale: Locale }) {
+export function MarketingHeader({ locale }: { locale: Locale }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const messageOptions = { locale };
   const links: NavigationLink[] = [
-    { href: "#product-preview", label: m.navigation_product({}, messageOptions) },
-    { href: "#product-preview", label: m.navigation_how_it_works({}, messageOptions) },
-    { href: "#product-preview", label: m.navigation_safety({}, messageOptions) },
-    { href: "#product-preview", label: m.navigation_accessibility({}, messageOptions) }
+    { href: "#features", label: m.navigation_features({}, messageOptions) },
+    { href: "#how-it-works", label: m.navigation_how_it_works({}, messageOptions) },
+    { href: "#faq", label: m.navigation_faq({}, messageOptions) }
   ];
 
   useEffect(() => {
@@ -147,7 +99,7 @@ export function LandingNavigation({ locale }: { locale: Locale }) {
   return (
     <header className="landing-navigation">
       <div className="landing-navigation__inner">
-        <a className="landing-navigation__brand" href="#hero">
+        <a className="landing-navigation__brand" href="#top">
           <Image
             alt={m.navigation_home_label({}, messageOptions)}
             height={32}
@@ -166,11 +118,11 @@ export function LandingNavigation({ locale }: { locale: Locale }) {
           <ThemeToggle locale={locale} />
         </div>
 
-        <a className="landing-button landing-button--nav" href="#product-preview">
+        <ButtonLink className="landing-navigation__cta" href="/sign-in" size="sm" variant="primary">
           {m.navigation_try_aksa({}, messageOptions)}
-        </a>
+        </ButtonLink>
 
-        <button
+        <IconButton
           aria-controls="mobile-navigation"
           aria-expanded={isMenuOpen}
           aria-label={
@@ -181,10 +133,9 @@ export function LandingNavigation({ locale }: { locale: Locale }) {
           className="landing-navigation__menu-button"
           onClick={() => setIsMenuOpen((open) => !open)}
           ref={menuButtonRef}
-          type="button"
         >
           <MenuIcon close={isMenuOpen} />
-        </button>
+        </IconButton>
       </div>
 
       {isMenuOpen ? (
@@ -197,16 +148,15 @@ export function LandingNavigation({ locale }: { locale: Locale }) {
         >
           <div className="landing-navigation__mobile-panel-header">
             <h2 id="mobile-navigation-title">{m.navigation_label({}, messageOptions)}</h2>
-            <button
+            <IconButton
               aria-label={m.navigation_close_menu({}, messageOptions)}
               className="landing-navigation__menu-button"
               data-mobile-focusable="true"
               onClick={closeMenu}
               ref={closeButtonRef}
-              type="button"
             >
               <MenuIcon close />
-            </button>
+            </IconButton>
           </div>
           <nav aria-label={m.navigation_label({}, messageOptions)} className="landing-navigation__mobile-links">
             <NavigationLinks links={links} onNavigate={closeMenu} />
@@ -215,11 +165,19 @@ export function LandingNavigation({ locale }: { locale: Locale }) {
             <LocaleSwitcher locale={locale} />
             <ThemeToggle locale={locale} />
           </div>
-          <a className="landing-button landing-button--primary landing-navigation__mobile-cta" href="#product-preview" onClick={closeMenu}>
+          <ButtonLink
+            className="landing-navigation__mobile-cta"
+            href="/sign-in"
+            onClick={closeMenu}
+            size="md"
+            variant="primary"
+          >
             {m.navigation_try_aksa({}, messageOptions)}
-          </a>
+          </ButtonLink>
         </div>
       ) : null}
     </header>
   );
 }
+
+export const LandingNavigation = MarketingHeader;
