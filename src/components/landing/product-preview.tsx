@@ -1,16 +1,14 @@
-import { Clock, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
+import { Button } from "@/components/shared/button";
+import { StatusChip } from "@/components/workspace/status-chip";
 
 function MicrophoneIcon() {
   return <Mic aria-hidden="true" className="landing-icon" />;
 }
 
-function StatusIcon() {
-  return <Clock aria-hidden="true" className="landing-icon" />;
-}
-
-export function ProductPreview({ locale }: { locale: Locale }) {
+export function ProductPreviewPanel({ locale }: { locale: Locale }) {
   const messageOptions = { locale };
 
   return (
@@ -31,19 +29,12 @@ export function ProductPreview({ locale }: { locale: Locale }) {
               {m.preview_assignment_title({}, messageOptions)}
             </h2>
           </div>
-          <div
-            aria-label={m.preview_status_label({}, messageOptions)}
+          <StatusChip
             className="landing-preview__task-status"
-            data-task-status="paused"
-          >
-            <span className="landing-preview__task-status-label">
-              {m.preview_status_label({}, messageOptions)}
-            </span>
-            <span className="landing-preview__task-status-value">
-              <StatusIcon />
-              {m.preview_status_paused({}, messageOptions)}
-            </span>
-          </div>
+            label={m.preview_status_label({}, messageOptions)}
+            tone="pending"
+            value={m.preview_status_paused({}, messageOptions)}
+          />
         </header>
 
         <div className="landing-preview__body">
@@ -67,16 +58,18 @@ export function ProductPreview({ locale }: { locale: Locale }) {
               <span className="landing-preview__message-mark" aria-hidden="true" />
               <p>{m.preview_status_message({}, messageOptions)}</p>
             </div>
-            <button
+            <Button
               aria-describedby="preview-voice-control-note"
               aria-label={m.preview_voice_control_label({}, messageOptions)}
-              className="landing-button landing-button--voice"
+              className="landing-preview__voice-control"
               disabled
               type="button"
+              variant="secondary"
+              size="md"
             >
               <MicrophoneIcon />
               <span>{m.preview_voice_control({}, messageOptions)}</span>
-            </button>
+            </Button>
             <span className="sr-only" id="preview-voice-control-note">
               {m.preview_voice_control_note({}, messageOptions)}
             </span>
@@ -90,3 +83,5 @@ export function ProductPreview({ locale }: { locale: Locale }) {
     </figure>
   );
 }
+
+export const ProductPreview = ProductPreviewPanel;
