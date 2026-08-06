@@ -131,7 +131,7 @@ This section absorbs the former separate color and typography document, which wa
 | `--color-aksa-electric` | `#47D2BC` | Primary action fill, active highlights |
 | `--color-aksa-cyan-soft` | `#86B5C4` | Secondary accent, soft border |
 | `--color-aksa-mint-soft` | `#C8F5ED` | Chip fill, selected surface |
-| `--color-aksa-teal-deep` | `#25A894` | Primary gradient end, strong accent |
+| `--color-aksa-teal-deep` | `#0E7C6B` | Primary gradient end, strong accent and accessible link text |
 | `--color-aksa-blue-accent` | `#4F8CF7` | Restrained gradient endpoint only |
 | `--color-aksa-charcoal` | `#1A1A1E` | Dark elevated surface |
 | `--color-aksa-dark-canvas` | `#121214` | Dark page canvas |
@@ -144,7 +144,7 @@ This section absorbs the former separate color and typography document, which wa
 | `--color-aksa-cloud` | `#FFFFFF` | `#1A1A1E` | Card and container |
 | `--color-aksa-ink` | `#0F172A` | `#F1F5F9` | Primary text |
 | `--color-aksa-muted` | `#64748B` | `#94A3B8` | Secondary text |
-| `--color-aksa-faint` | `#94A3B8` | `#64748B` | Placeholder and subtle control |
+| `--color-aksa-faint` | `#657080` | `#64748B` | Placeholder and subtle control |
 | `--color-aksa-line` | `#E2E8F0` | `#27272A` | Divider and border |
 | `--color-aksa-teal` | `#47D2BC` | `#47D2BC` | Brand and primary action |
 | `--color-aksa-teal-soft` | `#C8F5ED` | `rgba(71, 210, 188, 0.15)` | Selected surface |
@@ -296,6 +296,19 @@ Each section starts directly with a heading (H1 or H2), followed by one short de
 | Empty | Explains why empty and offers one next action |
 | Error | States failure, preserved progress, and recovery action; technical details stay out of default view |
 
+### 7.1 Local component implementation
+
+The current frontend maps this contract to reusable local components:
+
+| Component group | Source of truth |
+| --- | --- |
+| Button, IconButton, TextInput, FormField, Divider | `src/components/shared/` |
+| Marketing header, landing shell, product preview | `src/components/landing/` |
+| Auth split layout and visual panel | `src/components/auth/` |
+| Task status chip | Existing `src/components/workspace/status-chip.tsx` |
+
+Shared buttons own the canonical variant, size, loading, focus, and disabled states. Buttons and inputs use `radius-md`; cards use `radius-lg`; major surfaces use `radius-xl`. Primary buttons maintain luminous vibrant teal (`#52e0ca` / `#47d2bc`) on hover with dark text (`#0f172a`) and elevated teal glow (`0 6px 20px rgba(71, 210, 188, 0.4)`); never darken primary teal buttons to dark green/deep teal (`#0e7c6b`) on hover. Secondary buttons use a crisp border highlight on hover (`border-color: --color-aksa-teal` with a 1 px teal ring `box-shadow: 0 0 0 1px var(--color-aksa-teal)`) while preserving surface background (`--color-aksa-cloud`) and primary text (`--color-aksa-ink`). Form fields keep visible labels and expose description and error relationships through stable IDs. Layout components own page spacing and responsive order, while page components provide route content and data.
+
 Disabled controls must explain prerequisites nearby. Prefer read-only or hidden unavailable actions when disabling would confuse.
 
 ## 8. Agent States
@@ -403,7 +416,7 @@ The landing page explains Aksa in under one viewport, then proves control and sa
 | Element | Specification |
 | --- | --- |
 | Brand | Existing Aksa wordmark, links home |
-| Links | Product, How it works, Safety, Accessibility |
+| Links | Features, How It Works, FAQ |
 | Utility | Language and theme controls |
 | Primary action | `Try Aksa` |
 | Mobile | Brand, primary action, menu button; menu opens a labeled dialog |
@@ -426,7 +439,7 @@ Keep the headline to two lines maximum on desktop. The hero copy has a maximum w
 
 Description:
 
-> A hands-free AI workspace for documents, files, and sheets.
+> A hands-free AI workspace for documents, files, sheets, and web research.
 
 Actions:
 
@@ -453,25 +466,21 @@ Use three cards with one visual, one heading, and one sentence each:
 
 | Card | Copy | Visual intent |
 | --- | --- | --- |
-| Move less | `Control Aksa with face movement, dwell, or voice.` | Calm nature texture with accessible control cue |
-| Ask naturally | `Describe the result by voice or text.` | Compact command and transcript preview |
-| Stay in control | `Review changes, cancel work, or use Undo.` | Confirmation and recovery preview |
+| Move less | `Control Aksa with head movement, dwell, voice, keyboard, or mouse.` | Accessible input cue |
+| Ask naturally | `Describe the result by voice or text instead of navigating every step.` | Command and transcript cue |
+| Stay in control | `Review important changes, cancel running work, and use Undo when supported.` | Confirmation and recovery cue |
 
 Desktop uses three equal columns. Mobile stacks them. Keep visual heights consistent without cropping meaningful UI.
 
 ### 10.4 Product demonstration
 
-Demonstrate one continuous story:
+Pair the illustrative assignment preview with a controlled three-step story:
 
-1. Open the latest school assignment.
-2. Show `You stopped at Testing.`
-3. Continue through voice.
-4. Organize the related files.
-5. Show `Move 12 files?`
-6. Confirm the change.
-7. Show verified completion and `Undo available.`
+1. Point with head movement or use the keyboard, then select with dwell.
+2. State the task by voice or text, with an editable transcript and bounded scope.
+3. Review important changes, confirm deliberately, and see verified results with cancellation or Undo when supported.
 
-The demo may be interactive or a controlled sequence. It must expose captions, keyboard controls, pause, and replay. A prerecorded visual needs an equivalent text summary.
+The controlled demo exposes keyboard-operable step selection, pause, replay, status text, and an equivalent text summary. It does not request camera permission on the marketing page.
 
 ### 10.5 How it works
 
@@ -483,36 +492,35 @@ The demo may be interactive or a controlled sequence. It must expose captions, k
 
 Use a horizontal sequence on desktop and a vertical numbered list on mobile. The reading and tab order always remains 1, 2, 3.
 
-### 10.6 Safety and control
+### 10.6 Accessibility and control
 
-Headline: `Important actions wait for you.`
+Headline: `Built for accessible control.`
 
-Show three concrete behaviors:
+Show three concrete behavior groups:
 
-- Preview scope before changes.
-- Cancel while work is running.
-- Undo supported actions after completion.
+- Optional head movement, dwell selection, editable voice transcripts, keyboard, mouse, and text fallback.
+- Visible focus, reduced-motion support, separate camera and microphone permissions, and skippable camera-dependent features.
+- Browser-side camera landmark processing, no raw frame storage or transmission for control, immediate dwell pause on tracking loss, and separate confirmation for consequential actions.
 
-Use a real confirmation component. Do not use fear-based security copy or unsupported privacy claims.
+Use calm, factual boundaries. Do not use fear-based security copy or unsupported universal claims.
 
 ### 10.7 Final CTA
 
 - Headline: `Start with one task.`
-- Description: `Use voice, text, face control, keyboard, or mouse.`
+- Description: `Use voice, text, head control, keyboard, or mouse.`
 - Action: `Try Aksa`
 
 Keep this section compact. Do not repeat feature lists.
 
 ### 10.8 Minimal footer
 
-Include Aksa wordmark, Product, Accessibility, Privacy, Terms, language, theme, and competition attribution if approved. Do not add a newsletter or oversized link grid.
+Include the Aksa wordmark, Features, How It Works, FAQ, Accessibility, Safety, Privacy, Terms, language, and theme. Keep unresolved legal destinations visibly non-interactive until approved. Do not add a newsletter or oversized link grid.
 
 Open questions:
 
-- Final destination for `Try Aksa`
 - Approved privacy and terms pages
+- Approved Safety destination
 - Competition attribution wording
-- Whether the demo is interactive, prerecorded, or both
 
 ### Landing acceptance criteria
 
