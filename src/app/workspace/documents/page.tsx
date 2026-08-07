@@ -1,43 +1,21 @@
-import Link from "next/link";
-import { m } from "@/paraglide/messages.js";
+import { Suspense } from "react";
 import { getRequestLocale } from "@/lib/i18n/request";
-import { googleGateway } from "@/lib/server/google/service";
-import { SurfaceHeader } from "@/components/workspace/surface-layout";
-import { SurfaceState } from "@/components/workspace/state-panel";
-import { DocumentSurface } from "@/components/workspace/document-surface";
+import { DocumentsClient } from "@/components/workspace/documents-client";
 
-export default async function DocumentsPage(props: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+/**
+ * Documents workspace page.
+ *
+ * The PoC version uses a client component for the full document surface,
+ * since it needs interactivity for Google Picker, editing, and save flow.
+ * The server component provides locale and wraps in Suspense for
+ * useSearchParams compatibility.
+ */
+export default async function DocumentsPage() {
   const locale = await getRequestLocale();
-  const searchParams = await props.searchParams;
-  const documentId = typeof searchParams.id === "string" ? searchParams.id : null;
-  const tabId = typeof searchParams.tab === "string" ? searchParams.tab : null;
-  const options = { locale };
-
-  const state = await googleGateway().readDocument(documentId ?? "", tabId);
-
-  const emptyActions = (
-    <>
-      <Link className="aksa-button aksa-button--secondary" href="/workspace/files">
-        {m.documents_action_find({}, options)}
-      </Link>
-      <Link className="aksa-button aksa-button--quiet" href="/workspace/files">
-        {m.documents_action_open_drive({}, options)}
-      </Link>
-    </>
-  );
 
   return (
-    <div className="aksa-surface">
-      <SurfaceHeader
-        heading={m.documents_heading({}, options)}
-        intro={m.documents_intro({}, options)}
-      />
-
-      <SurfaceState emptyActions={emptyActions} locale={locale} state={state}>
-        {(document) => <DocumentSurface document={document} locale={locale} />}
-      </SurfaceState>
-    </div>
+    <Suspense fallback={<div className="aksa-state-panel" data-tone="pending" role="status"><p className="aksa-state-panel__body">Loading...</p></div>}>
+      <DocumentsClient locale={locale} />
+    </Suspense>
   );
 }

@@ -1,84 +1,57 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
-import type { DocumentBlock, DocumentResource } from "@/lib/contracts/google";
+import type { AksaDocumentModel } from "@/lib/contracts/aksa-document";
+import { blocksToTiptapHtml } from "@/lib/client/editor/blocks-to-tiptap";
 import { StatusChip } from "@/components/workspace/status-chip";
 
 /**
- * Aksa document work surface.
+ * Aksa document work surface (PoC version).
  *
- * An original Aksa surface built on the installed Tiptap packages. It renders the
- * normalized blocks it receives, stays read only until editing is deliberately
- * started, and never applies an edit without a review step.
- *
- * Google Docs supports document tabs, so the tab selector is part of the contract
- * rather than an assumption that a document has one body.
+ * Renders a real Google Docs document in TipTap, supports direct editing with
+ * structured save-to-Google and conflict detection.
  */
-function blocksToHtml(blocks: DocumentBlock[]): string {
-  return blocks
-    .map((block) => {
-      switch (block.type) {
-        case "heading":
-          return `<h${block.level}>${escapeHtml(block.text)}</h${block.level}>`;
-        case "paragraph":
-          return `<p>${escapeHtml(block.text)}</p>`;
-        case "bullet_list":
-          return `<ul>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
-        case "ordered_list":
-          return `<ol>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`;
-      }
-    })
-    .join("");
-}
 
-/**
- * Document content is untrusted data. Escaping before it reaches the editor keeps
- * markup from a document inert.
- */
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+type SaveState = "saved" | "unsaved" | "saving" | "conflict" | "error";
 
 export function DocumentSurface({
   document,
   locale,
-  onReviewEdit
 }: {
-  document: DocumentResource;
+  document: AksaDocumentModel;
   locale: Locale;
-  /** Provided once a reviewed write path exists. Absent means editing cannot be sent. */
-  onReviewEdit?: (blocks: DocumentBlock[]) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [activeTabId, setActiveTabId] = useState(document.activeTabId);
-  /**
-   * Read through a ref inside the editor callback, because loading the document
-   * content also fires an update and must not count as an unsaved change.
-   */
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
   const editingRef = useRef(false);
+  const currentRevisionRef = useRef(document.revisionId);
+  const originalHtmlRef = useRef("");
   const options = { locale };
 
-  const html = useMemo(() => blocksToHtml(document.blocks), [document.blocks]);
+  const html = useMemo(() => blocksToTiptapHtml(document.blocks), [document.blocks]);
+
+  useEffect(() => {
+    originalHtmlRef.current = html;
+    currentRevisionRef.current = document.revisionId;
+  }, [html, document.revisionId]);
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Underline,
+    ],
     content: html,
     editable: false,
-    /** Required for server rendering with Tiptap 3. */
     immediatelyRender: false,
     onUpdate: () => {
       if (editingRef.current) {
-        setDirty(true);
+        setSaveState("unsaved");
       }
     },
     editorProps: {
@@ -96,74 +69,283 @@ export function DocumentSurface({
     editor?.setEditable(editing);
   }, [editing, editor]);
 
-  const canEdit = document.canEdit && onReviewEdit !== undefined;
+  const handleStartEditing = useCallback(() => {
+    if (!document.canEdit) return;
+    setEditing(true);
+    setSaveState("saved");
+    setConflictMessage(null);
+  }, [document.canEdit]);
+
+  const handleCancelEditing = useCallback(() => {
+    setEditing(false);
+    setSaveState("saved");
+    setConflictMessage(null);
+    /** Restore original content. */
+    editor?.commands.setContent(originalHtmlRef.current);
+  }, [editor]);
+
+  const handleSave = useCallback(async () => {
+    if (!editor || saveState !== "unsaved") return;
+
+    setSaveState("saving");
+    setConflictMessage(null);
+
+    try {
+      /** Extract plain text for a basic replaceText operation. */
+      const currentText = editor.getText();
+      const originalText = document.blocks.map((b) => b.plainText).join("\n");
+
+      if (currentText === originalText) {
+        setSaveState("saved");
+        return;
+      }
+
+      /**
+       * Build a replace operation for the full document body.
+       * This is a simplified approach for the PoC. Pass 3 will implement
+       * per-block granular edit tracking.
+       */
+      const bodyStart = document.blocks.length > 0 ? document.blocks[0].sourceStartIndex : 1;
+      const bodyEnd = document.blocks.length > 0
+        ? document.blocks[document.blocks.length - 1].sourceEndIndex
+        : 1;
+
+      const response = await fetch(`/api/google/docs/${document.id}/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operations: [
+            {
+              type: "replaceText",
+              startIndex: bodyStart,
+              endIndex: bodyEnd - 1, /** Exclude trailing newline. */
+              newText: currentText
+            }
+          ],
+          requiredRevisionId: currentRevisionRef.current
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.outcome === "completed" && result.document) {
+        /** Update with the verified document from the re-read. */
+        currentRevisionRef.current = result.document.revisionId;
+        const newHtml = blocksToTiptapHtml(result.document.blocks);
+        originalHtmlRef.current = newHtml;
+        editor.commands.setContent(newHtml);
+        setEditing(false);
+        setSaveState("saved");
+      } else if (result.outcome === "conflict") {
+        setSaveState("conflict");
+        setConflictMessage("Document was modified externally. Reload to see the latest version.");
+      } else {
+        setSaveState("error");
+        setConflictMessage(result.error?.category ?? "Save failed");
+      }
+    } catch {
+      setSaveState("error");
+      setConflictMessage("Network error. Check your connection and retry.");
+    }
+  }, [editor, saveState, document]);
+
+  const handleReload = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/google/docs/${document.id}`);
+      const result = await response.json();
+
+      if (result.status === "ready" && result.data) {
+        const newDoc = result.data as AksaDocumentModel;
+        currentRevisionRef.current = newDoc.revisionId;
+        const newHtml = blocksToTiptapHtml(newDoc.blocks);
+        originalHtmlRef.current = newHtml;
+        editor?.commands.setContent(newHtml);
+        setEditing(false);
+        setSaveState("saved");
+        setConflictMessage(null);
+      }
+    } catch {
+      setConflictMessage("Failed to reload document.");
+    }
+  }, [document.id, editor]);
+
+  const saveTone = saveState === "saved" ? "ready" as const
+    : saveState === "unsaved" ? "attention" as const
+    : saveState === "saving" ? "pending" as const
+    : "blocked" as const;
+
+  const saveLabel = saveState === "saved" ? m.documents_saved({}, options)
+    : saveState === "unsaved" ? m.documents_unsaved({}, options)
+    : saveState === "saving" ? "Saving..."
+    : saveState === "conflict" ? "Conflict"
+    : "Error";
 
   return (
     <div className="aksa-document">
-      <div className="aksa-document__meta">
-        <StatusChip
-          label={m.documents_source_label({}, options)}
-          tone={document.sourceSystem === "google_docs" ? "info" : "neutral"}
-          value={
-            document.sourceSystem === "google_docs"
-              ? m.documents_source_google({}, options)
-              : m.documents_source_illustrative({}, options)
-          }
-        />
-        <StatusChip
-          label={m.documents_mode_label({}, options)}
-          tone={editing ? "attention" : "neutral"}
-          value={editing ? m.documents_mode_edit({}, options) : m.documents_mode_read({}, options)}
-        />
-        <StatusChip
-          tone={dirty ? "attention" : "ready"}
-          value={dirty ? m.documents_unsaved({}, options) : m.documents_saved({}, options)}
-        />
+      {/* Title bar */}
+      <div className="aksa-doc-titlebar">
+        <h3 className="aksa-document__title">{document.title}</h3>
+        <div className="aksa-doc-titlebar__status">
+          <StatusChip
+            label={m.documents_source_label({}, options)}
+            tone={document.sourceSystem === "google_docs" ? "info" : "neutral"}
+            value={
+              document.sourceSystem === "google_docs"
+                ? m.documents_source_google({}, options)
+                : m.documents_source_illustrative({}, options)
+            }
+          />
+          <StatusChip
+            label={m.documents_mode_label({}, options)}
+            tone={editing ? "attention" : "neutral"}
+            value={editing ? m.documents_mode_edit({}, options) : m.documents_mode_read({}, options)}
+          />
+          <StatusChip tone={saveTone} value={saveLabel} />
+        </div>
       </div>
 
-      <h3 className="aksa-document__title">{document.title}</h3>
-
-      {document.tabs.length > 1 ? (
-        <div className="aksa-field">
-          <label className="aksa-label" htmlFor="document-tab">
-            {m.documents_tab_label({}, options)}
-          </label>
-          <select
-            className="aksa-select"
-            id="document-tab"
-            onChange={(event) => setActiveTabId(event.target.value)}
-            value={activeTabId}
+      {/* Formatting toolbar (visible in edit mode) */}
+      {editing ? (
+        <div className="aksa-doc-toolbar" role="toolbar" aria-label="Formatting">
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("bold") ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+            title="Bold"
+            type="button"
           >
-            {document.tabs.map((tab) => (
-              <option key={tab.id} value={tab.id}>
-                {tab.title}
-              </option>
-            ))}
-          </select>
+            <strong>B</strong>
+          </button>
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("italic") ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+            title="Italic"
+            type="button"
+          >
+            <em>I</em>
+          </button>
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("underline") ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            title="Underline"
+            type="button"
+          >
+            <u>U</u>
+          </button>
+          <span className="aksa-toolbar-divider" aria-hidden="true" />
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("heading", { level: 1 }) ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+            title="Heading 1"
+            type="button"
+          >
+            H1
+          </button>
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("heading", { level: 2 }) ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+            title="Heading 2"
+            type="button"
+          >
+            H2
+          </button>
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("heading", { level: 3 }) ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+            title="Heading 3"
+            type="button"
+          >
+            H3
+          </button>
+          <span className="aksa-toolbar-divider" aria-hidden="true" />
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("bulletList") ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            title="Bullet list"
+            type="button"
+          >
+            &bull;
+          </button>
+          <button
+            className={`aksa-toolbar-btn ${editor?.isActive("orderedList") ? "aksa-toolbar-btn--active" : ""}`}
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            title="Numbered list"
+            type="button"
+          >
+            1.
+          </button>
         </div>
       ) : null}
 
+      {/* Editor canvas */}
       <div className="aksa-editor">
         <EditorContent editor={editor} />
       </div>
 
+      {/* Conflict resolution */}
+      {conflictMessage ? (
+        <div className="aksa-doc-conflict" role="alert">
+          <p className="aksa-doc-conflict__message">{conflictMessage}</p>
+          <div className="aksa-doc-conflict__actions">
+            <button
+              className="aksa-button aksa-button--secondary"
+              onClick={handleReload}
+              type="button"
+            >
+              Reload document
+            </button>
+            <button
+              className="aksa-button aksa-button--quiet"
+              onClick={() => {
+                if (editor) {
+                  navigator.clipboard?.writeText(editor.getText());
+                }
+              }}
+              type="button"
+            >
+              Copy my text
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Action bar */}
       <div className="aksa-document__actions">
-        <button
-          className="aksa-button aksa-button--secondary"
-          disabled={!canEdit}
-          onClick={() => setEditing((previous) => !previous)}
-          type="button"
+        {!editing ? (
+          <button
+            className="aksa-button aksa-button--secondary"
+            disabled={!document.canEdit}
+            onClick={handleStartEditing}
+            type="button"
+          >
+            {m.documents_enable_edit({}, options)}
+          </button>
+        ) : (
+          <>
+            <button
+              className="aksa-button aksa-button--quiet"
+              onClick={handleCancelEditing}
+              type="button"
+            >
+              {m.documents_cancel_edit({}, options)}
+            </button>
+            <button
+              className="aksa-button aksa-button--primary"
+              disabled={saveState !== "unsaved"}
+              onClick={handleSave}
+              type="button"
+            >
+              {saveState === "saving" ? "Saving..." : "Save to Google Docs"}
+            </button>
+          </>
+        )}
+        <a
+          className="aksa-button aksa-button--quiet"
+          href={`https://docs.google.com/document/d/${document.id}/edit`}
+          rel="noopener noreferrer"
+          target="_blank"
         >
-          {editing ? m.documents_cancel_edit({}, options) : m.documents_enable_edit({}, options)}
-        </button>
-        <button
-          className="aksa-button aksa-button--primary"
-          disabled={!canEdit || !dirty}
-          onClick={() => onReviewEdit?.(document.blocks)}
-          type="button"
-        >
-          {m.documents_review_edit({}, options)}
-        </button>
+          Open in Google Docs
+        </a>
       </div>
 
       <p className="aksa-hint">{m.documents_write_note({}, options)}</p>

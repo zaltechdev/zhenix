@@ -4,13 +4,13 @@ import { m } from "@/paraglide/messages.js";
 import { createAksaError } from "@/lib/contracts/errors";
 import type { ResourceState } from "@/lib/contracts/resource-state";
 import type {
-  DocumentResource,
   DriveListing,
   MailInbox,
   SheetRange
 } from "@/lib/contracts/google";
 import type { Artifact } from "@/lib/contracts/search";
 import type { ActivityEvent } from "@/lib/contracts/activity";
+import type { AksaDocumentModel } from "@/lib/contracts/aksa-document";
 import { undoRecordSchema } from "@/lib/contracts/undo";
 import { SurfaceState } from "@/components/workspace/state-panel";
 import { FilesSurface } from "@/components/workspace/files-surface";
@@ -319,17 +319,38 @@ describe("mail surface", () => {
 });
 
 describe("document surface", () => {
-  const document: DocumentResource = {
+  const document: AksaDocumentModel = {
     id: "doc-1",
     title: "Programming Assignment 04",
-    tabs: [
-      { id: "tab-1", title: "Body" },
-      { id: "tab-2", title: "Appendix" }
-    ],
-    activeTabId: "tab-1",
     blocks: [
-      { type: "heading", level: 2, text: "Testing" },
-      { type: "paragraph", text: "Run the suite before submitting." }
+      {
+        id: "block-1",
+        type: "heading",
+        textRuns: [{ text: "Testing", bold: false, italic: false, underline: false, strikethrough: false, link: null, startIndex: 1, endIndex: 9 }],
+        plainText: "Testing",
+        headingLevel: 2,
+        alignment: null,
+        listId: null,
+        nestingLevel: null,
+        ordered: null,
+        sourceStartIndex: 1,
+        sourceEndIndex: 9,
+        readOnly: false
+      },
+      {
+        id: "block-2",
+        type: "paragraph",
+        textRuns: [{ text: "Run the suite before submitting.", bold: false, italic: false, underline: false, strikethrough: false, link: null, startIndex: 10, endIndex: 41 }],
+        plainText: "Run the suite before submitting.",
+        headingLevel: null,
+        alignment: null,
+        listId: null,
+        nestingLevel: null,
+        ordered: null,
+        sourceStartIndex: 10,
+        sourceEndIndex: 41,
+        readOnly: false
+      }
     ],
     revisionId: "rev-1",
     canEdit: true,
@@ -345,21 +366,11 @@ describe("document surface", () => {
     expect(screen.getByText(m.documents_saved({}, { locale: "en" }))).toBeInTheDocument();
   });
 
-  it("offers a tab selector, because a document can have more than one body", () => {
-    render(<DocumentSurface document={document} locale="en" />);
-
-    const select = screen.getByLabelText(m.documents_tab_label({}, { locale: "en" }));
-    expect(within(select).getByRole("option", { name: "Appendix" })).toBeInTheDocument();
-  });
-
-  it("cannot start editing when no reviewed write path exists", () => {
-    render(<DocumentSurface document={document} locale="en" />);
+  it("cannot start editing when canEdit is false", () => {
+    render(<DocumentSurface document={{ ...document, canEdit: false }} locale="en" />);
 
     expect(
       screen.getByRole("button", { name: m.documents_enable_edit({}, { locale: "en" }) })
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: m.documents_review_edit({}, { locale: "en" }) })
     ).toBeDisabled();
   });
 

@@ -96,7 +96,13 @@ test.describe("workspace shell", () => {
       await expect(page.getByRole("main")).toBeVisible();
       /** The composer is present on every workspace route. */
       await expect(page.locator("#command-composer")).toBeVisible();
-      await expect(page.getByText("Not signed in").or(page.getByText("Accounts not configured")).first()).toBeVisible();
+      await expect(
+        page.getByText("Not signed in")
+          .or(page.getByText("Accounts not configured"))
+          .or(page.getByText("Connect Google"))
+          .or(page.getByText("Google OAuth is not configured"))
+          .first()
+      ).toBeVisible();
     }
   });
 
