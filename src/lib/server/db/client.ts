@@ -301,6 +301,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 let initialized = false;
 
+function isLocalFileSqlite(url: string): boolean {
+  return url.startsWith("file:") || url.includes(":memory:");
+}
+
 function createDbClient() {
   const url = process.env.TURSO_DATABASE_URL || "file:aksa.db";
   const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -310,11 +314,13 @@ function createDbClient() {
     authToken: authToken && !authToken.startsWith("replace-with") ? authToken : undefined
   });
 
-  if (!initialized) {
+  // Never run runtime table creation in production or against remote Turso databases.
+  // Drizzle migrations are authoritative for production deployments.
+  if (!initialized && process.env.NODE_ENV !== "production" && isLocalFileSqlite(url)) {
     initialized = true;
     try {
       client.executeMultiple(INIT_SQL).catch(() => {
-        /* Best effort sync for local/test sqlite */
+        /* Best effort sync for local file SQLite in development/test mode */
       });
     } catch {
       /* Best effort */
