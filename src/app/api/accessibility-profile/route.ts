@@ -7,10 +7,18 @@ import { createAksaError } from "@/lib/contracts/errors";
 import { authGateway } from "@/lib/server/auth/service";
 
 /**
- * Accessibility profile boundary.
- *
- * Ownership is derived from the session inside the gateway. No user identifier is
- * accepted from the request body, so a client-supplied identifier cannot be used.
+ * GET current user's accessibility profile.
+ */
+export async function GET(): Promise<NextResponse> {
+  const profile = await authGateway().readAccessibilityProfile();
+  if (!profile) {
+    return NextResponse.json({ profile: null }, { status: 200 });
+  }
+  return NextResponse.json({ profile }, { status: 200 });
+}
+
+/**
+ * Save/update current user's accessibility profile.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   let payload: unknown;
