@@ -3157,3 +3157,80 @@
   flex-direction: column;
   gap: var(--space-1);
 }
+
+/* Aksa Overlay Pointer */
+.aksa-pointer-overlay {
+  position: fixed;
+  top: -18px;
+  left: -18px;
+  width: 36px;
+  height: 36px;
+  pointer-events: none;
+  z-index: 99999;
+  will-change: transform;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aksa-pointer-overlay__outer {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--color-aksa-teal-deep);
+  background: rgba(14, 124, 107, 0.15);
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.aksa-pointer-overlay__dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-aksa-teal-deep);
+}
+
+.aksa-pointer-overlay--target .aksa-pointer-overlay__outer {
+  transform: scale(1.25);
+  border-color: var(--color-aksa-blue-accent);
+  background: rgba(79, 140, 247, 0.2);
+}
+
+.aksa-pointer-overlay--lost .aksa-pointer-overlay__outer {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.aksa-pointer-overlay__progress-ring {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  transform: rotate(-90deg);
+}
+
+.aksa-pointer-overlay__progress-bg {
+  fill: none;
+  stroke: rgba(14, 124, 107, 0.2);
+  stroke-width: 3;
+}
+
+.aksa-pointer-overlay__progress-bar {
+  fill: none;
+  stroke: var(--color-aksa-blue-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.aksa-pointer-overlay__reduced-progress {
+  position: absolute;
+  top: 40px;
+  background: var(--color-aksa-charcoal);
+  color: var(--color-aksa-cloud);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
