@@ -32,7 +32,9 @@ export class GestureDetector {
   private gestureType: GestureType | null = null;
   private thresholdNormalized = 0.5; // 0.0 to 1.0
   private cooldownMs = 600;
-  private isAboveThresholdLastFrame = false;
+  private minHoldDurationMs = 0; // 350ms for eye_blink_long, 0ms for instant gestures
+  private aboveThresholdStartTime = 0;
+  private triggeredThisHoldCycle = false;
   private lastTriggerTime = 0;
   private onActivate?: (target: HTMLElement) => void;
 
@@ -43,6 +45,7 @@ export class GestureDetector {
   public updateConfig(options: Partial<GestureDetectorOptions>): void {
     if (options.gestureType !== undefined) {
       this.gestureType = options.gestureType;
+      this.minHoldDurationMs = options.gestureType === "eye_blink_long" ? 350 : 0;
     }
     if (options.threshold !== undefined) {
       // Map 0..100 integer to 0.15..0.85 normalized score
@@ -57,7 +60,8 @@ export class GestureDetector {
   }
 
   public reset(): void {
-    this.isAboveThresholdLastFrame = false;
+    this.aboveThresholdStartTime = 0;
+    this.triggeredThisHoldCycle = false;
     this.lastTriggerTime = 0;
   }
 
@@ -130,32 +134,47 @@ export class GestureDetector {
 
     let isTriggered = false;
 
-    // Rising-edge trigger condition:
-    // 1. Current frame score is above threshold
-    // 2. Previous frame score was BELOW threshold (not a continuous hold)
-    // 3. Cooldown has elapsed
-    if (isAboveThreshold && !this.isAboveThresholdLastFrame && !inCooldown) {
-      if (
-        target &&
-        !target.hasAttribute("disabled") &&
-        target.getAttribute("aria-disabled") !== "true"
-      ) {
-        isTriggered = true;
-        this.lastTriggerTime = nowMs;
+    if (isAboveThreshold) {
+      if (this.aboveThresholdStartTime === 0) {
+        this.aboveThresholdStartTime = nowMs;
+      }
 
-        try {
-          if (this.onActivate) {
-            this.onActivate(target);
-          } else {
-            target.click();
+      const holdDuration = nowMs - this.aboveThresholdStartTime;
+
+      // Activation requirement:
+      // 1. Held above threshold for at least minHoldDurationMs
+      // 2. Has NOT already triggered in this hold cycle
+      // 3. Cooldown has elapsed
+      if (
+        holdDuration >= this.minHoldDurationMs &&
+        !this.triggeredThisHoldCycle &&
+        !inCooldown
+      ) {
+        if (
+          target &&
+          !target.hasAttribute("disabled") &&
+          target.getAttribute("aria-disabled") !== "true"
+        ) {
+          isTriggered = true;
+          this.triggeredThisHoldCycle = true;
+          this.lastTriggerTime = nowMs;
+
+          try {
+            if (this.onActivate) {
+              this.onActivate(target);
+            } else {
+              target.click();
+            }
+          } catch {
+            // Ignore DOM dispatch errors
           }
-        } catch {
-          // Ignore DOM dispatch errors
         }
       }
+    } else {
+      // Released below threshold -> reset hold cycle state
+      this.aboveThresholdStartTime = 0;
+      this.triggeredThisHoldCycle = false;
     }
-
-    this.isAboveThresholdLastFrame = isAboveThreshold;
 
     return {
       gestureType: this.gestureType,

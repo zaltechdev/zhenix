@@ -21,6 +21,9 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 
 
+import { Pause, Play } from "lucide-react";
+import { useHeadControl } from "@/lib/client/vision/head-control-context";
+
 export function WorkspaceHeader({
   locale,
   session,
@@ -37,6 +40,11 @@ export function WorkspaceHeader({
   const isAuthenticated = session?.status === "authenticated";
   const isGoogleConnected = connection.state === "connected";
   const title = navigationLabelForPath(pathname, locale);
+  const headControl = useHeadControl();
+  const showHeadControlToggle =
+    headControl.lifecycleState === "active" ||
+    headControl.lifecycleState === "tracking_lost" ||
+    headControl.lifecycleState === "paused";
 
   return (
     <header aria-label={m.workspace_header_label({}, options)} className="aksa-header">
@@ -54,6 +62,27 @@ export function WorkspaceHeader({
       </div>
 
       <div className="aksa-header__actions">
+        {showHeadControlToggle ? (
+          <button
+            aria-label={headControl.isPaused ? "Resume head control" : "Pause head control"}
+            className="aksa-button aksa-button--quiet aksa-button--sm"
+            onClick={() => (headControl.isPaused ? headControl.resumeControl() : headControl.pauseControl())}
+            type="button"
+          >
+            {headControl.isPaused ? (
+              <>
+                <Play aria-hidden="true" className="aksa-icon" size={16} />
+                <span>Resume</span>
+              </>
+            ) : (
+              <>
+                <Pause aria-hidden="true" className="aksa-icon" size={16} />
+                <span>Pause</span>
+              </>
+            )}
+          </button>
+        ) : null}
+
         {!isAuthenticated ? (
           <Link className="aksa-button aksa-button--secondary aksa-button--sm" href="/sign-in">
             {m.action_sign_in({}, options)}

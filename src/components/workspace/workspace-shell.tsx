@@ -28,6 +28,8 @@ const WORK_SURFACES = [
   "/workspace/slides"
 ];
 
+import { HeadControlProvider } from "@/lib/client/vision/head-control-context";
+
 export function WorkspaceShell({
   locale,
   session,
@@ -50,6 +52,8 @@ export function WorkspaceShell({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const options = { locale };
+
+  const userId = session.status === "authenticated" ? session.session.userId : null;
 
   const openDrawer = useCallback(() => {
     triggerRef.current = document.activeElement;
@@ -107,8 +111,9 @@ export function WorkspaceShell({
   }, [closeDrawer, drawerOpen]);
 
   return (
-    <CommandProvider>
-      <div className="aksa-shell" data-drawer-open={drawerOpen}>
+    <HeadControlProvider userId={userId}>
+      <CommandProvider>
+        <div className="aksa-shell" data-drawer-open={drawerOpen}>
         <a className="aksa-skip-link" href="#main-content">
           {m.skip_to_content({}, options)}
         </a>
@@ -175,5 +180,6 @@ export function WorkspaceShell({
         </div>
       </div>
     </CommandProvider>
+  </HeadControlProvider>
   );
 }

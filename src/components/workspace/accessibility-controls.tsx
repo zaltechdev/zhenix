@@ -15,6 +15,8 @@ import { createAksaError } from "@/lib/contracts/errors";
 import { BlockedState } from "@/components/workspace/state-panel";
 import { setCachedProfile } from "@/lib/client/vision/profile-cache";
 
+import { useHeadControl } from "@/lib/client/vision/head-control-context";
+
 /**
  * Pointer and selection controls.
  *
@@ -29,20 +31,25 @@ export function AccessibilityControls({
   locale: Locale;
   initialProfile: AccessibilityProfile | null;
 }) {
+  const headControl = useHeadControl();
   const [profile, setProfile] = useState<AccessibilityProfile>(
-    initialProfile ?? provisionalAccessibilityProfile
+    initialProfile ?? headControl.profile ?? provisionalAccessibilityProfile
   );
   const [result, setResult] = useState<AccessibilityProfileSaveResult | null>(null);
   const [saving, setSaving] = useState(false);
   const options = { locale };
 
-  const update = useCallback(<TKey extends keyof AccessibilityProfile>(
-    key: TKey,
-    value: AccessibilityProfile[TKey]
-  ) => {
-    setProfile((previous) => ({ ...previous, [key]: value }));
-    setResult(null);
-  }, []);
+  const update = useCallback(
+    <TKey extends keyof AccessibilityProfile>(key: TKey, value: AccessibilityProfile[TKey]) => {
+      setProfile((previous) => {
+        const updated = { ...previous, [key]: value };
+        headControl.updateProfile(updated);
+        return updated;
+      });
+      setResult(null);
+    },
+    [headControl]
+  );
 
   const save = useCallback(async () => {
     const parsed = accessibilityProfileSchema.safeParse(profile);
@@ -189,7 +196,7 @@ export function AccessibilityControls({
           <>
             <div className="aksa-field">
               <label className="aksa-label" htmlFor="gesture-type">
-                Gesture Type
+                {m.onboarding_gesture_type_label({}, options)}
               </label>
               <select
                 className="aksa-select"
@@ -202,16 +209,16 @@ export function AccessibilityControls({
                 }
                 value={profile.gestureType ?? "mouth_open"}
               >
-                <option value="mouth_open">Mouth Open</option>
-                <option value="brow_raise">Eyebrow Raise</option>
-                <option value="eye_blink_long">Long Blink</option>
-                <option value="smile">Smile</option>
+                <option value="mouth_open">{m.onboarding_gesture_mouth_open({}, options)}</option>
+                <option value="brow_raise">{m.onboarding_gesture_brow_raise({}, options)}</option>
+                <option value="eye_blink_long">{m.onboarding_gesture_eye_blink_long({}, options)}</option>
+                <option value="smile">{m.onboarding_gesture_smile({}, options)}</option>
               </select>
             </div>
 
             <div className="aksa-field">
               <label className="aksa-label" htmlFor="gesture-threshold">
-                Gesture Sensitivity Threshold
+                {m.onboarding_gesture_threshold_label({}, options)}
               </label>
               <div className="aksa-field--row">
                 <input
@@ -254,6 +261,7 @@ export function AccessibilityControls({
           className="aksa-button aksa-button--quiet"
           onClick={() => {
             setProfile(provisionalAccessibilityProfile);
+            headControl.updateProfile(provisionalAccessibilityProfile);
             setResult(null);
           }}
           type="button"
