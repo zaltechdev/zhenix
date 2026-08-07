@@ -8,7 +8,7 @@ import type { Locale } from "@/paraglide/runtime.js";
 import type { SessionState } from "@/lib/contracts/auth";
 import type { GoogleConnection } from "@/lib/contracts/google";
 import { googleConnectionCopy } from "@/lib/i18n/copy";
-import { StatusChip, type StatusTone } from "@/components/workspace/status-chip";
+import { StatusChip } from "@/components/workspace/status-chip";
 import { navigationLabelForPath } from "@/components/workspace/navigation-items";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 

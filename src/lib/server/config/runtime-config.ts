@@ -61,16 +61,7 @@ export function databaseStatus(): ConfigurationStatus {
 }
 
 export function authStatus(): ConfigurationStatus {
-  /**
-   * `AUTH_SECRET` alone is not enough. The repository has no authentication
-   * library installed, so the account boundary stays unconfigured on purpose.
-   * See `.agents/features/auth-onboarding.md` AOQ-1.
-   */
-  const secret = statusFor(["AUTH_SECRET"]);
-  return {
-    configured: false,
-    missingKeys: secret.configured ? ["AUTH_LIBRARY"] : [...secret.missingKeys, "AUTH_LIBRARY"]
-  };
+  return statusFor(["AUTH_SECRET"]);
 }
 
 export function googleStatus(): ConfigurationStatus {

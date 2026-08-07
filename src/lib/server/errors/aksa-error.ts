@@ -20,6 +20,10 @@ export function authenticationRequiredError(): AksaError {
   return createAksaError("authentication_required");
 }
 
+export function authFailedError(): AksaError {
+  return createAksaError("authentication_required");
+}
+
 export function validationFailedError(): AksaError {
   return createAksaError("validation_failed");
 }

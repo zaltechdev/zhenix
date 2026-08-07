@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check, ChevronDown } from "lucide-react";
 import { ID, US } from "country-flag-icons/react/3x2";
 import { m } from "@/paraglide/messages.js";
@@ -11,7 +10,6 @@ import type { Locale } from "@/paraglide/runtime.js";
 export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const messageOptions = { locale };
 
   useEffect(() => {

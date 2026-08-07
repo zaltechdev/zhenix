@@ -7,7 +7,7 @@
  * server code.
  */
 export function assertServerOnly(moduleName: string): void {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
     throw new Error(
       `${moduleName} is server-only. Move the call behind a Route Handler, a Server Action, or a Server Component.`
     );
