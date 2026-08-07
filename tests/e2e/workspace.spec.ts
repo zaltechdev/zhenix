@@ -27,6 +27,16 @@ async function hasHorizontalOverflow(page: Page): Promise<boolean> {
 }
 
 test.describe("primary path", () => {
+  test("CSP permits only the pinned head-tracking model hosts", async ({ page }) => {
+    const response = await page.goto("/workspace");
+    const policy = response?.headers()["content-security-policy"] ?? "";
+
+    expect(policy).toContain("'wasm-unsafe-eval'");
+    expect(policy).toContain("https://cdn.jsdelivr.net");
+    expect(policy).toContain("https://storage.googleapis.com");
+    expect(policy).not.toContain("connect-src *");
+  });
+
   test("landing to account entry to workspace", async ({ page }) => {
     await page.goto("/");
 
@@ -39,51 +49,72 @@ test.describe("primary path", () => {
 
     await page.getByRole("link", { name: "Open workspace" }).click();
     await expect(page).toHaveURL(/\/onboarding$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Set up Aksa" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Choose optional input methods" })
+    ).toBeVisible();
   });
 
   test("onboarding is skippable and reaches the workspace", async ({ page }) => {
     await page.goto("/onboarding");
 
-    await expect(page.getByText("Step 1 of 12")).toBeVisible();
-
-    for (let step = 0; step < 11; step += 1) {
-      await page.getByRole("button", { name: "Skip this step" }).click();
-    }
+    await expect(
+      page.getByRole("navigation", { name: "Setup step" }).getByRole("button", { name: /1 Welcome/ })
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByRole("button", { name: "Skip head control", exact: true }).last().click();
+    await page.getByRole("button", { name: "Skip voice", exact: true }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect(
-      page.getByRole("heading", { level: 2, name: "You are set" })
+      page.getByRole("heading", { level: 1, name: "Aksa is ready" })
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Open the workspace" }).click();
+    await page.getByRole("link", { name: "Enter workspace" }).click();
     await expect(page).toHaveURL(/\/workspace$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "What would you like to get done?" })
+    ).toBeVisible();
   });
 
-  test("head control is stated as inactive rather than simulated", async ({ page }) => {
+  test("calibration remains unavailable until real head tracking is active", async ({ page }) => {
     await page.goto("/onboarding");
 
-    for (let step = 0; step < 4; step += 1) {
-      await page.getByRole("button", { name: "Skip this step" }).click();
-    }
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
 
-    await expect(page.getByText("Face control is in development.")).toBeVisible();
+    await expect(page.getByText("Start head tracking before calibration.")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Calibrate neutral position", exact: true })
+    ).toBeDisabled();
+    await expect(page.locator(".aksa-pointer-overlay")).toHaveCount(0);
+  });
+
+  test("onboarding teardown leads to an explicit Workspace start path", async ({ page }) => {
+    await page.goto("/onboarding");
+    await page.getByRole("link", { name: "Finish later", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/workspace$/);
+    await expect(
+      page.getByRole("button", { name: "Start head control", exact: true })
+    ).toBeVisible();
   });
 
   test("a refused camera keeps the keyboard and mouse paths", async ({ page, context }) => {
     await context.clearPermissions();
     await page.goto("/onboarding");
 
-    for (let step = 0; step < 3; step += 1) {
-      await page.getByRole("button", { name: "Skip this step" }).click();
-    }
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
 
     await page.getByRole("button", { name: "Allow camera" }).click();
 
     await expect(
-      page.getByText(/Camera access was refused|Aksa found no camera|secure connection/)
+      page.getByText(
+        /Camera access was denied|Aksa found no camera|camera is unavailable|secure connection/
+      )
     ).toBeVisible();
-    await expect(page.getByText("Continue with the mouse")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Continue without camera", exact: true })
+    ).toBeVisible();
   });
 });
 

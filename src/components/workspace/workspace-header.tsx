@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Accessibility, Menu, UserRound } from "lucide-react";
+import {
+  Accessibility,
+  Camera,
+  Menu,
+  Pause,
+  Play,
+  RefreshCw,
+  Sparkles,
+  UserRound
+} from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import type { SessionState } from "@/lib/contracts/auth";
@@ -11,6 +20,8 @@ import { googleConnectionCopy } from "@/lib/i18n/copy";
 import { StatusChip } from "@/components/workspace/status-chip";
 import { navigationLabelForPath } from "@/components/workspace/navigation-items";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { useHeadControl } from "@/lib/client/vision/head-control-context";
+import type { VisionFailureCategory } from "@/lib/client/vision/vision-engine";
 
 /**
  * Quiet, compact workspace header.
@@ -18,13 +29,6 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
  * It reports location, account state, and Google connection. It is deliberately not
  * styled as a browser toolbar and recreates no browser chrome.
  */
-
-
-
-import { Pause, Play, Camera, RefreshCw } from "lucide-react";
-import { useHeadControl } from "@/lib/client/vision/head-control-context";
-import type { VisionFailureCategory } from "@/lib/client/vision/vision-engine";
-
 function headControlFailureCopy(
   category: VisionFailureCategory | null,
   options: { locale: Locale }
@@ -61,6 +65,9 @@ export function WorkspaceHeader({
   const title = navigationLabelForPath(pathname, locale);
   const headControl = useHeadControl();
   const { lifecycleState, isPaused } = headControl;
+  const calibrationProgress = Math.round(
+    headControl.calibrationState.progressRatio * 100
+  );
 
   return (
     <header aria-label={m.workspace_header_label({}, options)} className="aksa-header">
@@ -91,7 +98,16 @@ export function WorkspaceHeader({
         ) : null}
 
         {lifecycleState === "initializing" ? (
-          <StatusChip tone="pending" value={m.a11y_initializing_head_control({}, options)} />
+          <>
+            <StatusChip tone="pending" value={m.a11y_initializing_head_control({}, options)} />
+            <button
+              className="aksa-button aksa-button--quiet aksa-button--sm"
+              onClick={headControl.disableControl}
+              type="button"
+            >
+              {m.a11y_cancel_head_control({}, options)}
+            </button>
+          </>
         ) : null}
 
         {lifecycleState === "tracking_lost" ? (
@@ -116,6 +132,30 @@ export function WorkspaceHeader({
                 <span>{m.a11y_pause_head_control({}, options)}</span>
               </>
             )}
+          </button>
+        ) : null}
+
+        {lifecycleState === "active" &&
+        headControl.calibrationState.status === "capturing" ? (
+          <StatusChip
+            tone="pending"
+            value={m.a11y_calibrating_head_control(
+              { progress: calibrationProgress },
+              options
+            )}
+          />
+        ) : lifecycleState === "active" ? (
+          <button
+            className="aksa-button aksa-button--quiet aksa-button--sm"
+            onClick={headControl.startCalibration}
+            type="button"
+          >
+            <Sparkles aria-hidden="true" className="aksa-icon" size={16} />
+            <span>
+              {headControl.calibrationState.status === "completed"
+                ? m.a11y_recalibrate_head_control({}, options)
+                : m.a11y_calibrate_head_control({}, options)}
+            </span>
           </button>
         ) : null}
 

@@ -39,6 +39,7 @@ export class DwellController {
   private stabilityWindowMs: number;
   private onActivate?: (target: HTMLElement) => void;
   private confirmationGuardActive = false;
+  private suppressNextFrame = false;
 
   constructor(options: DwellOptions) {
     this.dwellDurationMs = Math.max(300, options.dwellDurationMs);
@@ -70,6 +71,12 @@ export class DwellController {
     this.stateStartTime = 0;
   }
 
+  /** Clear inherited momentum and force the next frame to remain idle. */
+  public requireFreshCycle(): void {
+    this.cancel();
+    this.suppressNextFrame = true;
+  }
+
   public processFrame(
     pointerPos: Vector2D,
     target: HTMLElement | null,
@@ -82,6 +89,12 @@ export class DwellController {
       if (this.state !== "idle") {
         this.cancel();
       }
+      return { state: "idle", progressRatio: 0, targetElement: null, activeTargetBounds: null };
+    }
+
+    if (this.suppressNextFrame) {
+      this.suppressNextFrame = false;
+      this.cancel();
       return { state: "idle", progressRatio: 0, targetElement: null, activeTargetBounds: null };
     }
 

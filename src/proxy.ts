@@ -5,11 +5,11 @@ function createContentSecurityPolicy(nonce: string) {
 
   return [
     "default-src 'self'",
-    `script-src 'self'${developmentScriptSource} 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self'${developmentScriptSource} 'wasm-unsafe-eval' 'nonce-${nonce}' 'strict-dynamic'`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

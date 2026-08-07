@@ -111,16 +111,24 @@ export class VisionEngine {
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
       );
 
-      this.landmarker = await FaceLandmarker.createFromOptions(fileset, {
+      const commonOptions = {
         baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-          delegate: "GPU"
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
         },
-        runningMode: "VIDEO",
+        runningMode: "VIDEO" as const,
         numFaces: 1,
         outputFacialTransformationMatrixes: true,
         outputFaceBlendshapes: true
-      });
+      };
+
+      try {
+        this.landmarker = await FaceLandmarker.createFromOptions(fileset, {
+          ...commonOptions,
+          baseOptions: { ...commonOptions.baseOptions, delegate: "GPU" }
+        });
+      } catch {
+        this.landmarker = await FaceLandmarker.createFromOptions(fileset, commonOptions);
+      }
 
       this.updateState("idle");
       return true;
@@ -139,8 +147,9 @@ export class VisionEngine {
       throw new Error("VisionEngine must be initialized before start");
     }
 
-    this.stopLoop();
-    this.detachTrackListeners();
+    // A retry or replacement must release the previously owned stream first.
+    // If the same video already points at the new stream, releaseMedia preserves it.
+    this.releaseMedia(true);
     this.videoElement = videoElement;
     this.mediaStream = stream;
 
@@ -218,7 +227,9 @@ export class VisionEngine {
 
     if (this.videoElement) {
       try {
-        this.videoElement.srcObject = null;
+        if (!stream || this.videoElement.srcObject === stream) {
+          this.videoElement.srcObject = null;
+        }
       } catch {
         // Tracks are already stopped; a broken video binding cannot retain the stream.
       }
@@ -228,6 +239,14 @@ export class VisionEngine {
 
   private failRuntime(category: VisionFailureCategory): void {
     this.releaseMedia(true);
+    if (category === "model_load_failed" && this.landmarker) {
+      try {
+        this.landmarker.close();
+      } catch {
+        // Camera release and the stable failure state remain authoritative.
+      }
+      this.landmarker = null;
+    }
     this.updateState("error", category);
   }
 

@@ -43,7 +43,7 @@ function openDB(): Promise<IDBDatabase> {
 
 export async function getCachedProfile(userId: string): Promise<AccessibilityProfile | null> {
   if (!userId || userId.trim() === "") {
-    return null;
+    throw new Error("Cannot get cached profile without explicit user ID");
   }
   const key = getStoreKey(userId);
   try {
@@ -88,7 +88,7 @@ export async function setCachedProfile(profile: AccessibilityProfile, userId: st
 
 export async function clearCachedProfile(userId: string): Promise<void> {
   if (!userId || userId.trim() === "") {
-    return;
+    throw new Error("Cannot clear cached profile without explicit user ID");
   }
   const key = getStoreKey(userId);
   memoryCache.delete(key);

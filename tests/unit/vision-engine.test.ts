@@ -61,6 +61,22 @@ describe("VisionEngine lifecycle", () => {
     expect(JSON.stringify(onStateChange.mock.calls)).not.toContain("private provider detail");
   });
 
+  it("falls back to CPU when GPU model initialization is unavailable", async () => {
+    mediaPipe.createFromOptions
+      .mockRejectedValueOnce(new Error("GPU unavailable"))
+      .mockResolvedValueOnce({
+        detectForVideo: mediaPipe.detectForVideo,
+        close: mediaPipe.close
+      });
+    const engine = new VisionEngine();
+
+    await expect(engine.initialize()).resolves.toBe(true);
+
+    expect(mediaPipe.createFromOptions).toHaveBeenCalledTimes(2);
+    expect(mediaPipe.createFromOptions.mock.calls[0]?.[1]?.baseOptions.delegate).toBe("GPU");
+    expect(mediaPipe.createFromOptions.mock.calls[1]?.[1]?.baseOptions.delegate).toBeUndefined();
+  });
+
   it("stops every track, clears video, and cancels inference when the stream ends", async () => {
     const { end, stop, stream } = createStream();
     const video = document.createElement("video");
@@ -100,5 +116,30 @@ describe("VisionEngine lifecycle", () => {
     expect(video.srcObject).toBeNull();
     expect(engine.getState()).toBe("error");
     expect(onStateChange).toHaveBeenLastCalledWith("error", "model_load_failed");
+
+    expect(await engine.initialize()).toBe(true);
+    expect(mediaPipe.close).toHaveBeenCalledTimes(1);
+    expect(mediaPipe.createFromOptions).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops a previously owned stream when startup replaces it", async () => {
+    const first = createStream();
+    const second = createStream();
+    const video = document.createElement("video");
+    const engine = new VisionEngine();
+    expect(await engine.initialize()).toBe(true);
+
+    video.srcObject = first.stream;
+    engine.start(video, first.stream);
+    video.srcObject = second.stream;
+    engine.start(video, second.stream);
+
+    expect(first.stop).toHaveBeenCalledTimes(1);
+    expect(second.stop).not.toHaveBeenCalled();
+    expect(video.srcObject).toBe(second.stream);
+
+    engine.disable();
+    expect(second.stop).toHaveBeenCalledTimes(1);
+    expect(video.srcObject).toBeNull();
   });
 });

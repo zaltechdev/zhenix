@@ -271,6 +271,49 @@ describe("onboarding", () => {
     expect(stop).toHaveBeenCalled();
   });
 
+  it("stops a camera stream that resolves after the user skips head control", async () => {
+    const stop = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop } as unknown as MediaStreamTrack]
+    } as unknown as MediaStream;
+    let resolveStream: (stream: MediaStream) => void = () => undefined;
+    const pendingStream = new Promise<MediaStream>((resolve) => {
+      resolveStream = resolve;
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn(() => pendingStream) }
+    });
+    const engineFactory = vi.fn<HeadControlEngineFactory>(() => ({
+      initialize: vi.fn().mockResolvedValue(true),
+      start: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      disable: vi.fn(),
+      setNeutralBaseline: vi.fn()
+    }));
+
+    render(<OnboardingFlow engineFactory={engineFactory} locale="en" />);
+    advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: m.onboarding_allow_camera({}, { locale: "en" }) })
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", {
+        name: m.onboarding_skip_head({}, { locale: "en" })
+      }).at(-1)!
+    );
+    resolveStream(stream);
+
+    await waitFor(() => expect(stop).toHaveBeenCalledTimes(1));
+    expect(engineFactory).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", {
+        name: m.onboarding_voice_explanation_title({}, { locale: "en" })
+      })
+    ).toBeInTheDocument();
+  });
+
   it("requires a secure connection before touching the camera", async () => {
     Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
     const getUserMedia = vi.fn();

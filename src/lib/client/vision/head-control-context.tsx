@@ -105,9 +105,19 @@ export function HeadControlProvider({
   initialProfile?: AccessibilityProfile | null;
   engineFactory?: HeadControlEngineFactory;
 }) {
-  const [profile, setProfile] = useState<AccessibilityProfile>(
-    initialProfile ?? provisionalAccessibilityProfile
-  );
+  const initialProfileKey = initialProfile ? JSON.stringify(initialProfile) : "cache";
+  const profileScope = `${userId ?? "anonymous"}:${initialProfileKey}`;
+  const [profileState, setProfileState] = useState<{
+    scope: string;
+    value: AccessibilityProfile;
+  }>(() => ({
+    scope: profileScope,
+    value: initialProfile ?? provisionalAccessibilityProfile
+  }));
+  const profile =
+    profileState.scope === profileScope
+      ? profileState.value
+      : initialProfile ?? provisionalAccessibilityProfile;
   const [lifecycleState, setLifecycleState] = useState<VisionLifecycleState>("idle");
   const [errorCategory, setErrorCategory] = useState<VisionFailureCategory | null>(null);
   const [pointerPosition, setPointerPosition] = useState<Vector2D>(() =>
@@ -132,6 +142,7 @@ export function HeadControlProvider({
   const lastFrameTimeRef = useRef<number>(0);
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeModalRef = useRef<Element | null>(null);
+  const startupCancelledRef = useRef(false);
 
   const removeBackgroundVideo = useCallback(() => {
     if (backgroundVideoRef.current) {
@@ -172,17 +183,23 @@ export function HeadControlProvider({
     profileRef.current = profile;
   }, [profile]);
 
-  // Initialize or fetch user-scoped cached profile on mount
+  // Server data wins. Without it, reset before loading only the current user's cache.
   useEffect(() => {
+    let cancelled = false;
+
     if (!initialProfile && userId) {
       void getCachedProfile(userId).then((cached) => {
-        if (cached) {
-          setProfile(cached);
+        if (!cancelled && cached) {
+          setProfileState({ scope: profileScope, value: cached });
           profileRef.current = cached;
         }
       });
     }
-  }, [initialProfile, userId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialProfile, profileScope, userId]);
 
   // Synchronize controllers with current profile settings
   useEffect(() => {
@@ -222,7 +239,7 @@ export function HeadControlProvider({
   // Synchronize live profile settings & write to user-scoped cache
   const updateProfile = useCallback(
     (newProfile: AccessibilityProfile) => {
-      setProfile(newProfile);
+      setProfileState({ scope: profileScope, value: newProfile });
       profileRef.current = newProfile;
       if (userId) {
         void setCachedProfile(newProfile, userId);
@@ -242,7 +259,7 @@ export function HeadControlProvider({
         });
       }
     },
-    [userId]
+    [profileScope, userId]
   );
 
   const setNeutralBaseline = useCallback((baseline: NeutralBaseline) => {
@@ -254,13 +271,36 @@ export function HeadControlProvider({
 
   // Calibration triggers
   const startCalibration = useCallback(() => {
+    if (lifecycleState !== "active") {
+      return;
+    }
     calibrationEngineRef.current.start();
+    if (dwellRef.current) dwellRef.current.requireFreshCycle();
+    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
+    setActiveTarget(null);
+    setDwellProgress(DEFAULT_DWELL);
+    setGestureStatus(DEFAULT_GESTURE);
     setCalibrationState(calibrationEngineRef.current.getState());
-  }, []);
+  }, [lifecycleState]);
 
   const cancelCalibration = useCallback(() => {
     calibrationEngineRef.current.cancel();
     setCalibrationState(calibrationEngineRef.current.getState());
+  }, []);
+
+  const prepareForSafeReacquisition = useCallback(() => {
+    reacquisitionCountRef.current = 0;
+    lastFrameTimeRef.current = 0;
+    activeModalRef.current = null;
+    if (dwellRef.current) dwellRef.current.requireFreshCycle();
+    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
+    if (calibrationEngineRef.current.getState().status === "capturing") {
+      calibrationEngineRef.current.clearSamples();
+      setCalibrationState(calibrationEngineRef.current.getState());
+    }
+    setActiveTarget(null);
+    setDwellProgress(DEFAULT_DWELL);
+    setGestureStatus(DEFAULT_GESTURE);
   }, []);
 
   // Frame processing callback reading CURRENT profileRef.current
@@ -271,53 +311,69 @@ export function HeadControlProvider({
       const dt = lastFrameTimeRef.current > 0 ? now - lastFrameTimeRef.current : 16.6;
       lastFrameTimeRef.current = now;
 
-      // 1. Calibration handling with REAL face frames (zero random poses)
-      if (calibrationEngineRef.current.getState().status === "capturing") {
-        if (data.faceDetected) {
-          const st = calibrationEngineRef.current.addSample(data.pose);
-          setCalibrationState(st);
-          if (st.status === "completed" && st.baseline) {
-            setNeutralBaseline(st.baseline);
-          }
-        }
-      }
-
-      // 2. Tracking loss / stability reacquisition handling
+      // 1. Tracking loss clears every inherited interaction and calibration sample.
       if (!data.faceDetected || data.lifecycleState === "tracking_lost") {
         reacquisitionCountRef.current = 0;
         setLifecycleState("tracking_lost");
-        if (dwellRef.current) dwellRef.current.cancel();
-        if (gestureRef.current) gestureRef.current.reset();
+        setErrorCategory("tracking_lost");
+        if (dwellRef.current) dwellRef.current.requireFreshCycle();
+        if (gestureRef.current) gestureRef.current.disarmUntilRelease();
+        if (calibrationEngineRef.current.getState().status === "capturing") {
+          calibrationEngineRef.current.clearSamples();
+          setCalibrationState(calibrationEngineRef.current.getState());
+        }
         setDwellProgress(DEFAULT_DWELL);
         setGestureStatus(DEFAULT_GESTURE);
         setActiveTarget(null);
         return;
       }
 
-      // Require STABLE_REACQUISITION_FRAMES_REQUIRED consecutive frames before activating
+      // 2. Reacquisition needs consecutive frames, then one separate interaction frame.
       if (reacquisitionCountRef.current < STABLE_REACQUISITION_FRAMES_REQUIRED) {
         reacquisitionCountRef.current += 1;
-        if (reacquisitionCountRef.current < STABLE_REACQUISITION_FRAMES_REQUIRED) {
-          setLifecycleState("initializing");
-          return;
+        setLifecycleState("initializing");
+        setActiveTarget(null);
+        setDwellProgress(DEFAULT_DWELL);
+        setGestureStatus(DEFAULT_GESTURE);
+
+        if (reacquisitionCountRef.current === STABLE_REACQUISITION_FRAMES_REQUIRED) {
+          const screenDelta = mapPoseToScreenDelta(
+            data.poseDelta.yaw,
+            data.poseDelta.pitch,
+            currentProfile.pointerSensitivity,
+            currentProfile.deadZone
+          );
+          const reacquiredPosition = clampCoordinates(
+            {
+              x: window.innerWidth / 2 + screenDelta.x,
+              y: window.innerHeight / 2 + screenDelta.y
+            },
+            window.innerWidth,
+            window.innerHeight
+          );
+          currentPosRef.current = reacquiredPosition;
+          setPointerPosition(reacquiredPosition);
+          if (dwellRef.current) dwellRef.current.requireFreshCycle();
+          if (gestureRef.current) gestureRef.current.disarmUntilRelease();
         }
-        // First frame after reacquisition -> reset pointer smoothing to target to prevent teleport interpolation
-        const screenDelta = mapPoseToScreenDelta(
-          data.poseDelta.yaw,
-          data.poseDelta.pitch,
-          currentProfile.pointerSensitivity,
-          currentProfile.deadZone
-        );
-        currentPosRef.current = clampCoordinates(
-          { x: window.innerWidth / 2 + screenDelta.x, y: window.innerHeight / 2 + screenDelta.y },
-          window.innerWidth,
-          window.innerHeight
-        );
+        return;
       }
 
       setLifecycleState("active");
+      setErrorCategory(null);
 
-      // 3. Map Head Pose to Screen Coordinates using CURRENT profileRef.current
+      // 3. Calibration consumes only real frames after stable reacquisition.
+      const calibrationWasCapturing =
+        calibrationEngineRef.current.getState().status === "capturing";
+      if (calibrationWasCapturing) {
+        const state = calibrationEngineRef.current.addSample(data.pose);
+        setCalibrationState(state);
+        if (state.status === "completed" && state.baseline) {
+          setNeutralBaseline(state.baseline);
+        }
+      }
+
+      // 4. Map Head Pose to Screen Coordinates using CURRENT profileRef.current
       const screenDelta = mapPoseToScreenDelta(
         data.poseDelta.yaw,
         data.poseDelta.pitch,
@@ -336,18 +392,18 @@ export function HeadControlProvider({
       currentPosRef.current = clampedPos;
       setPointerPosition(clampedPos);
 
-      // 4. Confirmation Lockout & Re-Arm Guard
+      // 5. Confirmation Lockout & Re-Arm Guard
       const currentModal =
         typeof document !== "undefined"
           ? document.querySelector('[data-aksa-confirmation-guard="true"]') ||
             document.querySelector('[aria-modal="true"]')
           : null;
 
-      // If a modal just opened this frame, reset dwell and gesture immediately to clear momentum
+      // Opening a modal consumes this frame and requires a new physical selection cycle.
       if (currentModal && currentModal !== activeModalRef.current) {
         activeModalRef.current = currentModal;
-        if (dwellRef.current) dwellRef.current.cancel();
-        if (gestureRef.current) gestureRef.current.reset();
+        if (dwellRef.current) dwellRef.current.requireFreshCycle();
+        if (gestureRef.current) gestureRef.current.disarmUntilRelease();
       } else if (!currentModal) {
         activeModalRef.current = null;
       }
@@ -355,14 +411,17 @@ export function HeadControlProvider({
       // Resolve Target
       const resolution = resolveTargetAtPoint(clampedPos.x, clampedPos.y);
       const eligibleTarget = resolution.element;
-      setActiveTarget(eligibleTarget);
+      setActiveTarget(calibrationWasCapturing ? null : eligibleTarget);
 
       const isControlActive =
-        data.lifecycleState === "active" && currentProfile.selectionMode !== "off";
+        data.lifecycleState === "active" &&
+        currentProfile.selectionMode !== "off" &&
+        !calibrationWasCapturing;
 
       // Process Dwell
       if (
         dwellRef.current &&
+        !calibrationWasCapturing &&
         (currentProfile.selectionMode === "dwell" || currentProfile.selectionMode === "both")
       ) {
         const dProgress = dwellRef.current.processFrame(
@@ -380,6 +439,7 @@ export function HeadControlProvider({
       // Process Facial Gesture
       if (
         gestureRef.current &&
+        !calibrationWasCapturing &&
         (currentProfile.selectionMode === "gesture" || currentProfile.selectionMode === "both")
       ) {
         const gStatus = gestureRef.current.processFrame(
@@ -398,6 +458,7 @@ export function HeadControlProvider({
 
   const startCamera = useCallback(
     async (videoElement: HTMLVideoElement, stream: MediaStream): Promise<boolean> => {
+      startupCancelledRef.current = false;
       if (!engineRef.current) {
         engineRef.current = engineFactory({
           onFrame: handleFrame,
@@ -410,47 +471,82 @@ export function HeadControlProvider({
             setErrorCategory(
               state === "tracking_lost" ? "tracking_lost" : failure ?? null
             );
+            if (state === "error") {
+              prepareForSafeReacquisition();
+              removeBackgroundVideo();
+            }
           }
         });
       }
 
       setLifecycleState("initializing");
       setErrorCategory(null);
+      prepareForSafeReacquisition();
+
+      const failStartup = (category: VisionFailureCategory): false => {
+        try {
+          engineRef.current?.disable();
+        } catch {
+          // Stream cleanup below remains authoritative.
+        }
+        cleanFailedStartup(videoElement, stream);
+        setLifecycleState("error");
+        setErrorCategory(category);
+        return false;
+      };
 
       try {
         videoElement.srcObject = stream;
-        const initialized = await engineRef.current.initialize();
-        if (!initialized) {
-          try {
-            engineRef.current.disable();
-          } catch {
-            // Stream cleanup below remains authoritative.
-          }
+      } catch {
+        return failStartup("camera_unavailable");
+      }
+
+      let initialized = false;
+      try {
+        initialized = await engineRef.current.initialize();
+      } catch {
+        if (startupCancelledRef.current) {
           cleanFailedStartup(videoElement, stream);
-          setLifecycleState("error");
-          setErrorCategory("model_load_failed");
+          setLifecycleState("disabled");
+          setErrorCategory(null);
           return false;
         }
-
-        engineRef.current.start(videoElement, stream);
-        return true;
-      } catch {
+        return failStartup("model_load_failed");
+      }
+      if (startupCancelledRef.current) {
         try {
           engineRef.current.disable();
         } catch {
           // Stream cleanup below remains authoritative.
         }
         cleanFailedStartup(videoElement, stream);
-        setLifecycleState("error");
-        setErrorCategory("camera_unavailable");
+        setLifecycleState("disabled");
+        setErrorCategory(null);
         return false;
       }
+      if (!initialized) {
+        return failStartup("model_load_failed");
+      }
+
+      try {
+        engineRef.current.start(videoElement, stream);
+        return true;
+      } catch {
+        return failStartup("camera_unavailable");
+      }
     },
-    [cleanFailedStartup, engineFactory, handleFrame]
+    [
+      cleanFailedStartup,
+      engineFactory,
+      handleFrame,
+      prepareForSafeReacquisition,
+      removeBackgroundVideo
+    ]
   );
 
   const startHeadControl = useCallback(
     async (videoElement?: HTMLVideoElement | null): Promise<boolean> => {
+      startupCancelledRef.current = false;
       if (
         typeof window === "undefined" ||
         !window.isSecureContext ||
@@ -469,6 +565,11 @@ export function HeadControlProvider({
         setLifecycleState("initializing");
         setErrorCategory(null);
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+        if (startupCancelledRef.current) {
+          cleanFailedStartup(targetVideo, stream);
+          return false;
+        }
 
         if (!targetVideo) {
           if (!backgroundVideoRef.current && typeof document !== "undefined") {
@@ -493,6 +594,9 @@ export function HeadControlProvider({
         return await startCamera(targetVideo, stream);
       } catch (error) {
         cleanFailedStartup(targetVideo, stream);
+        if (startupCancelledRef.current) {
+          return false;
+        }
         setLifecycleState("error");
         setErrorCategory(cameraFailureFromException(error));
         return false;
@@ -505,24 +609,38 @@ export function HeadControlProvider({
     if (engineRef.current) {
       engineRef.current.pause();
     }
-    if (dwellRef.current) dwellRef.current.cancel();
-    if (gestureRef.current) gestureRef.current.reset();
+    if (dwellRef.current) dwellRef.current.requireFreshCycle();
+    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
+    setActiveTarget(null);
+    setDwellProgress(DEFAULT_DWELL);
+    setGestureStatus(DEFAULT_GESTURE);
     setLifecycleState("paused");
   }, []);
 
   const resumeControl = useCallback(() => {
     reacquisitionCountRef.current = 0;
+    if (dwellRef.current) dwellRef.current.requireFreshCycle();
+    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     if (engineRef.current) {
       engineRef.current.resume();
     }
   }, []);
 
   const disableControl = useCallback(() => {
+    startupCancelledRef.current = true;
     if (engineRef.current) {
       engineRef.current.disable();
     }
     if (dwellRef.current) dwellRef.current.cancel();
     if (gestureRef.current) gestureRef.current.reset();
+    reacquisitionCountRef.current = 0;
+    lastFrameTimeRef.current = 0;
+    activeModalRef.current = null;
+    calibrationEngineRef.current.cancel();
+    setCalibrationState(calibrationEngineRef.current.getState());
+    setActiveTarget(null);
+    setDwellProgress(DEFAULT_DWELL);
+    setGestureStatus(DEFAULT_GESTURE);
     removeBackgroundVideo();
     setErrorCategory(null);
     setLifecycleState("disabled");
@@ -531,6 +649,7 @@ export function HeadControlProvider({
   // Provider unmount teardown effect
   useEffect(() => {
     return () => {
+      startupCancelledRef.current = true;
       if (engineRef.current) {
         engineRef.current.disable();
       }

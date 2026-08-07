@@ -35,7 +35,8 @@ export class GestureDetector {
   private minHoldDurationMs = 0; // 350ms for eye_blink_long, 0ms for instant gestures
   private aboveThresholdStartTime = 0;
   private triggeredThisHoldCycle = false;
-  private lastTriggerTime = 0;
+  private lastTriggerTime = Number.NEGATIVE_INFINITY;
+  private armed = true;
   private onActivate?: (target: HTMLElement) => void;
 
   constructor(options: GestureDetectorOptions) {
@@ -62,7 +63,18 @@ export class GestureDetector {
   public reset(): void {
     this.aboveThresholdStartTime = 0;
     this.triggeredThisHoldCycle = false;
-    this.lastTriggerTime = 0;
+    this.lastTriggerTime = Number.NEGATIVE_INFINITY;
+    this.armed = true;
+  }
+
+  /**
+   * Ignore the current physical signal until it returns below threshold.
+   * Used when confirmations, pause, or tracking recovery create a new context.
+   */
+  public disarmUntilRelease(): void {
+    this.aboveThresholdStartTime = 0;
+    this.triggeredThisHoldCycle = false;
+    this.armed = false;
   }
 
   /**
@@ -134,6 +146,20 @@ export class GestureDetector {
 
     let isTriggered = false;
 
+    if (!this.armed) {
+      if (!isAboveThreshold) {
+        this.armed = true;
+      }
+      return {
+        gestureType: this.gestureType,
+        currentScore,
+        thresholdNormalized: this.thresholdNormalized,
+        isDetected: isAboveThreshold,
+        isTriggered: false,
+        inCooldown
+      };
+    }
+
     if (isAboveThreshold) {
       if (this.aboveThresholdStartTime === 0) {
         this.aboveThresholdStartTime = nowMs;
@@ -145,18 +171,18 @@ export class GestureDetector {
       // 1. Held above threshold for at least minHoldDurationMs
       // 2. Has NOT already triggered in this hold cycle
       // 3. Cooldown has elapsed
-      if (
-        holdDuration >= this.minHoldDurationMs &&
-        !this.triggeredThisHoldCycle &&
-        !inCooldown
-      ) {
+      if (holdDuration >= this.minHoldDurationMs && !this.triggeredThisHoldCycle) {
+        // Consume this physical hold even when no target exists or cooldown blocks it.
+        // Moving onto another target must never turn an old gesture into a fresh edge.
+        this.triggeredThisHoldCycle = true;
+
         if (
+          !inCooldown &&
           target &&
           !target.hasAttribute("disabled") &&
           target.getAttribute("aria-disabled") !== "true"
         ) {
           isTriggered = true;
-          this.triggeredThisHoldCycle = true;
           this.lastTriggerTime = nowMs;
 
           try {

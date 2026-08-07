@@ -19,13 +19,8 @@ export function AksaPointer({
   hasTarget,
   reducedMotion = false
 }: AksaPointerProps) {
-  // Hide pointer if disabled, paused, or error
-  if (
-    lifecycleState === "disabled" ||
-    lifecycleState === "paused" ||
-    lifecycleState === "error" ||
-    lifecycleState === "idle"
-  ) {
+  // Initialization must not look operational. Tracking loss keeps the last safe position visible.
+  if (lifecycleState !== "active" && lifecycleState !== "tracking_lost") {
     return null;
   }
 
