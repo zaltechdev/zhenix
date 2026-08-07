@@ -121,3 +121,51 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Mobile browser inspection and all four localized/theme screenshot sets reported no horizontal overflow or console errors.
 - Prevention: Keep the 320 x 640 screenshot pass in the landing responsive gate.
 - Commit or PR: None.
+
+## 2026-08-07 21:12 - Head-control startup could report success while leaking camera ownership
+
+- Status: fixed
+- Owner: Henix
+- Area: onboarding, Workspace header, MediaPipe startup, CSP
+- Symptoms: Onboarding could report camera success when the tracking model failed, failed startup paths could leave tracks or hidden video alive, cancelling a pending permission request could start the camera later, and the pointer appeared while startup was incomplete.
+- Reproduction: Run the model-failure and late-permission regression tests, then start Workspace head control in a browser without resolving the permission request. Before the fix, the startup state had no cancellation action and rendered the Aksa pointer. Inspecting the production CSP also showed that both pinned MediaPipe download hosts were blocked.
+- Expected: Operational status appears only after camera and model startup succeeds; cancellation, failure, replacement, unmount, and stream end release every owned resource; incomplete startup never shows an operational pointer.
+- Actual: Onboarding unconditionally advanced to success, startup cleanup was incomplete, late permission resolution ignored navigation or cancellation, previous streams survived replacement, and `connect-src 'self'` blocked the model runtime.
+- Root cause: Boolean startup results were ignored, camera acquisition and engine ownership lacked a single cancellation and teardown boundary, the pointer accepted `initializing`, and CSP omitted the pinned MediaPipe hosts and WebAssembly execution directive.
+- Fix: Made startup results authoritative, centralized stream, video, loop, listener, and model cleanup, added cancellable startup ownership, stopped late streams, hid the pointer until active tracking, allowed only the pinned model hosts, and added GPU-to-CPU initialization fallback. Permanent fix.
+- Files changed: `src/components/onboarding/onboarding-flow.tsx`, `src/components/workspace/aksa-pointer.tsx`, `src/components/workspace/workspace-header.tsx`, `src/lib/client/vision/head-control-context.tsx`, `src/lib/client/vision/vision-engine.ts`, `src/proxy.ts`, `messages/en.json`, `messages/id.json`
+- Verification: `bun run i18n:compile`, `bun run typecheck`, `bun run lint`, `bun run test` with 210 passing tests, `bun run build`, six focused primary-path Playwright tests, and two focused axe audits passed. Browser inspection also verified startup cancellation returns to Start head control with zero video and pointer elements.
+- Prevention: Regression tests cover model failure, video attachment failure, late permission cancellation, stream replacement, stream end, inference failure, provider unmount, CSP allowlisting, and the non-operational pointer state.
+- Commit or PR: `ae4cb42`, `169eb32`.
+
+## 2026-08-07 21:12 - Held signals could cross confirmation and tracking boundaries
+
+- Status: fixed
+- Owner: Henix
+- Area: gesture selection, dwell, confirmation, tracking recovery, calibration
+- Symptoms: A held gesture could be reset when a confirmation appeared and then be processed again without physical release. Dwell could begin processing immediately after the modal boundary. Tracking recovery and restart could reuse stale target, smoothing, calibration, or gesture state.
+- Reproduction: Feed a high mouth-open score that activates a confirmation trigger, keep the score high while the confirmation target replaces it, and process later frames. Also build partial dwell or calibration progress, then open a dialog or lose tracking. Before the fix, reset alone re-armed the held gesture and the recovery boundary admitted interaction too early.
+- Expected: The signal that opens a consequential confirmation cannot approve it. Gesture requires a below-threshold release and a later fresh signal. Dwell requires a complete new stabilization and dwell cycle. Loss and recovery cannot activate on the reacquisition frame.
+- Actual: Reset restored gesture readiness immediately, dwell had no explicit fresh-cycle state, calibration accepted pre-stability frames, and restart did not reset its reacquisition counter.
+- Root cause: Controllers exposed reset and cancel operations but no security boundary semantics. The coordinator continued interaction processing without carrying an explicit disarmed state across frames.
+- Fix: Added gesture disarm-until-release and dwell fresh-cycle APIs, consumed off-target held gestures, cleared interactions and partial calibration at every boundary, required five stable face frames plus a later interaction frame, reset smoothing on reacquisition, suppressed selection during calibration, and exposed route-local Workspace calibration. Permanent fix.
+- Files changed: `src/lib/client/vision/gesture-detector.ts`, `src/lib/client/vision/dwell-controller.ts`, `src/lib/client/vision/head-control-context.tsx`, `src/components/workspace/workspace-header.tsx`, `src/components/onboarding/onboarding-flow.tsx`
+- Verification: Deterministic coordinator tests prove held confirmation gestures cannot approve, release plus a fresh gesture can approve, dwell momentum is discarded, loss and restart cannot activate, live settings affect the installed callback, and calibration uses only real post-reacquisition frames. All requested static, unit, build, and focused browser gates passed.
+- Prevention: Keep confirmation, calibration, loss, restart, and pause boundary tests coupled to physical release and fresh-cycle requirements.
+- Commit or PR: `169eb32`.
+
+## 2026-08-07 21:12 - Accessibility cache could retain another user's profile during scope changes
+
+- Status: fixed
+- Owner: Henix
+- Area: accessibility profile initialization and IndexedDB cache
+- Symptoms: Changing the authenticated user in a mounted provider could temporarily retain the previous profile or apply its late cache result. Empty user identifiers were tolerated by cache reads and clears.
+- Reproduction: Cache a high-sensitivity profile for User A, mount the provider for User A, switch it to User B with an empty cache, and allow User A's read to resolve late.
+- Expected: The server profile is authoritative when present. Without it, each authenticated user sees only that user's cache or defaults. No anonymous default bucket exists.
+- Actual: Profile state was not keyed to user scope, an older asynchronous cache read could still set state, and some empty-identifier operations silently returned.
+- Root cause: Cached profile loading had no scope identity or cancellation guard, while runtime validation was inconsistent across cache functions.
+- Fix: Keyed profile state to user and server-source scope, cancelled stale reads, reset immediately on scope changes, kept server data authoritative, and rejected empty identifiers for every cache operation. Permanent fix.
+- Files changed: `src/lib/client/vision/head-control-context.tsx`, `src/lib/client/vision/profile-cache.ts`
+- Verification: Tests prove User A, User B, and empty state isolation, stale-result rejection, and server-profile authority over stale browser cache. The complete 210-test suite passed.
+- Prevention: Cache APIs require an explicit user ID at compile time and runtime, and provider tests exercise cross-account rerenders.
+- Commit or PR: `169eb32`.

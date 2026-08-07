@@ -58,7 +58,7 @@ Give a user who cannot operate a mouse a reliable way to point and select anywhe
 | --- | --- | --- |
 | 1 | Points at a target | Shows the target as ready for selection |
 | 2 | Performs the configured gesture above threshold | Activates the target once |
-| 3 | Holds the gesture | Ignores repeats until the cooldown elapses |
+| 3 | Holds the gesture | Ignores repeats until the signal is released, including after cooldown |
 | 4 | Performs the gesture off-target | No activation |
 
 ### Pause and resume
@@ -69,9 +69,19 @@ Give a user who cannot operate a mouse a reliable way to point and select anywhe
 | 2 | Works with keyboard or mouse | Full parity, no degraded features |
 | 3 | Resumes | Restores the pointer at a neutral position, no queued dwell |
 
+### Runtime ownership
+
+Onboarding and Workspace mount separate route-scoped head-control providers. Leaving onboarding stops its camera stream, closes its model, and discards its runtime neutral baseline. Workspace does not claim that onboarding camera or calibration state persisted. The Workspace header provides explicit Start head control and Calibrate head control actions. Its provider remains mounted across Workspace child routes.
+
+The authenticated server profile supplied by `readWorkspaceContext` is authoritative. A user-scoped IndexedDB profile is read only when no server profile was supplied. Changing users immediately resets the active scope before that user's cache can resolve.
+
+The current MVP runs Face Landmarker inference on the browser main thread with a 25 ms minimum processing interval. It does not claim worker isolation or measured frame rate. Worker migration and device performance remain open questions ACQ-5 and ACQ-6.
+
 ### Confirmation guard
 
-A confirmation dialog opens with pointer movement briefly held, dwell cleared, and initial focus on a non-destructive element. Approving a confirmation requires a deliberate second signal, not the dwell or gesture that opened it.
+A confirmation dialog opens with inherited dwell cleared and the gesture detector disarmed. A held gesture cannot approve it. The signal must first fall below its configured threshold, then a fresh gesture may select. Dwell starts from idle and completes a new stabilization and dwell cycle. Head control remains available inside the dialog after those re-arm conditions are met.
+
+Tracking loss, pause, restart, and camera recovery use the same boundary reset. They clear the active target, dwell state, gesture state, smoothing history, and partial calibration samples. Five consecutive detected-face frames establish stable reacquisition, and interaction starts on a later frame. The held signal present during recovery is never treated as fresh.
 
 ## UI States
 
@@ -92,6 +102,7 @@ The Aksa pointer is always visually distinct from browser focus. Both can be vis
 Owner: Henix.
 
 - Camera stream acquisition, MediaPipe Tasks Vision Face Landmarker setup in live-stream mode, and teardown that stops all tracks.
+- GPU model initialization with a CPU fallback, using the pinned model and WASM hosts permitted by CSP.
 - Off-main-thread inference through a Web Worker or an equivalent approach where practical.
 - Head-pose to pointer mapping, including sensitivity, dead zone, and smoothing curves.
 - Pointer rendering, target eligibility detection, and hit testing.
@@ -167,7 +178,7 @@ Requirements from `.agents/security.md` section 7.
 | Camera permission revoked while active | `Face control paused.`, pointer frozen, dwell cleared, work preserved | Retry camera, keyboard, mouse |
 | No camera device | States that no camera was found | Keyboard, mouse |
 | Camera in use by another application | States that the camera is unavailable | Close the other application, retry, keyboard |
-| Landmark model fails to load | States that head control could not start | Retry, keyboard, mouse |
+| Landmark model fails to load | Stops the stream and states that head control could not start | Retry with GPU or CPU initialization, keyboard, mouse |
 | Inference too slow for usable control | States that head control is running slowly and offers to reduce processing quality | Reduce quality, keyboard, mouse |
 | No face detected | Positioning and lighting hint, nothing captured | Adjust position, retry, skip |
 | Poor lighting | Same hint, tracking continues if usable | Adjust lighting |
