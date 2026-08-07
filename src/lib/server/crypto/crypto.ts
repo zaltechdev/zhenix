@@ -9,18 +9,34 @@ const AUTH_TAG_LENGTH = 16;
 const DEFAULT_KEY_VERSION = 1;
 
 /**
- * Derives a 32-byte key from AUTH_SECRET or default fallback for development/testing.
+ * Derives a 32-byte key specifically from `OAUTH_TOKEN_ENCRYPTION_KEY`.
+ * Fails closed when key is unconfigured or a placeholder.
+ * Never falls back to AUTH_SECRET.
  */
 function getEncryptionKey(): Buffer {
-  const secret = process.env.AUTH_SECRET || "aksa-fallback-high-entropy-development-secret-key-32bytes";
-  return scryptSync(secret, "aksa-oauth-salt", 32);
+  const rawKey = process.env.OAUTH_TOKEN_ENCRYPTION_KEY;
+
+  if (
+    !rawKey ||
+    typeof rawKey !== "string" ||
+    rawKey.trim() === "" ||
+    /^replace-with/i.test(rawKey.trim()) ||
+    /^your-/i.test(rawKey.trim())
+  ) {
+    throw new Error("OAUTH_TOKEN_ENCRYPTION_KEY configuration is missing or unconfigured");
+  }
+
+  return scryptSync(rawKey.trim(), "aksa-oauth-salt", 32);
 }
 
 /**
  * Encrypts a plaintext string (e.g. refresh token) using AES-256-GCM.
  * Output format: base64(IV + AuthTag + Ciphertext)
  */
-export function encryptToken(plaintext: string, keyVersion = DEFAULT_KEY_VERSION): { ciphertext: string; keyVersion: number } {
+export function encryptToken(
+  plaintext: string,
+  keyVersion = DEFAULT_KEY_VERSION
+): { ciphertext: string; keyVersion: number } {
   const key = getEncryptionKey();
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);

@@ -6,7 +6,13 @@ import { bootstrapUserWorkspaceAndProfile, getAccessibilityProfile, saveAccessib
 import { storeGoogleTokens, isGoogleConnected, getConnectedEmail, clearStoredConnection, getValidAccessToken } from "@/lib/server/google/token-store";
 import { eq } from "drizzle-orm";
 
+const TEST_KEY = "test-high-entropy-oauth-token-encryption-key-32bytes";
+
 describe("Phase I Foundation - Crypto & Token Encryption", () => {
+  beforeEach(() => {
+    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = TEST_KEY;
+  });
+
   it("encrypts refresh token at rest and decrypts back accurately", () => {
     const originalToken = "1//04_example_refresh_token_secret_123456";
     const encrypted = encryptToken(originalToken);
@@ -19,6 +25,16 @@ describe("Phase I Foundation - Crypto & Token Encryption", () => {
     expect(decrypted).toBe(originalToken);
   });
 
+  it("fails closed when OAUTH_TOKEN_ENCRYPTION_KEY is missing or placeholder", () => {
+    delete process.env.OAUTH_TOKEN_ENCRYPTION_KEY;
+    expect(() => encryptToken("some-token")).toThrow("OAUTH_TOKEN_ENCRYPTION_KEY configuration is missing or unconfigured");
+
+    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = "replace-with-a-high-entropy-encryption-key";
+    expect(() => encryptToken("some-token")).toThrow("OAUTH_TOKEN_ENCRYPTION_KEY configuration is missing or unconfigured");
+
+    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = TEST_KEY;
+  });
+
   it("throws on corrupted ciphertext", () => {
     expect(() => decryptToken("invalid-base64")).toThrow();
   });
@@ -29,6 +45,7 @@ describe("Phase I Foundation - User Bootstrap & Idempotency", () => {
   const userEmail = "test1@example.com";
 
   beforeEach(async () => {
+    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = TEST_KEY;
     await db.delete(workspaces).where(eq(workspaces.ownerUserId, userId));
     await db.delete(accessibilityProfiles).where(eq(accessibilityProfiles.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
@@ -85,6 +102,7 @@ describe("Phase I Foundation - Encrypted User-Scoped Google Token Storage", () =
   const userB = "user_B_google_test";
 
   beforeEach(async () => {
+    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = TEST_KEY;
     await db.delete(oauthConnections).where(eq(oauthConnections.userId, userA));
     await db.delete(oauthConnections).where(eq(oauthConnections.userId, userB));
     await db.delete(users).where(eq(users.id, userA));
@@ -143,7 +161,6 @@ describe("Phase I Foundation - Encrypted User-Scoped Google Token Storage", () =
       "usera@example.com"
     );
 
-    // Unconnected user returns null
     const tokenB = await getValidAccessToken(userB);
     expect(tokenB).toBeNull();
   });
