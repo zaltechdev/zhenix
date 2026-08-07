@@ -1,4 +1,4 @@
-import { Mic, MoveRight, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Mic, ShieldCheck, CheckCircle2, LayoutGrid } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 
@@ -14,11 +14,11 @@ export function FeatureGrid({ locale }: { locale: Locale }) {
         </div>
 
         <div className="landing-features-grid">
-          {/* Card 1: Fewer repeated steps */}
+          {/* Card 1: Your Google Workspace in one place */}
           <article className="landing-feature-card">
             <div className="landing-feature-card__header">
               <span aria-hidden="true" className="landing-feature-card__icon">
-                <MoveRight className="landing-icon" />
+                <LayoutGrid className="landing-icon" />
               </span>
               <h3>{m.feature_steps_title({}, options)}</h3>
             </div>
@@ -26,14 +26,14 @@ export function FeatureGrid({ locale }: { locale: Locale }) {
             <div aria-hidden="true" className="landing-feature-card__ui-preview">
               <div className="landing-feature-card__ui-row">
                 <span className="landing-feature-card__badge landing-feature-card__badge--active">
-                  Google Docs & Sheets
+                  Docs, Sheets & Slides
                 </span>
-                <span className="landing-feature-card__badge">Gmail & Drive</span>
+                <span className="landing-feature-card__badge">Drive & Gmail</span>
               </div>
             </div>
           </article>
 
-          {/* Card 2: One focused workspace */}
+          {/* Card 2: Ask for the outcome */}
           <article className="landing-feature-card">
             <div className="landing-feature-card__header">
               <span aria-hidden="true" className="landing-feature-card__icon">
@@ -45,13 +45,13 @@ export function FeatureGrid({ locale }: { locale: Locale }) {
             <div aria-hidden="true" className="landing-feature-card__ui-preview">
               <div className="landing-feature-card__ui-row">
                 <span className="landing-feature-card__badge landing-feature-card__badge--accent">
-                  Unified Work Surface
+                  Outcome-Based AI Execution
                 </span>
               </div>
             </div>
           </article>
 
-          {/* Card 3: Clear results and recovery */}
+          {/* Card 3: Stay in control */}
           <article className="landing-feature-card">
             <div className="landing-feature-card__header">
               <span aria-hidden="true" className="landing-feature-card__icon">

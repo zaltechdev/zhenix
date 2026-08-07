@@ -45,8 +45,13 @@ export function LandingPage({ locale }: { locale: Locale }) {
             <p className="landing-hero__description">
               <TypewriterText
                 fallback={m.hero_description({}, messageOptions)}
-                prefix="A hands-free AI workspace for "
-                words={["documents.", "files.", "sheets.", "web research.", "your workflow."]}
+                prefix={m.hero_description_prefix({}, messageOptions)}
+                words={[
+                  m.hero_typewriter_1({}, messageOptions),
+                  m.hero_typewriter_2({}, messageOptions),
+                  m.hero_typewriter_3({}, messageOptions),
+                  m.hero_typewriter_4({}, messageOptions)
+                ]}
               />
             </p>
 

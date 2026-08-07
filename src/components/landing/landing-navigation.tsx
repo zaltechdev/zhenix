@@ -25,20 +25,39 @@ function MenuIcon({ close = false }: { close?: boolean }) {
   );
 }
 
-function NavigationLinks({ links, onNavigate }: { links: NavigationLink[]; onNavigate?: () => void }) {
+function NavigationLinks({
+  links,
+  activeHref,
+  onNavigate
+}: {
+  links: NavigationLink[];
+  activeHref?: string;
+  onNavigate?: () => void;
+}) {
   return (
     <>
-      {links.map((link) => (
-        <a className="landing-navigation__link" href={link.href} key={link.label} onClick={onNavigate}>
-          {link.label}
-        </a>
-      ))}
+      {links.map((link) => {
+        const isActive = activeHref === link.href;
+        return (
+          <a
+            aria-current={isActive ? "location" : undefined}
+            className={`landing-navigation__link ${isActive ? "is-active" : ""}`}
+            href={link.href}
+            key={link.label}
+            onClick={onNavigate}
+          >
+            {link.label}
+          </a>
+        );
+      })}
     </>
   );
 }
 
 export function MarketingHeader({ locale }: { locale: Locale }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [activeHref, setActiveHref] = useState("");
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const messageOptions = { locale };
@@ -47,6 +66,31 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
     { href: "#how-it-works", label: m.navigation_how_it_works({}, messageOptions) },
     { href: "#faq", label: m.navigation_faq({}, messageOptions) }
   ];
+
+  useEffect(() => {
+    function handleScroll() {
+      const scrollY = window.scrollY;
+      setIsScrolled(scrollY > 72);
+
+      const sectionIds = ["features", "how-it-works", "faq"];
+      let current = "";
+      for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 180 && rect.bottom >= 180) {
+            current = `#${id}`;
+            break;
+          }
+        }
+      }
+      setActiveHref(current);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -97,7 +141,7 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
   }
 
   return (
-    <header className="landing-navigation">
+    <header className={`landing-navigation ${isScrolled ? "is-scrolled" : ""}`} data-scrolled={isScrolled}>
       <div className="landing-navigation__inner">
         <a className="landing-navigation__brand" href="#top">
           <Image
@@ -110,17 +154,16 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
         </a>
 
         <nav aria-label={m.navigation_label({}, messageOptions)} className="landing-navigation__desktop-links">
-          <NavigationLinks links={links} />
+          <NavigationLinks activeHref={activeHref} links={links} />
         </nav>
 
         <div className="landing-navigation__utilities">
           <LocaleSwitcher locale={locale} />
           <ThemeToggle locale={locale} />
+          <ButtonLink className="landing-navigation__cta" href="/sign-in" size="sm" variant="primary">
+            {m.navigation_try_aksa({}, messageOptions)}
+          </ButtonLink>
         </div>
-
-        <ButtonLink className="landing-navigation__cta" href="/sign-in" size="sm" variant="primary">
-          {m.navigation_try_aksa({}, messageOptions)}
-        </ButtonLink>
 
         <IconButton
           aria-controls="mobile-navigation"
