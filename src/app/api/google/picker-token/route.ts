@@ -1,28 +1,31 @@
 import { NextResponse } from "next/server";
 import { getValidAccessToken, isGoogleConnected } from "@/lib/server/google/token-store";
 import { googleOAuthConfig } from "@/lib/server/google/oauth";
+import { getSession } from "@/lib/server/db/dal";
 
 /**
  * GET /api/google/picker-token
  *
- * Returns a short-lived access token and the API key for the Google Picker.
- *
- * Security notes:
- * - This token is needed by the Picker client-side component.
- * - The Picker API requires setOAuthToken() and setDeveloperKey().
- * - Token is short-lived and scoped to drive.file.
- * - The client uses it only for the Picker, then discards it.
- * - Per the prompt: "The standard Picker pattern."
+ * Returns a short-lived access token and the API key for the Google Picker for the authenticated user.
  */
 export async function GET() {
-  if (!isGoogleConnected()) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
+  const connected = await isGoogleConnected(session.userId);
+  if (!connected) {
     return NextResponse.json(
       { error: "Google not connected" },
       { status: 401 }
     );
   }
 
-  const accessToken = await getValidAccessToken();
+  const accessToken = await getValidAccessToken(session.userId);
   if (!accessToken) {
     return NextResponse.json(
       { error: "Unable to get access token" },

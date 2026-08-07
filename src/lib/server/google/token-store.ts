@@ -1,101 +1,130 @@
+import { eq, and } from "drizzle-orm";
 import { assertServerOnly } from "@/lib/server/server-guard";
-import { refreshAccessToken, type GoogleTokens } from "@/lib/server/google/oauth";
+import { refreshAccessToken, revokeToken, type GoogleTokens } from "@/lib/server/google/oauth";
+import { encryptToken, decryptToken } from "@/lib/server/crypto/crypto";
+import { db } from "@/lib/server/db/client";
+import { oauthConnections } from "@/lib/server/db/schema";
 
 assertServerOnly("src/lib/server/google/token-store.ts");
 
 /**
- * In-memory token store for the Docs PoC.
+ * User-Scoped DB Token Store for Google OAuth.
  *
- * Stores Google OAuth tokens keyed by a session identifier. In a production
- * implementation, refresh tokens would be encrypted at rest in the database
- * per `.agents/security.md` section 4. This in-memory store is sufficient for
- * the PoC since there is no auth library installed yet.
- *
- * For the PoC, a single "dev" user session is used.
+ * Stores Google OAuth connection & encrypted refresh tokens in `oauth_connections` table,
+ * scoped strictly to the authenticated Aksa user ID.
  */
 
-type StoredConnection = {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-  scope: string;
-  accountEmail: string | null;
-};
-
-const store = new Map<string, StoredConnection>();
-
-/** Default session key for the PoC (single-user dev mode). */
-const POC_SESSION_KEY = "poc-dev-user";
-
-export function storeGoogleTokens(
+export async function storeGoogleTokens(
+  userId: string,
   tokens: GoogleTokens,
-  email: string | null,
-  sessionKey: string = POC_SESSION_KEY
-): void {
+  email: string | null
+): Promise<void> {
   if (!tokens.refreshToken) {
-    throw new Error("Cannot store connection without a refresh token");
-  }
-
-  store.set(sessionKey, {
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    expiresAt: tokens.expiresAt,
-    scope: tokens.scope,
-    accountEmail: email
-  });
-}
-
-export function getStoredConnection(
-  sessionKey: string = POC_SESSION_KEY
-): StoredConnection | null {
-  return store.get(sessionKey) ?? null;
-}
-
-export function clearStoredConnection(
-  sessionKey: string = POC_SESSION_KEY
-): void {
-  store.delete(sessionKey);
-}
-
-/**
- * Get a valid access token, refreshing if expired.
- * Returns null if no connection exists.
- */
-export async function getValidAccessToken(
-  sessionKey: string = POC_SESSION_KEY
-): Promise<string | null> {
-  const connection = store.get(sessionKey);
-  if (!connection) {
-    return null;
-  }
-
-  /** Refresh 60 seconds before expiry to avoid edge-case failures. */
-  if (Date.now() > connection.expiresAt - 60_000) {
-    try {
-      const refreshed = await refreshAccessToken(connection.refreshToken);
-      connection.accessToken = refreshed.accessToken;
-      connection.expiresAt = refreshed.expiresAt;
-      if (refreshed.scope) {
-        connection.scope = refreshed.scope;
-      }
-    } catch {
-      /** Refresh failed. Mark as needing reconnect by clearing. */
-      store.delete(sessionKey);
-      return null;
+    // If no new refresh token returned, keep existing ciphertext if present
+    const existing = await db.query.oauthConnections.findFirst({
+      where: and(eq(oauthConnections.userId, userId), eq(oauthConnections.provider, "google"))
+    });
+    if (!existing || !existing.refreshTokenCiphertext) {
+      throw new Error("Cannot store Google connection without a refresh token");
     }
   }
 
-  return connection.accessToken;
+  const now = Date.now();
+  const encrypted = tokens.refreshToken ? encryptToken(tokens.refreshToken) : null;
+  const scopesJson = JSON.stringify(tokens.scope.split(" ").filter(Boolean));
+
+  const existing = await db.query.oauthConnections.findFirst({
+    where: and(eq(oauthConnections.userId, userId), eq(oauthConnections.provider, "google"))
+  });
+
+  if (existing) {
+    await db
+      .update(oauthConnections)
+      .set({
+        providerEmail: email ?? existing.providerEmail,
+        refreshTokenCiphertext: encrypted?.ciphertext ?? existing.refreshTokenCiphertext,
+        refreshTokenKeyVersion: encrypted?.keyVersion ?? existing.refreshTokenKeyVersion,
+        grantedScopes: scopesJson,
+        status: "active",
+        lastVerifiedAt: now,
+        updatedAt: now
+      })
+      .where(eq(oauthConnections.id, existing.id));
+  } else {
+    await db.insert(oauthConnections).values({
+      id: `oauth_google_${userId}`,
+      userId,
+      provider: "google",
+      providerEmail: email,
+      refreshTokenCiphertext: encrypted!.ciphertext,
+      refreshTokenKeyVersion: encrypted!.keyVersion,
+      grantedScopes: scopesJson,
+      status: "active",
+      lastVerifiedAt: now,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
 }
 
-export function isGoogleConnected(
-  sessionKey: string = POC_SESSION_KEY
-): boolean {
-  return store.has(sessionKey);
+export async function getValidAccessToken(userId: string): Promise<string | null> {
+  const connection = await db.query.oauthConnections.findFirst({
+    where: and(eq(oauthConnections.userId, userId), eq(oauthConnections.provider, "google"))
+  });
+
+  if (!connection || connection.status !== "active" || !connection.refreshTokenCiphertext) {
+    return null;
+  }
+
+  try {
+    const refreshToken = decryptToken(connection.refreshTokenCiphertext);
+    const refreshed = await refreshAccessToken(refreshToken);
+
+    // Update verified timestamp
+    await db
+      .update(oauthConnections)
+      .set({ lastVerifiedAt: Date.now(), updatedAt: Date.now() })
+      .where(eq(oauthConnections.id, connection.id));
+
+    return refreshed.accessToken;
+  } catch {
+    // Mark connection as needing reconnect on refresh failure
+    await db
+      .update(oauthConnections)
+      .set({ status: "needs_reconnect", updatedAt: Date.now() })
+      .where(eq(oauthConnections.id, connection.id));
+
+    return null;
+  }
 }
 
-export function getConnectedEmail(
-  sessionKey: string = POC_SESSION_KEY
-): string | null {
-  return store.get(sessionKey)?.accountEmail ?? null;
+export async function isGoogleConnected(userId: string): Promise<boolean> {
+  const connection = await db.query.oauthConnections.findFirst({
+    where: and(eq(oauthConnections.userId, userId), eq(oauthConnections.provider, "google"))
+  });
+  return connection?.status === "active";
+}
+
+export async function getConnectedEmail(userId: string): Promise<string | null> {
+  const connection = await db.query.oauthConnections.findFirst({
+    where: and(eq(oauthConnections.userId, userId), eq(oauthConnections.provider, "google"))
+  });
+  return connection?.status === "active" ? connection.providerEmail : null;
+}
+
+export async function clearStoredConnection(userId: string): Promise<void> {
+  const connection = await db.query.oauthConnections.findFirst({
+    where: and(eq(oauthConnections.userId, userId), eq(oauthConnections.provider, "google"))
+  });
+
+  if (connection && connection.refreshTokenCiphertext) {
+    try {
+      const refreshToken = decryptToken(connection.refreshTokenCiphertext);
+      await revokeToken(refreshToken);
+    } catch {
+      // Best-effort revocation
+    }
+
+    await db.delete(oauthConnections).where(eq(oauthConnections.id, connection.id));
+  }
 }

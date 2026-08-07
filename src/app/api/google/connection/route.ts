@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { isGoogleConnected, getConnectedEmail, clearStoredConnection } from "@/lib/server/google/token-store";
-import { isGoogleOAuthConfigured, revokeToken } from "@/lib/server/google/oauth";
-import { getStoredConnection } from "@/lib/server/google/token-store";
+import { isGoogleOAuthConfigured } from "@/lib/server/google/oauth";
+import { getSession } from "@/lib/server/db/dal";
 
 /**
  * GET /api/google/connection
  *
- * Returns the current Google connection state.
+ * Returns the authenticated user's Google connection state.
  */
 export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({
+      state: "not_connected",
+      accountEmail: null,
+      configured: false
+    });
+  }
+
   if (!isGoogleOAuthConfigured()) {
     return NextResponse.json({
       state: "not_connected",
@@ -17,8 +26,8 @@ export async function GET() {
     });
   }
 
-  const connected = isGoogleConnected();
-  const email = getConnectedEmail();
+  const connected = await isGoogleConnected(session.userId);
+  const email = await getConnectedEmail(session.userId);
 
   return NextResponse.json({
     state: connected ? "connected" : "not_connected",
@@ -30,17 +39,15 @@ export async function GET() {
 /**
  * DELETE /api/google/connection
  *
- * Disconnects the Google account. Revokes the token with Google and
- * clears stored credentials.
+ * Disconnects the Google account for the authenticated user.
  */
 export async function DELETE() {
-  const connection = getStoredConnection();
-
-  if (connection) {
-    /** Best-effort revocation with Google per security spec. */
-    await revokeToken(connection.accessToken);
-    clearStoredConnection();
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
+
+  await clearStoredConnection(session.userId);
 
   return NextResponse.json({ state: "not_connected", accountEmail: null });
 }

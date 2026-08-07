@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { buildAuthorizationUrl, isGoogleOAuthConfigured } from "@/lib/server/google/oauth";
+import { getSession } from "@/lib/server/db/dal";
 
 /**
  * GET /api/google/auth
  *
- * Initiates the Google OAuth flow. Redirects the user to Google's consent screen.
- * The state parameter prevents CSRF.
+ * Initiates the Google OAuth flow for the authenticated user.
  */
 export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   if (!isGoogleOAuthConfigured()) {
     return NextResponse.json(
       { error: "Google OAuth is not configured" },
@@ -15,15 +20,9 @@ export async function GET() {
     );
   }
 
-  /**
-   * Simple state token for CSRF protection.
-   * In production, this would be a signed, time-limited token stored in the session.
-   */
   const state = crypto.randomUUID();
-
   const authUrl = buildAuthorizationUrl(state);
 
-  /** Store the state in a short-lived cookie for validation in the callback. */
   const response = NextResponse.redirect(authUrl);
   response.cookies.set("google_oauth_state", state, {
     httpOnly: true,

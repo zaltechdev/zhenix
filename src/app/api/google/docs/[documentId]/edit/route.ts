@@ -4,6 +4,7 @@ import { getValidAccessToken, isGoogleConnected } from "@/lib/server/google/toke
 import { batchUpdateDocument, getDocument, GoogleApiError } from "@/lib/server/google/docs-api";
 import { adaptGoogleDocument } from "@/lib/server/google/docs-adapter";
 import type { GoogleDocRequest } from "@/lib/server/google/docs-api";
+import { getSession } from "@/lib/server/db/dal";
 
 /**
  * POST /api/google/docs/[documentId]/edit
@@ -56,10 +57,6 @@ const editRequestSchema = z.object({
 function operationToGoogleRequest(op: z.infer<typeof editOperationSchema>): GoogleDocRequest[] {
   switch (op.type) {
     case "replaceText":
-      /**
-       * Replace = delete + insert. Operations ordered by descending index
-       * to avoid shift issues. Delete first (at higher index), then insert.
-       */
       return [
         { deleteContentRange: { range: { startIndex: op.startIndex, endIndex: op.endIndex } } },
         { insertText: { text: op.newText, location: { index: op.startIndex } } }
@@ -103,16 +100,25 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ documentId: string }> }
 ) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { outcome: "blocked", error: { category: "authentication_required" } },
+      { status: 401 }
+    );
+  }
+
   const { documentId } = await params;
 
-  if (!isGoogleConnected()) {
+  const connected = await isGoogleConnected(session.userId);
+  if (!connected) {
     return NextResponse.json(
       { outcome: "blocked", error: { category: "connection_required" } },
       { status: 401 }
     );
   }
 
-  const accessToken = await getValidAccessToken();
+  const accessToken = await getValidAccessToken(session.userId);
   if (!accessToken) {
     return NextResponse.json(
       { outcome: "blocked", error: { category: "connection_required" } },
@@ -140,10 +146,6 @@ export async function POST(
 
   const { operations, requiredRevisionId } = parsed.data;
 
-  /**
-   * Convert operations to Google requests.
-   * Sort by descending startIndex to avoid index shifts.
-   */
   const sortedOps = [...operations].sort((a, b) => {
     const aStart = "startIndex" in a ? a.startIndex : ("index" in a ? a.index : 0);
     const bStart = "startIndex" in b ? b.startIndex : ("index" in b ? b.index : 0);
@@ -156,13 +158,11 @@ export async function POST(
   }
 
   try {
-    /** Apply edits with conflict detection via requiredRevisionId. */
     await batchUpdateDocument(accessToken, documentId, {
       requests: googleRequests,
       writeControl: { requiredRevisionId }
     });
 
-    /** Verify: re-read the document after successful write. */
     const rawDoc = await getDocument(accessToken, documentId);
     const model = adaptGoogleDocument(rawDoc);
 

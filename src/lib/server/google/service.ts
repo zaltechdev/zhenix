@@ -10,25 +10,15 @@ import type {
   WriteProposal
 } from "@/lib/server/google/gateway";
 import { readSessionState } from "@/lib/server/auth/service";
+import { isGoogleConnected, getConnectedEmail } from "@/lib/server/google/token-store";
 
 assertServerOnly("src/lib/server/google/service.ts");
-
-/**
- * Unconfigured Google boundary.
- *
- * Every read reports why it cannot proceed. Nothing here fabricates a file, a
- * document, a sheet range, or a message, and no write ever reports success.
- */
 
 async function blockingError(): Promise<AksaError> {
   if (!googleStatus().configured) {
     return createAksaError("not_configured");
   }
 
-  /**
-   * Credentials alone are not enough. A Google connection belongs to an account,
-   * and the account boundary is unconfigured, so the honest blocker is the account.
-   */
   const session = await readSessionState();
   if (session.status !== "authenticated") {
     return createAksaError("authentication_required");
@@ -49,13 +39,26 @@ async function blockedExecution(): Promise<WriteExecution> {
   return { outcome: "blocked", error: await blockingError() };
 }
 
-function createUnconfiguredGoogleGateway(): GoogleWorkspaceGateway {
+function createRealGoogleGateway(): GoogleWorkspaceGateway {
   return {
     async readConnection(): Promise<GoogleConnection> {
+      const session = await readSessionState();
+      if (session.status !== "authenticated") {
+        return {
+          state: "not_connected",
+          accountEmail: null,
+          grantedCapabilities: [],
+          checkedAt: Date.now()
+        };
+      }
+
+      const connected = await isGoogleConnected(session.session.userId);
+      const email = await getConnectedEmail(session.session.userId);
+
       return {
-        state: "not_connected",
-        accountEmail: null,
-        grantedCapabilities: [],
+        state: connected ? "connected" : "not_connected",
+        accountEmail: email,
+        grantedCapabilities: connected ? ["docs_read", "drive_read", "drive_picker"] : [],
         checkedAt: Date.now()
       };
     },
@@ -79,10 +82,6 @@ function createUnconfiguredGoogleGateway(): GoogleWorkspaceGateway {
     executeConfirmedWrite: () => blockedExecution(),
 
     async readPickerCapability(): Promise<DrivePickerCapability> {
-      /**
-       * The Google Picker package is deliberately not installed, and no OAuth token
-       * is exposed to the client to support a placeholder.
-       */
       return { available: false, requiredCapability: "drive_picker" };
     },
 
@@ -91,7 +90,7 @@ function createUnconfiguredGoogleGateway(): GoogleWorkspaceGateway {
 }
 
 export function googleGateway(): GoogleWorkspaceGateway {
-  return createUnconfiguredGoogleGateway();
+  return createRealGoogleGateway();
 }
 
 export async function readGoogleConnection(): Promise<GoogleConnection> {
