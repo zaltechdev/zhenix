@@ -85,6 +85,7 @@ export function ConfirmationDialog({
         aria-labelledby={titleId}
         aria-modal="true"
         className="aksa-dialog"
+        data-aksa-confirmation-guard="true"
         ref={dialogRef}
         role="dialog"
       >

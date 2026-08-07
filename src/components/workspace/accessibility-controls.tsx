@@ -13,6 +13,7 @@ import {
 } from "@/lib/contracts/auth";
 import { createAksaError } from "@/lib/contracts/errors";
 import { BlockedState } from "@/components/workspace/state-panel";
+import { setCachedProfile } from "@/lib/client/vision/profile-cache";
 
 /**
  * Pointer and selection controls.
@@ -60,6 +61,9 @@ export function AccessibilityControls({
 
       const payload: unknown = await response.json();
       const outcome = accessibilityProfileSaveResultSchema.safeParse(payload);
+      if (outcome.success && outcome.data.outcome === "saved") {
+        void setCachedProfile(outcome.data.profile);
+      }
       setResult(
         outcome.success
           ? outcome.data
@@ -179,6 +183,52 @@ export function AccessibilityControls({
               </output>
             </div>
           </div>
+        ) : null}
+
+        {profile.selectionMode === "gesture" || profile.selectionMode === "both" ? (
+          <>
+            <div className="aksa-field">
+              <label className="aksa-label" htmlFor="gesture-type">
+                Gesture Type
+              </label>
+              <select
+                className="aksa-select"
+                id="gesture-type"
+                onChange={(event) =>
+                  update(
+                    "gestureType",
+                    (event.target.value as AccessibilityProfile["gestureType"]) || null
+                  )
+                }
+                value={profile.gestureType ?? "mouth_open"}
+              >
+                <option value="mouth_open">Mouth Open</option>
+                <option value="brow_raise">Eyebrow Raise</option>
+                <option value="eye_blink_long">Long Blink</option>
+                <option value="smile">Smile</option>
+              </select>
+            </div>
+
+            <div className="aksa-field">
+              <label className="aksa-label" htmlFor="gesture-threshold">
+                Gesture Sensitivity Threshold
+              </label>
+              <div className="aksa-field--row">
+                <input
+                  className="aksa-range"
+                  id="gesture-threshold"
+                  max={100}
+                  min={0}
+                  onChange={(event) => update("gestureThreshold", Number(event.target.value))}
+                  type="range"
+                  value={profile.gestureThreshold ?? 50}
+                />
+                <output className="aksa-output" htmlFor="gesture-threshold">
+                  {profile.gestureThreshold ?? 50}
+                </output>
+              </div>
+            </div>
+          </>
         ) : null}
       </div>
 
