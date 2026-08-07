@@ -18,7 +18,14 @@ import { mapPoseToScreenDelta, smoothCoordinates, clampCoordinates, Vector2D } f
 import { resolveTargetAtPoint } from "./target-resolver";
 import { DwellController, DwellProgress } from "./dwell-controller";
 import { GestureDetector, GestureStatus } from "./gesture-detector";
-import { VisionEngine, VisionFrameData, VisionLifecycleState } from "./vision-engine";
+import {
+  VisionEngine,
+  cameraFailureFromException,
+  type VisionEngineCallbacks,
+  type VisionFailureCategory,
+  type VisionFrameData,
+  type VisionLifecycleState
+} from "./vision-engine";
 import { CalibrationEngine, CalibrationState } from "./calibration";
 import { AksaPointer } from "@/components/workspace/aksa-pointer";
 import { getCachedProfile, setCachedProfile } from "./profile-cache";
@@ -26,7 +33,7 @@ import { getCachedProfile, setCachedProfile } from "./profile-cache";
 export interface HeadControlContextValue {
   userId: string | null;
   lifecycleState: VisionLifecycleState;
-  errorMessage: string | null;
+  errorCategory: VisionFailureCategory | null;
   pointerPosition: Vector2D;
   activeTarget: HTMLElement | null;
   dwellProgress: DwellProgress;
@@ -45,6 +52,19 @@ export interface HeadControlContextValue {
   setNeutralBaseline: (baseline: NeutralBaseline) => void;
   updateProfile: (profile: AccessibilityProfile) => void;
 }
+
+export interface HeadControlEngine {
+  initialize: () => Promise<boolean>;
+  start: (videoElement: HTMLVideoElement, stream: MediaStream) => void;
+  pause: () => void;
+  resume: () => void;
+  disable: () => void;
+  setNeutralBaseline: (baseline: NeutralBaseline) => void;
+}
+
+export type HeadControlEngineFactory = (
+  callbacks: VisionEngineCallbacks
+) => HeadControlEngine;
 
 const HeadControlContext = createContext<HeadControlContextValue | null>(null);
 
@@ -77,17 +97,19 @@ const STABLE_REACQUISITION_FRAMES_REQUIRED = 5;
 export function HeadControlProvider({
   children,
   userId = null,
-  initialProfile
+  initialProfile,
+  engineFactory = (callbacks) => new VisionEngine(callbacks)
 }: {
   children: ReactNode;
   userId?: string | null;
   initialProfile?: AccessibilityProfile | null;
+  engineFactory?: HeadControlEngineFactory;
 }) {
   const [profile, setProfile] = useState<AccessibilityProfile>(
     initialProfile ?? provisionalAccessibilityProfile
   );
   const [lifecycleState, setLifecycleState] = useState<VisionLifecycleState>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorCategory, setErrorCategory] = useState<VisionFailureCategory | null>(null);
   const [pointerPosition, setPointerPosition] = useState<Vector2D>(() =>
     typeof window !== "undefined"
       ? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
@@ -101,7 +123,7 @@ export function HeadControlProvider({
 
   // References for live callback freshness & teardown
   const profileRef = useRef<AccessibilityProfile>(profile);
-  const engineRef = useRef<VisionEngine | null>(null);
+  const engineRef = useRef<HeadControlEngine | null>(null);
   const dwellRef = useRef<DwellController | null>(null);
   const gestureRef = useRef<GestureDetector | null>(null);
   const calibrationEngineRef = useRef<CalibrationEngine>(new CalibrationEngine(20));
@@ -110,6 +132,40 @@ export function HeadControlProvider({
   const lastFrameTimeRef = useRef<number>(0);
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeModalRef = useRef<Element | null>(null);
+
+  const removeBackgroundVideo = useCallback(() => {
+    if (backgroundVideoRef.current) {
+      backgroundVideoRef.current.remove();
+      backgroundVideoRef.current = null;
+    }
+  }, []);
+
+  const cleanFailedStartup = useCallback(
+    (videoElement: HTMLVideoElement | null, stream: MediaStream | null) => {
+      if (stream) {
+        for (const track of stream.getTracks()) {
+          try {
+            track.stop();
+          } catch {
+            // Continue cleanup so one broken track cannot leave another running.
+          }
+        }
+      }
+      if (videoElement) {
+        try {
+          if (!stream || videoElement.srcObject === stream) {
+            videoElement.srcObject = null;
+          }
+        } catch {
+          // The stream is already stopped; a broken video binding cannot retain it.
+        }
+      }
+      if (videoElement === backgroundVideoRef.current) {
+        removeBackgroundVideo();
+      }
+    },
+    [removeBackgroundVideo]
+  );
 
   // Keep profileRef.current strictly updated with current state
   useEffect(() => {
@@ -343,41 +399,77 @@ export function HeadControlProvider({
   const startCamera = useCallback(
     async (videoElement: HTMLVideoElement, stream: MediaStream): Promise<boolean> => {
       if (!engineRef.current) {
-        engineRef.current = new VisionEngine({
+        engineRef.current = engineFactory({
           onFrame: handleFrame,
-          onStateChange: (st, err) => {
-            setLifecycleState(st);
-            if (err !== undefined) setErrorMessage(err);
+          onStateChange: (state, failure) => {
+            if (state === "active" && reacquisitionCountRef.current < STABLE_REACQUISITION_FRAMES_REQUIRED) {
+              setLifecycleState("initializing");
+            } else {
+              setLifecycleState(state);
+            }
+            setErrorCategory(
+              state === "tracking_lost" ? "tracking_lost" : failure ?? null
+            );
           }
         });
       }
 
-      const initialized = await engineRef.current.initialize();
-      if (!initialized) {
+      setLifecycleState("initializing");
+      setErrorCategory(null);
+
+      try {
+        videoElement.srcObject = stream;
+        const initialized = await engineRef.current.initialize();
+        if (!initialized) {
+          try {
+            engineRef.current.disable();
+          } catch {
+            // Stream cleanup below remains authoritative.
+          }
+          cleanFailedStartup(videoElement, stream);
+          setLifecycleState("error");
+          setErrorCategory("model_load_failed");
+          return false;
+        }
+
+        engineRef.current.start(videoElement, stream);
+        return true;
+      } catch {
+        try {
+          engineRef.current.disable();
+        } catch {
+          // Stream cleanup below remains authoritative.
+        }
+        cleanFailedStartup(videoElement, stream);
         setLifecycleState("error");
-        setErrorMessage("Head tracking model initialization failed");
+        setErrorCategory("camera_unavailable");
         return false;
       }
-
-      engineRef.current.start(videoElement, stream);
-      return true;
     },
-    [handleFrame]
+    [cleanFailedStartup, engineFactory, handleFrame]
   );
 
   const startHeadControl = useCallback(
     async (videoElement?: HTMLVideoElement | null): Promise<boolean> => {
-      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      if (
+        typeof window === "undefined" ||
+        !window.isSecureContext ||
+        typeof navigator === "undefined" ||
+        !navigator.mediaDevices?.getUserMedia
+      ) {
         setLifecycleState("error");
-        setErrorMessage("Camera access is not supported in this browser");
+        setErrorCategory("camera_unavailable");
         return false;
       }
 
+      let stream: MediaStream | null = null;
+      let targetVideo = videoElement ?? null;
+
       try {
         setLifecycleState("initializing");
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setErrorCategory(null);
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
-        let targetVideo = videoElement;
         if (!targetVideo) {
           if (!backgroundVideoRef.current && typeof document !== "undefined") {
             const vid = document.createElement("video");
@@ -392,21 +484,21 @@ export function HeadControlProvider({
         }
 
         if (!targetVideo) {
+          cleanFailedStartup(null, stream);
           setLifecycleState("error");
-          setErrorMessage("Failed to attach camera video element");
+          setErrorCategory("camera_unavailable");
           return false;
         }
 
-        targetVideo.srcObject = stream;
         return await startCamera(targetVideo, stream);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Failed to acquire camera stream";
+      } catch (error) {
+        cleanFailedStartup(targetVideo, stream);
         setLifecycleState("error");
-        setErrorMessage(msg);
+        setErrorCategory(cameraFailureFromException(error));
         return false;
       }
     },
-    [startCamera]
+    [cleanFailedStartup, startCamera]
   );
 
   const pauseControl = useCallback(() => {
@@ -431,12 +523,10 @@ export function HeadControlProvider({
     }
     if (dwellRef.current) dwellRef.current.cancel();
     if (gestureRef.current) gestureRef.current.reset();
-    if (backgroundVideoRef.current) {
-      backgroundVideoRef.current.remove();
-      backgroundVideoRef.current = null;
-    }
+    removeBackgroundVideo();
+    setErrorCategory(null);
     setLifecycleState("disabled");
-  }, []);
+  }, [removeBackgroundVideo]);
 
   // Provider unmount teardown effect
   useEffect(() => {
@@ -444,12 +534,9 @@ export function HeadControlProvider({
       if (engineRef.current) {
         engineRef.current.disable();
       }
-      if (backgroundVideoRef.current) {
-        backgroundVideoRef.current.remove();
-        backgroundVideoRef.current = null;
-      }
+      removeBackgroundVideo();
     };
-  }, []);
+  }, [removeBackgroundVideo]);
 
   const isPaused = lifecycleState === "paused";
 
@@ -458,7 +545,7 @@ export function HeadControlProvider({
       value={{
         userId,
         lifecycleState,
-        errorMessage,
+        errorCategory,
         pointerPosition,
         activeTarget,
         dwellProgress,

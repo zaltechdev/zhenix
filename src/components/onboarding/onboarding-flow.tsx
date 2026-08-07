@@ -22,11 +22,20 @@ import { PENDING_COMMAND_STORAGE_KEY } from "@/lib/client/state/pending-command"
 import { AccessibilityControls } from "@/components/workspace/accessibility-controls";
 import { StatusChip } from "@/components/workspace/status-chip";
 
-import { HeadControlProvider, useHeadControl } from "@/lib/client/vision/head-control-context";
+import {
+  HeadControlProvider,
+  useHeadControl,
+  type HeadControlEngineFactory
+} from "@/lib/client/vision/head-control-context";
+import {
+  cameraFailureFromException,
+  type VisionFailureCategory
+} from "@/lib/client/vision/vision-engine";
 
 export type OnboardingPhase = 1 | 2 | 3 | 4;
 
 type PermissionOutcome = "idle" | "granted" | "paused" | "denied" | "unavailable" | "insecure";
+type CameraOutcome = "idle" | "starting" | "active" | "paused" | "failed" | "insecure";
 
 interface PhaseDef {
   id: OnboardingPhase;
@@ -69,9 +78,15 @@ function getNestedPartLabel(phaseId: OnboardingPhase, substepIndex: number): str
   return null;
 }
 
-export function OnboardingFlow({ locale }: { locale: Locale }) {
+export function OnboardingFlow({
+  locale,
+  engineFactory
+}: {
+  locale: Locale;
+  engineFactory?: HeadControlEngineFactory;
+}) {
   return (
-    <HeadControlProvider>
+    <HeadControlProvider engineFactory={engineFactory}>
       <OnboardingFlowContent locale={locale} />
     </HeadControlProvider>
   );
@@ -83,7 +98,8 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   const [substepIndex, setSubstepIndex] = useOnboardingStep(12);
 
   // Local states
-  const [cameraOutcome, setCameraOutcome] = useState<PermissionOutcome>("idle");
+  const [cameraOutcome, setCameraOutcome] = useState<CameraOutcome>("idle");
+  const [cameraFailure, setCameraFailure] = useState<VisionFailureCategory | null>(null);
   const [microphoneOutcome, setMicrophoneOutcome] = useState<PermissionOutcome>("idle");
   const [voiceSkippedText, setVoiceSkippedText] = useState(false);
   const [recognitionFailed, setRecognitionFailed] = useState(false);
@@ -123,13 +139,14 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   }, [currentPhase, substepIndex, mounted]);
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    headControl.disableControl();
     streamRef.current = null;
     if (videoRef.current !== null) {
       videoRef.current.srcObject = null;
     }
     setCameraOutcome("paused");
-  }, []);
+    setCameraFailure(null);
+  }, [headControl]);
 
   useEffect(() => {
     return () => {
@@ -137,30 +154,66 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (headControl.errorCategory && headControl.errorCategory !== "tracking_lost") {
+      setCameraFailure(headControl.errorCategory);
+      setCameraOutcome("failed");
+      streamRef.current = null;
+    }
+  }, [headControl.errorCategory]);
+
   const requestCamera = useCallback(async () => {
     if (!window.isSecureContext) {
       setCameraOutcome("insecure");
+      setCameraFailure(null);
       return;
     }
 
     if (typeof navigator.mediaDevices?.getUserMedia !== "function") {
-      setCameraOutcome("unavailable");
+      setCameraOutcome("failed");
+      setCameraFailure("camera_unavailable");
       return;
     }
+
+    setCameraOutcome("starting");
+    setCameraFailure(null);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      if (videoRef.current !== null) {
-        videoRef.current.srcObject = stream;
-        await headControl.startCamera(videoRef.current, stream);
+      const videoElement = videoRef.current;
+      if (!videoElement) {
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setCameraFailure("camera_unavailable");
+        setCameraOutcome("failed");
+        return;
       }
-      setCameraOutcome("granted");
+
+      const operational = await headControl.startCamera(videoElement, stream);
+      if (operational) {
+        setCameraOutcome("active");
+      } else {
+        streamRef.current = null;
+        setCameraOutcome("failed");
+      }
     } catch (error) {
-      const name = error instanceof Error ? error.name : "";
-      setCameraOutcome(name === "NotFoundError" || name === "DevicesNotFoundError" ? "unavailable" : "denied");
+      streamRef.current = null;
+      setCameraFailure(cameraFailureFromException(error));
+      setCameraOutcome("failed");
     }
   }, [headControl]);
+
+  const cameraFailureCopy =
+    cameraFailure === "permission_denied"
+      ? m.onboarding_camera_denied({}, options)
+      : cameraFailure === "no_device"
+        ? m.onboarding_camera_unavailable({}, options)
+        : cameraFailure === "model_load_failed"
+          ? m.onboarding_camera_model_failed({}, options)
+          : cameraFailure === "stream_ended"
+            ? m.onboarding_camera_stream_ended({}, options)
+            : m.onboarding_camera_busy({}, options);
 
   const handleStartCalibration = useCallback(() => {
     headControl.startCalibration();
@@ -435,6 +488,20 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
               {/* Substep 2 & 3: Explanation and Camera permission */}
               {substepIndex === 2 || substepIndex === 3 ? (
                 <div className="aksa-onboarding-panel">
+                  <div
+                    className="aksa-camera-preview-container"
+                    hidden={cameraOutcome !== "active"}
+                  >
+                    <video
+                      aria-label={m.onboarding_camera_preview_label({}, options)}
+                      autoPlay
+                      className="aksa-camera-preview"
+                      muted
+                      playsInline
+                      ref={videoRef}
+                    />
+                  </div>
+
                   {cameraOutcome === "idle" ? (
                     <>
                       <div className="aksa-onboarding__controls">
@@ -461,21 +528,35 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     </>
                   ) : null}
 
-                  {cameraOutcome === "granted" ? (
+                  {cameraOutcome === "starting" ? (
+                    <StatusChip
+                      tone="pending"
+                      value={m.a11y_initializing_head_control({}, options)}
+                    />
+                  ) : null}
+
+                  {cameraOutcome === "active" ? (
                     <div className="aksa-onboarding-preview-box">
                       <div className="aksa-onboarding-preview-header">
-                        <StatusChip tone="ready" value={m.onboarding_camera_active({}, options)} />
-                        <span className="aksa-hint">{m.onboarding_camera_guidance({}, options)}</span>
-                      </div>
-                      <div className="aksa-camera-preview-container">
-                        <video
-                          aria-label={m.onboarding_camera_preview_label({}, options)}
-                          autoPlay
-                          className="aksa-camera-preview"
-                          muted
-                          playsInline
-                          ref={videoRef}
+                        <StatusChip
+                          tone={
+                            headControl.lifecycleState === "tracking_lost"
+                              ? "attention"
+                              : headControl.lifecycleState === "active"
+                                ? "ready"
+                                : "pending"
+                          }
+                          value={
+                            headControl.lifecycleState === "tracking_lost"
+                              ? m.a11y_tracking_lost_status({}, options)
+                              : headControl.lifecycleState === "active"
+                                ? m.onboarding_head_control_ready({}, options)
+                                : m.a11y_initializing_head_control({}, options)
+                          }
                         />
+                        <span className="aksa-hint">
+                          {m.onboarding_camera_guidance({}, options)}
+                        </span>
                       </div>
                       <button className="aksa-button aksa-button--secondary" onClick={stopCamera} type="button">
                         <CameraOff aria-hidden="true" className="aksa-icon" />
@@ -494,9 +575,9 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     </div>
                   ) : null}
 
-                  {cameraOutcome === "denied" ? (
+                  {cameraOutcome === "failed" ? (
                     <div className="aksa-state-panel" data-tone="attention" role="status">
-                      <StatusChip tone="attention" value={m.onboarding_camera_denied({}, options)} />
+                      <StatusChip tone="attention" value={cameraFailureCopy} />
                       <div className="aksa-state-panel__actions">
                         <button className="aksa-button aksa-button--primary" onClick={() => void requestCamera()} type="button">
                           {m.onboarding_try_camera_again({}, options)}
@@ -505,12 +586,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                           {m.onboarding_continue_no_camera({}, options)}
                         </button>
                       </div>
-                    </div>
-                  ) : null}
-
-                  {cameraOutcome === "unavailable" ? (
-                    <div className="aksa-state-panel" data-tone="attention" role="status">
-                      <StatusChip tone="attention" value={m.onboarding_camera_unavailable({}, options)} />
                     </div>
                   ) : null}
 
@@ -657,7 +732,13 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                   </button>
                   <button
                     className="aksa-button aksa-button--primary"
-                    onClick={() => (substepIndex < 6 ? setSubstepIndex(6) : goToPhase(3))}
+                    onClick={() =>
+                      substepIndex < 4
+                        ? setSubstepIndex(4)
+                        : substepIndex < 6
+                          ? setSubstepIndex(6)
+                          : goToPhase(3)
+                    }
                     type="button"
                   >
                     <span>{m.onboarding_continue({}, options)}</span>

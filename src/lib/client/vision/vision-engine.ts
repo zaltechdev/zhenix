@@ -16,6 +16,14 @@ export type VisionLifecycleState =
   | "disabled"
   | "error";
 
+export type VisionFailureCategory =
+  | "permission_denied"
+  | "no_device"
+  | "camera_unavailable"
+  | "model_load_failed"
+  | "stream_ended"
+  | "tracking_lost";
+
 export interface VisionFrameData {
   lifecycleState: VisionLifecycleState;
   faceDetected: boolean;
@@ -23,12 +31,27 @@ export interface VisionFrameData {
   poseDelta: HeadPose;
   blendshapes: BlendshapeCategory[];
   timestampMs: number;
-  errorMessage: string | null;
+  failureCategory: VisionFailureCategory | null;
 }
 
 export interface VisionEngineCallbacks {
   onFrame?: (data: VisionFrameData) => void;
-  onStateChange?: (state: VisionLifecycleState, errorMessage?: string | null) => void;
+  onStateChange?: (
+    state: VisionLifecycleState,
+    failureCategory?: VisionFailureCategory | null
+  ) => void;
+}
+
+export function cameraFailureFromException(error: unknown): VisionFailureCategory {
+  const name = error instanceof Error ? error.name : "";
+
+  if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
+    return "permission_denied";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return "no_device";
+  }
+  return "camera_unavailable";
 }
 
 export class VisionEngine {
@@ -39,9 +62,10 @@ export class VisionEngine {
   private animFrameId: number | null = null;
   private lastProcessedTimestamp = 0;
   private neutralBaseline: NeutralBaseline = { yaw: 0, pitch: 0, roll: 0 };
-  private errorMessage: string | null = null;
+  private failureCategory: VisionFailureCategory | null = null;
   private callbacks: VisionEngineCallbacks = {};
   private minInferenceIntervalMs = 25; // Limit inference cadence to ~40 FPS max to prevent backlog
+  private observedTracks: MediaStreamTrack[] = [];
 
   constructor(callbacks?: VisionEngineCallbacks) {
     if (callbacks) {
@@ -61,11 +85,14 @@ export class VisionEngine {
     return { ...this.neutralBaseline };
   }
 
-  private updateState(newState: VisionLifecycleState, errorMsg: string | null = null): void {
+  private updateState(
+    newState: VisionLifecycleState,
+    failureCategory: VisionFailureCategory | null = null
+  ): void {
     this.state = newState;
-    this.errorMessage = errorMsg;
+    this.failureCategory = failureCategory;
     if (this.callbacks.onStateChange) {
-      this.callbacks.onStateChange(newState, errorMsg);
+      this.callbacks.onStateChange(newState, failureCategory);
     }
   }
 
@@ -97,9 +124,9 @@ export class VisionEngine {
 
       this.updateState("idle");
       return true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load Face Landmarker model";
-      this.updateState("error", msg);
+    } catch {
+      this.landmarker = null;
+      this.updateState("error", "model_load_failed");
       return false;
     }
   }
@@ -108,17 +135,24 @@ export class VisionEngine {
    * Start processing an active HTMLVideoElement and MediaStream.
    */
   public start(videoElement: HTMLVideoElement, stream: MediaStream): void {
+    if (!this.landmarker) {
+      throw new Error("VisionEngine must be initialized before start");
+    }
+
+    this.stopLoop();
+    this.detachTrackListeners();
     this.videoElement = videoElement;
     this.mediaStream = stream;
 
-    if (!this.landmarker) {
-      this.initialize().then((success) => {
-        if (success) {
-          this.startLoop();
-        }
-      });
-    } else {
+    try {
+      this.observedTracks = stream.getTracks();
+      for (const track of this.observedTracks) {
+        track.addEventListener?.("ended", this.handleStreamEnded);
+      }
       this.startLoop();
+    } catch (error) {
+      this.releaseMedia(true);
+      throw error;
     }
   }
 
@@ -134,14 +168,14 @@ export class VisionEngine {
   }
 
   public disable(): void {
-    this.stopLoop();
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach((track) => track.stop());
-      this.mediaStream = null;
-    }
-    if (this.videoElement) {
-      this.videoElement.srcObject = null;
-      this.videoElement = null;
+    this.releaseMedia(true);
+    if (this.landmarker) {
+      try {
+        this.landmarker.close();
+      } catch {
+        // Model teardown must not prevent camera cleanup.
+      }
+      this.landmarker = null;
     }
     this.updateState("disabled");
   }
@@ -149,7 +183,7 @@ export class VisionEngine {
   private startLoop(): void {
     this.stopLoop();
     this.updateState("active");
-    this.loop();
+    this.animFrameId = requestAnimationFrame(this.loop);
   }
 
   private stopLoop(): void {
@@ -158,6 +192,50 @@ export class VisionEngine {
       this.animFrameId = null;
     }
   }
+
+  private detachTrackListeners(): void {
+    for (const track of this.observedTracks) {
+      track.removeEventListener?.("ended", this.handleStreamEnded);
+    }
+    this.observedTracks = [];
+  }
+
+  private releaseMedia(stopTracks: boolean): void {
+    this.stopLoop();
+    this.detachTrackListeners();
+
+    const stream = this.mediaStream;
+    this.mediaStream = null;
+    if (stopTracks && stream) {
+      for (const track of stream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          // Continue releasing every track even if one browser track misbehaves.
+        }
+      }
+    }
+
+    if (this.videoElement) {
+      try {
+        this.videoElement.srcObject = null;
+      } catch {
+        // Tracks are already stopped; a broken video binding cannot retain the stream.
+      }
+      this.videoElement = null;
+    }
+  }
+
+  private failRuntime(category: VisionFailureCategory): void {
+    this.releaseMedia(true);
+    this.updateState("error", category);
+  }
+
+  private handleStreamEnded = (): void => {
+    if (this.state !== "disabled" && this.state !== "error") {
+      this.failRuntime("stream_ended");
+    }
+  };
 
   private loop = (): void => {
     if (this.state !== "active" && this.state !== "tracking_lost") {
@@ -179,11 +257,14 @@ export class VisionEngine {
         const result: FaceLandmarkerResult = this.landmarker.detectForVideo(video, now);
         this.processLandmarkerResult(result, now);
       } catch {
-        // Degrade gracefully on inference frame glitch
+        this.failRuntime("model_load_failed");
+        return;
       }
     }
 
-    this.animFrameId = requestAnimationFrame(this.loop);
+    if (this.state === "active" || this.state === "tracking_lost") {
+      this.animFrameId = requestAnimationFrame(this.loop);
+    }
   };
 
   /**
@@ -204,7 +285,7 @@ export class VisionEngine {
         poseDelta: { yaw: 0, pitch: 0, roll: 0 },
         blendshapes: [],
         timestampMs: nowMs,
-        errorMessage: this.errorMessage
+        failureCategory: "tracking_lost"
       };
 
       if (this.callbacks.onFrame) {
@@ -247,7 +328,7 @@ export class VisionEngine {
       poseDelta,
       blendshapes,
       timestampMs: nowMs,
-      errorMessage: this.errorMessage
+      failureCategory: this.failureCategory
     };
 
     if (this.callbacks.onFrame) {

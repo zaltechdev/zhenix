@@ -5,6 +5,7 @@ import { PASSWORD_MIN_LENGTH, type AuthResult } from "@/lib/contracts/auth";
 import { createAksaError } from "@/lib/contracts/errors";
 import { AuthForm } from "@/components/auth/auth-form";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
+import type { HeadControlEngineFactory } from "@/lib/client/vision/head-control-context";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/onboarding",
@@ -13,6 +14,8 @@ vi.mock("next/navigation", () => ({
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+  Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
 });
 
 afterEach(() => cleanup());
@@ -231,6 +234,41 @@ describe("onboarding", () => {
         screen.getByText(m.onboarding_camera_unavailable({}, { locale: "en" }))
       ).toBeInTheDocument();
     });
+  });
+
+  it("does not report operational head control when model startup fails", async () => {
+    const stop = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop } as unknown as MediaStreamTrack]
+    } as unknown as MediaStream;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) }
+    });
+    const engineFactory: HeadControlEngineFactory = () => ({
+      initialize: vi.fn().mockResolvedValue(false),
+      start: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      disable: vi.fn(),
+      setNeutralBaseline: vi.fn()
+    });
+
+    render(<OnboardingFlow engineFactory={engineFactory} locale="en" />);
+    advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: m.onboarding_allow_camera({}, { locale: "en" }) })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(m.onboarding_camera_model_failed({}, { locale: "en" }))
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(m.onboarding_head_control_ready({}, { locale: "en" }))
+    ).not.toBeInTheDocument();
+    expect(stop).toHaveBeenCalled();
   });
 
   it("requires a secure connection before touching the camera", async () => {

@@ -1,14 +1,45 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { HeadControlProvider, useHeadControl } from "@/lib/client/vision/head-control-context";
+import {
+  HeadControlProvider,
+  useHeadControl,
+  type HeadControlEngineFactory
+} from "@/lib/client/vision/head-control-context";
 import { getCachedProfile, setCachedProfile, clearCachedProfile } from "@/lib/client/vision/profile-cache";
 import { GestureDetector } from "@/lib/client/vision/gesture-detector";
 import { CalibrationEngine } from "@/lib/client/vision/calibration";
-import { VisionEngine } from "@/lib/client/vision/vision-engine";
+
+function createMockStream() {
+  const stop = vi.fn();
+  const track = {
+    stop,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
+  } as unknown as MediaStreamTrack;
+  const stream = { getTracks: () => [track] } as unknown as MediaStream;
+  return { stop, stream, track };
+}
+
+function createEngineFactory(options: {
+  initialized: boolean;
+  onDisable?: () => void;
+  onStart?: (video: HTMLVideoElement, stream: MediaStream) => void;
+}): HeadControlEngineFactory {
+  return () => ({
+    initialize: vi.fn().mockResolvedValue(options.initialized),
+    start: vi.fn(options.onStart),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    disable: vi.fn(options.onDisable),
+    setNeutralBaseline: vi.fn()
+  });
+}
 
 describe("Head Control Coordinator Comprehensive Regression Suite", () => {
   beforeEach(async () => {
     document.body.innerHTML = "";
+    Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
     await clearCachedProfile("user-a");
     await clearCachedProfile("user-b");
   });
@@ -123,16 +154,20 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(state.samplesCount).toBe(0); // Raw sample array cleared
   });
 
-  it("reports error when camera initialization fails without setting state to ready", async () => {
+  it("stops the acquired stream and removes the hidden video when model startup fails", async () => {
+    const { stop, stream } = createMockStream();
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) }
+    });
+    const engineFactory = createEngineFactory({ initialized: false });
     const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <HeadControlProvider userId="test-user">{children}</HeadControlProvider>
+      <HeadControlProvider engineFactory={engineFactory} userId="test-user">
+        {children}
+      </HeadControlProvider>
     );
 
     const { result } = renderHook(() => useHeadControl(), { wrapper });
-
-    // Mock MediaPipe init failure
-    const mockEngine = new VisionEngine();
-    vi.spyOn(mockEngine, "initialize").mockResolvedValue(false);
 
     let success = true;
     await act(async () => {
@@ -140,20 +175,76 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
 
     expect(success).toBe(false);
+    expect(stop).toHaveBeenCalled();
+    expect(document.body.querySelector("video")).toBeNull();
+    expect(result.current.lifecycleState).toBe("error");
+    expect(result.current.errorCategory).toBe("model_load_failed");
   });
 
-  it("teardown stops stream tracks and animation frame loop on unmount", () => {
-    const trackStopSpy = vi.fn();
-    const mockTrack = { stop: trackStopSpy } as unknown as MediaStreamTrack;
-    const mockStream = { getTracks: () => [mockTrack] } as unknown as MediaStream;
+  it("stops the acquired stream when video attachment throws", async () => {
+    const { stop, stream } = createMockStream();
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) }
+    });
+    const video = document.createElement("video");
+    Object.defineProperty(video, "srcObject", {
+      configurable: true,
+      get: () => null,
+      set: () => {
+        throw new DOMException("attachment failed", "NotReadableError");
+      }
+    });
+    const engineFactory = createEngineFactory({ initialized: true });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engineFactory} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
 
-    const videoEl = document.createElement("video");
-    const engine = new VisionEngine();
+    let success = true;
+    await act(async () => {
+      success = await result.current.startHeadControl(video);
+    });
 
-    engine.start(videoEl, mockStream);
-    engine.disable();
+    expect(success).toBe(false);
+    expect(stop).toHaveBeenCalled();
+    expect(result.current.lifecycleState).toBe("error");
+    expect(result.current.errorCategory).toBe("camera_unavailable");
+  });
 
-    expect(trackStopSpy).toHaveBeenCalled();
-    expect(engine.getState()).toBe("disabled");
+  it("provider unmount disables the engine and releases its camera stream", async () => {
+    const { stop, stream } = createMockStream();
+    let ownedStream: MediaStream | null = null;
+    const disable = vi.fn(() => {
+      ownedStream?.getTracks().forEach((track) => track.stop());
+      ownedStream = null;
+    });
+    const engineFactory: HeadControlEngineFactory = () => ({
+      initialize: vi.fn().mockResolvedValue(true),
+      start: vi.fn((_video, nextStream) => {
+        ownedStream = nextStream;
+      }),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      disable,
+      setNeutralBaseline: vi.fn()
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engineFactory} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const rendered = renderHook(() => useHeadControl(), { wrapper });
+    const video = document.createElement("video");
+
+    await act(async () => {
+      expect(await rendered.result.current.startCamera(video, stream)).toBe(true);
+    });
+    rendered.unmount();
+
+    expect(disable).toHaveBeenCalled();
+    expect(stop).toHaveBeenCalled();
   });
 });

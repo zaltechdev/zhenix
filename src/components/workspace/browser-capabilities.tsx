@@ -27,7 +27,10 @@ const toneForAvailability: Record<CapabilityAvailability, StatusTone> = {
 
 function readCameraSupport(): boolean {
   return (
-    typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function"
+    typeof window !== "undefined" &&
+    window.isSecureContext &&
+    typeof navigator !== "undefined" &&
+    typeof navigator.mediaDevices?.getUserMedia === "function"
   );
 }
 
@@ -45,12 +48,8 @@ export function BrowserCapabilities({ locale }: { locale: Locale }) {
       availability: cameraSupported ? "available" : "unsupported"
     },
     {
-      /**
-       * Head pose tracking is not implemented in this build, so it is reported as not
-       * configured rather than as a browser limitation.
-       */
       name: "head_pointer",
-      availability: "not_configured"
+      availability: cameraSupported ? "available" : "unsupported"
     }
   ];
 

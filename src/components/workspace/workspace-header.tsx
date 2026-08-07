@@ -23,6 +23,25 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 import { Pause, Play, Camera, RefreshCw } from "lucide-react";
 import { useHeadControl } from "@/lib/client/vision/head-control-context";
+import type { VisionFailureCategory } from "@/lib/client/vision/vision-engine";
+
+function headControlFailureCopy(
+  category: VisionFailureCategory | null,
+  options: { locale: Locale }
+): string {
+  switch (category) {
+    case "permission_denied":
+      return m.a11y_camera_denied_status({}, options);
+    case "no_device":
+      return m.a11y_camera_missing_status({}, options);
+    case "model_load_failed":
+      return m.a11y_model_failed_status({}, options);
+    case "stream_ended":
+      return m.a11y_stream_ended_status({}, options);
+    default:
+      return m.a11y_camera_unavailable_status({}, options);
+  }
+}
 
 export function WorkspaceHeader({
   locale,
@@ -101,15 +120,21 @@ export function WorkspaceHeader({
         ) : null}
 
         {lifecycleState === "error" ? (
-          <button
-            aria-label={m.a11y_retry_head_control({}, options)}
-            className="aksa-button aksa-button--secondary aksa-button--sm"
-            onClick={() => void headControl.startHeadControl()}
-            type="button"
-          >
-            <RefreshCw aria-hidden="true" className="aksa-icon" size={16} />
-            <span>{m.a11y_retry_head_control({}, options)}</span>
-          </button>
+          <>
+            <StatusChip
+              tone="attention"
+              value={headControlFailureCopy(headControl.errorCategory, options)}
+            />
+            <button
+              aria-label={m.a11y_retry_head_control({}, options)}
+              className="aksa-button aksa-button--secondary aksa-button--sm"
+              onClick={() => void headControl.startHeadControl()}
+              type="button"
+            >
+              <RefreshCw aria-hidden="true" className="aksa-icon" size={16} />
+              <span>{m.a11y_retry_head_control({}, options)}</span>
+            </button>
+          </>
         ) : null}
 
         {!isAuthenticated ? (
