@@ -2669,8 +2669,16 @@
 .aksa-onboarding-preview-header {
   width: 100%;
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
+  gap: var(--space-2);
+}
+
+.aksa-onboarding-preview-header .aksa-hint {
+  flex: 1 1 12rem;
+  min-width: 0;
+  text-align: center;
 }
 
 .aksa-camera-preview-container {
@@ -3233,4 +3241,3 @@
   border-radius: 4px;
   white-space: nowrap;
 }
-

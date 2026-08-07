@@ -501,3 +501,16 @@ DO NOT START PHASE III.
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `tests/unit/vision-engine.test.ts`
+
+---
+### Timestamp: 2026-08-07 23:23:36
+* **Model used**: GPT-5.6
+* **Human Prompt**: `Real webcam testing proves Aksa head control now functions, but pointer control is unstable and horizontal direction is reversed. Do NOT refactor Phase II or touch agent/backend/UI scope. Fix only physical head-pointer ergonomics. First reproduce with the real webcam. Physical head turn RIGHT must move the Aksa pointer RIGHT and LEFT must move LEFT; fix this at the pose to pointer mapping boundary, not by mirroring MediaPipe input. Camera preview may be visually mirrored independently. Audit the current yaw sign using dev-only pose diagnostics, then remove diagnostics. Stabilize pointer motion by clamping implausible yaw/pitch input, rejecting single-frame pose spikes, adding dead-zone hysteresis, and using adaptive low-latency smoothing (prefer One Euro/adaptive EMA) so stationary head = stable pointer while intentional motion remains responsive. Do not create laggy heavy averaging. Preserve comfortable small head movement and prevent edge slamming. Re-test neutral stability, slow precision movement, fast movement, all four screen regions, tracking loss/reacquisition, and sensitivity/dead-zone/smoothing controls with a PHYSICAL webcam. Add deterministic tests for horizontal direction, spike rejection, stationary jitter, and clamp behavior. Run typecheck/lint/tests/build, atomic commit, push dev. Stop after this tuning fix. Follow-up: tracker still unstable, looking right moves the cursor left, and the tracker status overlaps its guidance.`
+* **TLDR AI agents done**: Updated only client head-pointer ergonomics: corrected the pose-to-pointer horizontal contract, added clamp, spike rejection, hysteresis, adaptive pose and pointer EMA smoothing, soft edge limits, deterministic coverage, and a minimal tracker-status wrapping repair. User webcam feedback reproduced the inverse and instability. A temporary dev-only pose diagnostic was removed. Post-change physical direction verification could not complete because the dev browser returned tracking loss after refresh.
+* **file changed**:
+  - `src/app/workspace.css`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/pointer-mapping.ts`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/pointer-mapping.test.ts`
+  - `logs/log-henix.md`

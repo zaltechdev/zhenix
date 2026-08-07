@@ -14,7 +14,13 @@ import {
   type AccessibilityProfile
 } from "@/lib/contracts/auth";
 import { NeutralBaseline } from "./head-pose";
-import { mapPoseToScreenDelta, smoothCoordinates, clampCoordinates, Vector2D } from "./pointer-mapping";
+import {
+  mapPoseToScreenDelta,
+  smoothCoordinates,
+  clampCoordinates,
+  PoseInputStabilizer,
+  Vector2D
+} from "./pointer-mapping";
 import { resolveTargetAtPoint } from "./target-resolver";
 import { DwellController, DwellProgress } from "./dwell-controller";
 import { GestureDetector, GestureStatus } from "./gesture-detector";
@@ -140,6 +146,7 @@ export function HeadControlProvider({
   const currentPosRef = useRef<Vector2D>(pointerPosition);
   const reacquisitionCountRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
+  const poseInputRef = useRef<PoseInputStabilizer>(new PoseInputStabilizer());
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeModalRef = useRef<Element | null>(null);
   const startupCancelledRef = useRef(false);
@@ -264,6 +271,7 @@ export function HeadControlProvider({
 
   const setNeutralBaseline = useCallback((baseline: NeutralBaseline) => {
     setNeutralBaselineState(baseline);
+    poseInputRef.current.reset();
     if (engineRef.current) {
       engineRef.current.setNeutralBaseline(baseline);
     }
@@ -291,6 +299,7 @@ export function HeadControlProvider({
   const prepareForSafeReacquisition = useCallback(() => {
     reacquisitionCountRef.current = 0;
     lastFrameTimeRef.current = 0;
+    poseInputRef.current.reset();
     activeModalRef.current = null;
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
     if (gestureRef.current) gestureRef.current.disarmUntilRelease();
@@ -314,6 +323,7 @@ export function HeadControlProvider({
       // 1. Tracking loss clears every inherited interaction and calibration sample.
       if (!data.faceDetected || data.lifecycleState === "tracking_lost") {
         reacquisitionCountRef.current = 0;
+        poseInputRef.current.reset();
         setLifecycleState("tracking_lost");
         setErrorCategory("tracking_lost");
         if (dwellRef.current) dwellRef.current.requireFreshCycle();
@@ -328,6 +338,13 @@ export function HeadControlProvider({
         return;
       }
 
+      const stabilizedPose = poseInputRef.current.process(
+        data.poseDelta,
+        currentProfile.deadZone,
+        currentProfile.smoothing,
+        dt
+      );
+
       // 2. Reacquisition needs consecutive frames, then one separate interaction frame.
       if (reacquisitionCountRef.current < STABLE_REACQUISITION_FRAMES_REQUIRED) {
         reacquisitionCountRef.current += 1;
@@ -338,10 +355,12 @@ export function HeadControlProvider({
 
         if (reacquisitionCountRef.current === STABLE_REACQUISITION_FRAMES_REQUIRED) {
           const screenDelta = mapPoseToScreenDelta(
-            data.poseDelta.yaw,
-            data.poseDelta.pitch,
+            stabilizedPose.yaw,
+            stabilizedPose.pitch,
             currentProfile.pointerSensitivity,
-            currentProfile.deadZone
+            0,
+            window.innerWidth,
+            window.innerHeight
           );
           const reacquiredPosition = clampCoordinates(
             {
@@ -375,10 +394,12 @@ export function HeadControlProvider({
 
       // 4. Map Head Pose to Screen Coordinates using CURRENT profileRef.current
       const screenDelta = mapPoseToScreenDelta(
-        data.poseDelta.yaw,
-        data.poseDelta.pitch,
+        stabilizedPose.yaw,
+        stabilizedPose.pitch,
         currentProfile.pointerSensitivity,
-        currentProfile.deadZone
+        0,
+        window.innerWidth,
+        window.innerHeight
       );
 
       const targetPos: Vector2D = {
@@ -386,7 +407,13 @@ export function HeadControlProvider({
         y: window.innerHeight / 2 + screenDelta.y
       };
 
-      const smoothedPos = smoothCoordinates(currentPosRef.current, targetPos, currentProfile.smoothing, dt);
+      const smoothedPos = smoothCoordinates(
+        currentPosRef.current,
+        targetPos,
+        currentProfile.smoothing,
+        dt,
+        stabilizedPose.motionResponse
+      );
       const clampedPos = clampCoordinates(smoothedPos, window.innerWidth, window.innerHeight);
 
       currentPosRef.current = clampedPos;
@@ -609,6 +636,8 @@ export function HeadControlProvider({
     if (engineRef.current) {
       engineRef.current.pause();
     }
+    poseInputRef.current.reset();
+    lastFrameTimeRef.current = 0;
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
     if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     setActiveTarget(null);
@@ -619,6 +648,8 @@ export function HeadControlProvider({
 
   const resumeControl = useCallback(() => {
     reacquisitionCountRef.current = 0;
+    poseInputRef.current.reset();
+    lastFrameTimeRef.current = 0;
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
     if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     if (engineRef.current) {
@@ -635,6 +666,7 @@ export function HeadControlProvider({
     if (gestureRef.current) gestureRef.current.reset();
     reacquisitionCountRef.current = 0;
     lastFrameTimeRef.current = 0;
+    poseInputRef.current.reset();
     activeModalRef.current = null;
     calibrationEngineRef.current.cancel();
     setCalibrationState(calibrationEngineRef.current.getState());

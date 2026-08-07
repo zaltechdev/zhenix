@@ -377,13 +377,16 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       poseDelta.yaw,
       poseDelta.pitch,
       updatedProfile.pointerSensitivity,
-      updatedProfile.deadZone
+      updatedProfile.deadZone,
+      window.innerWidth,
+      window.innerHeight
     );
     const expected = smoothCoordinates(
       positionBeforeUpdate,
       { x: window.innerWidth / 2 + delta.x, y: window.innerHeight / 2 + delta.y },
       updatedProfile.smoothing,
-      100
+      100,
+      0
     );
 
     expect(result.current.pointerPosition.x).toBeCloseTo(expected.x, 5);
@@ -518,7 +521,9 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       recoveryDelta.yaw,
       recoveryDelta.pitch,
       profile.pointerSensitivity,
-      profile.deadZone
+      profile.deadZone,
+      window.innerWidth,
+      window.innerHeight
     );
     expect(result.current.pointerPosition.x).toBeCloseTo(window.innerWidth / 2 + recoveryMapped.x, 5);
     expect(result.current.pointerPosition.y).toBeCloseTo(window.innerHeight / 2 + recoveryMapped.y, 5);
