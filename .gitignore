@@ -23,6 +23,7 @@ notes/
 .vscode/
 .idea/
 pdf-forge-exports/
+screenshots/
 
 # Build & Dependency Artifacts
 node_modules/

@@ -27,6 +27,7 @@ Let a user work with their real Drive files, documents, spreadsheets, and mail f
 - Gmail: list recent messages, read a message for summarization, create a draft.
 - Disconnected state, expired-token state, and missing-scope state per capability.
 - Partial-failure reporting on multi-item operations.
+- Google Slides: workspace navigation route and surface clearly marked as coming soon / planned integration.
 - Rate-limit handling.
 - Undo for move, rename, sheet write, document edit, and draft creation.
 
@@ -36,7 +37,7 @@ Let a user work with their real Drive files, documents, spreadsheets, and mail f
 - Deleting any Google content. Irreversible and out of MVP.
 - Sharing or permission changes on Google items.
 - Google Calendar. Deferred, decided at the mid-window checkpoint.
-- Google Slides, Forms, Chat, Meet, or Tasks.
+- Google Forms, Chat, Meet, or Tasks. (Google Slides is included in navigation as a coming-soon capability).
 - Framing, proxying, or copying any Google interface.
 - Browser automation of google.com.
 - Caching Google content in the Aksa database.

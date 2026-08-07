@@ -18,7 +18,7 @@ Aksa is a web workspace that lets a person with limited hand or arm movement fin
 
 ### One-sentence pitch
 
-Aksa turns spoken or typed intent into completed document, file, and research work, controlled by head movement instead of a mouse.
+Aksa turns spoken or typed intent into completed Google Workspace (Docs, Sheets, Drive, Gmail) and research work, controlled by head movement instead of a mouse.
 
 ## 2. Problem
 
@@ -111,11 +111,12 @@ Aksa will not do these in MVP or in any later version described here.
 | Fallback | Full keyboard and mouse parity for every action |
 | Voice | Browser speech recognition with an editable transcript, plus mandatory text entry |
 | Agent | Bounded orchestration loop with a typed tool registry and visible activity |
-| Workspace | Aksa app shell with document, files, sheet, and web search views |
-| Google Drive | Search, list, read metadata, move, rename, create folder |
-| Google Docs | Read and structured edit inside the Aksa document view |
-| Google Sheets | Read a range and write a range inside the Aksa sheet view |
-| Gmail | Read and summarize recent messages; draft creation only |
+| Workspace | Aksa app shell organized around Google Workspace (Docs, Sheets, Slides, Drive, Gmail) plus Web Search |
+| Google Drive | Search, list, read metadata, move, rename, create folder (primary label Drive) |
+| Google Docs | Read and structured edit inside the Aksa document view (primary label Docs) |
+| Google Sheets | Read a range and write a range inside the Aksa sheet view (primary label Sheets) |
+| Google Slides | Navigation route and status surface clearly marked as coming soon / planned integration |
+| Gmail | Read and summarize recent messages; draft creation only (primary label Gmail) |
 | Web search | Grounded search with source-backed readable artifacts |
 | Control | Confirmation, cancellation, Undo, partial completion reporting |
 | Record | Task history, task detail, activity steps, artifact list |
@@ -248,7 +249,7 @@ Every failure flow keeps prior work, states what happened, and offers one clear 
 | ID | Requirement |
 | --- | --- |
 | FR-W1 | The workspace is an original Aksa interface, not an embedded or copied Google interface |
-| FR-W2 | The workspace provides document, files, sheet, and web search views |
+| FR-W2 | The workspace provides Google Workspace views (Docs, Sheets, Slides [coming soon], Drive, Gmail) and web search views |
 | FR-W3 | The current task, its state, and its affected items are visible from any view |
 | FR-W4 | A command that Aksa cannot perform is refused with a clear reason, never simulated |
 | FR-W5 | History and Activity are reachable from the workspace shell |
@@ -268,6 +269,7 @@ Every failure flow keeps prior work, states what happened, and offers one clear 
 | FR-GW9 | Aksa can create a Gmail draft; sending is out of MVP unless the deferred condition is met |
 | FR-GW10 | A Google failure names the affected item and does not roll into a general error |
 | FR-GW11 | Content retrieved from Docs, Sheets, Drive, and Gmail is treated as untrusted data |
+| FR-GW12 | Aksa exposes Google Slides in workspace navigation and status surface clearly marked as coming soon without fabricating placeholder runtime execution |
 
 ### Web search and artifacts
 

@@ -11,7 +11,7 @@ Welcome to Aksa. If you are an AI agent, Zaltech (backend), or working in a newl
 1. **Identify Role**: Determine if your task belongs to Henix (frontend, UI/UX, accessibility) or Zaltech (backend, database, APIs, agent execution, QA).
 2. **Read Guidance**: Read `.agents/compbook.md`, `.agents/prd.md`, `.agents/rules.md`, `.agents/security.md`, and your role guide (`.agents/guide-henix.md` or `.agents/guide-zaltech.md`).
 3. **Verify Environment**: Review `.env.example` to understand required configuration variables. Never inspect or create real secret files (`.env`, `.env.local`).
-4. **Starter Skills & Logging**: Install mandatory starter skills for all developers and agents, adopt `caveman ultra` mode for output, and log completed sessions in `logs/log-{devname}.md` (e.g. `logs/log-henix.md` for Henix, `logs/log-zaltech.md` for Zaltech).
+4. **Starter Skills & Logging**: Install mandatory starter skills for all developers and agents, adopt `caveman ultra` mode for output, and log completed sessions in `logs/log-{devname}.md` (e.g. `logs/log-henix.md` for Henix, `logs/log-zaltech.md` for Zaltech), ensuring all secrets, API keys, tokens, and sensitive environment variables are stripped and never logged.
 
 ## 1. Read Before You Work
 
@@ -33,7 +33,7 @@ When documents disagree, follow the priority order in `.agents/rules.md` section
 ## 2. Non-Negotiable Rules
 
 - Never inspect `.env`, `.env.local`, `.env.production`, SSH keys, certificates, credential stores, or any secret file. `.gitignore` is not a security boundary.
-- Use `.env.example` for configuration work. Never paste a real secret value into a prompt, log, commit, test, or document.
+- Use `.env.example` for configuration work. Never paste, log, or commit a real secret value, API key, token, or sensitive environment variable into a prompt, log, commit, test, or document. Always strip and redact secrets before logging.
 - Never fabricate task success, tool output, files, transcripts, citations, or test results. Report `Completed` only after verification, and report partial completion honestly.
 - Never display, log, or store model reasoning traces.
 - Update `.agents/debug-henix.md` or `.agents/debug-zaltech.md` only after a real, reproduced, verified issue. No speculation, no progress notes, no invented incidents.
@@ -52,13 +52,13 @@ All developers and AI agents (Antigravity, Claude Code, Kiro, ChatGPT Codex, and
 
 ## 4. Logging Protocol
 
-After completing any task, sprint, or user prompt, appending one entry to `logs/log-{devname}.md` (e.g. `logs/log-henix.md` for Henix, `logs/log-zaltech.md` for Zaltech) is mandatory for all agents and developers. Do not create duplicate log files.
+After completing any task, sprint, or user prompt, appending one entry to `logs/log-{devname}.md` (e.g. `logs/log-henix.md` for Henix, `logs/log-zaltech.md` for Zaltech) is mandatory for all agents and developers. Do not create duplicate log files. **Never log secrets, API keys, tokens, or environment variable values under any circumstance: always strip and redact them prior to writing logs.**
 
 ```markdown
 ---
 ### Timestamp: [YYYY-MM-DD HH:MM:SS]
 * **Model used**: [Model name and reasoning level, e.g. Gemini 3.6 Flash (High)]
-* **Human Prompt**: `[Full user prompt - log ALL prompt text without truncation]`
+* **Human Prompt**: `[Full user prompt text - strip/redact any secrets, API keys, tokens, or env values without truncating non-sensitive prompt text]`
 * **TLDR AI agents done**: [Concise TLDR of work completed]
 * **file changed**:
   - `[file_path_1]`
@@ -79,8 +79,8 @@ After completing any task, sprint, or user prompt, appending one entry to `logs/
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+This version has breaking changes: APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+This block is written and re-added by `next dev`: verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
