@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Host_Grotesk, Inter } from "next/font/google";
+import { cookies } from "next/headers";
 import { m } from "@/paraglide/messages.js";
 import { getRequestLocale } from "@/lib/i18n/request";
 import "./globals.css";
@@ -40,14 +41,17 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getRequestLocale();
+  const cookieStore = await cookies();
+  const storedTheme = cookieStore.get("aksa-theme")?.value;
+  const theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : undefined;
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html data-theme={theme} lang={locale} suppressHydrationWarning>
       <head>
         {/* Blocking script: set data-theme before paint to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('aksa-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=t?t:(d?'dark':'light');}catch(e){}})();`
+            __html: `(function(){try{var t=localStorage.getItem('aksa-theme')||(document.cookie.match(/aksa-theme=([^;]+)/)||[])[1];var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=t?t:(d?'dark':'light');document.documentElement.dataset.theme=theme;if(t){document.cookie='aksa-theme='+t+'; path=/; max-age=31536000; SameSite=Lax';}}catch(e){}})();`
           }}
         />
       </head>

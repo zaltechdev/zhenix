@@ -20,21 +20,30 @@ export function ThemeToggle({ locale }: { locale: Locale }) {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    const storedTheme = window.localStorage.getItem("aksa-theme");
-    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-    const nextIsDark = storedTheme === "dark" || (storedTheme === null && prefersDark);
-    document.documentElement.dataset.theme = nextIsDark ? "dark" : "light";
-    // Always persist so other pages can read it via the blocking script
-    window.localStorage.setItem("aksa-theme", nextIsDark ? "dark" : "light");
-    setIsDark(nextIsDark);
+    const activeTheme = document.documentElement.dataset.theme;
+    if (activeTheme === "dark" || activeTheme === "light") {
+      setIsDark(activeTheme === "dark");
+    } else {
+      const storedTheme = window.localStorage.getItem("aksa-theme");
+      const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+      const nextIsDark = storedTheme === "dark" || (storedTheme === null && prefersDark);
+      const theme = nextIsDark ? "dark" : "light";
+      document.documentElement.dataset.theme = theme;
+      window.localStorage.setItem("aksa-theme", theme);
+      document.cookie = `aksa-theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+      setIsDark(nextIsDark);
+    }
   }, []);
 
   function toggleTheme() {
     const nextIsDark = !isDark;
     setIsDark(nextIsDark);
-    document.documentElement.dataset.theme = nextIsDark ? "dark" : "light";
-    window.localStorage.setItem("aksa-theme", nextIsDark ? "dark" : "light");
+    const theme = nextIsDark ? "dark" : "light";
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("aksa-theme", theme);
+    document.cookie = `aksa-theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
   }
 
   const ariaLabel = !mounted
