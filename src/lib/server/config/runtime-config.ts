@@ -77,7 +77,16 @@ export function googleStatus(): ConfigurationStatus {
   return statusFor(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
 }
 
+export function googleAiStudioStatus(): ConfigurationStatus {
+  return statusFor(["GOOGLE_AI_API_KEY", "GOOGLE_AI_MODEL"]);
+}
+
 export function primaryProviderStatus(): ConfigurationStatus {
+  const googleAi = googleAiStudioStatus();
+  if (googleAi.configured) {
+    return { configured: true, missingKeys: [] };
+  }
+
   const base = statusFor(["VERTEX_AI_PROJECT_ID", "VERTEX_AI_LOCATION", "VERTEX_AI_MODEL"]);
   /**
    * The repository installs AI SDK Core but no Vertex provider package, so

@@ -3,6 +3,7 @@ import { assertServerOnly } from "@/lib/server/server-guard";
 import {
   executionConfig,
   fallbackProviderStatus,
+  googleAiStudioStatus,
   primaryProviderStatus,
   type ConfigurationStatus
 } from "@/lib/server/config/runtime-config";
@@ -23,7 +24,7 @@ export const providerRoles = ["orchestrate", "summarize", "classify", "search_gr
 export const providerRoleSchema = z.enum(providerRoles);
 export type ProviderRole = z.infer<typeof providerRoleSchema>;
 
-export const providerIds = ["vertex_ai", "dahl_inference"] as const;
+export const providerIds = ["google_ai_studio", "vertex_ai", "dahl_inference"] as const;
 export const providerIdSchema = z.enum(providerIds);
 export type ProviderId = z.infer<typeof providerIdSchema>;
 
@@ -89,6 +90,17 @@ function readTimeoutConfig(): TimeoutConfig {
 export function providerRegistry(): ProviderRegistry {
   return {
     resolve(role) {
+      const googleAi = googleAiStudioStatus();
+      if (googleAi.configured) {
+        return {
+          status: "ready",
+          providerId: "google_ai_studio",
+          role,
+          retry: readRetryConfig(),
+          timeouts: readTimeoutConfig()
+        };
+      }
+
       const primary = primaryProviderStatus();
       if (primary.configured) {
         return {
