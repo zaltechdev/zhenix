@@ -68,8 +68,8 @@ export function AccessibilityControls({
 
       const payload: unknown = await response.json();
       const outcome = accessibilityProfileSaveResultSchema.safeParse(payload);
-      if (outcome.success && outcome.data.outcome === "saved") {
-        void setCachedProfile(outcome.data.profile);
+      if (outcome.success && outcome.data.outcome === "saved" && headControl.userId) {
+        void setCachedProfile(outcome.data.profile, headControl.userId);
       }
       setResult(
         outcome.success
@@ -81,7 +81,7 @@ export function AccessibilityControls({
     } finally {
       setSaving(false);
     }
-  }, [profile]);
+  }, [profile, headControl.userId]);
 
   return (
     <div className="aksa-controls">

@@ -206,6 +206,10 @@ export async function readSessionState(): Promise<SessionState> {
   return authGateway().readSessionState();
 }
 
+export async function readAccessibilityProfile(): Promise<AccessibilityProfile | null> {
+  return authGateway().readAccessibilityProfile();
+}
+
 export function authConfiguration() {
   return authStatus();
 }

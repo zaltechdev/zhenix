@@ -1,12 +1,12 @@
 import { assertServerOnly } from "@/lib/server/server-guard";
 import { readCapabilitySnapshot } from "@/lib/server/capabilities/service";
 import { readGoogleConnection } from "@/lib/server/google/service";
-import { readSessionState } from "@/lib/server/auth/service";
+import { readSessionState, readAccessibilityProfile } from "@/lib/server/auth/service";
 import { readActiveTask } from "@/lib/server/tasks/service";
 import { contentLimits } from "@/lib/server/config/runtime-config";
 import type { CapabilitySnapshot } from "@/lib/contracts/capability";
 import type { GoogleConnection } from "@/lib/contracts/google";
-import type { SessionState } from "@/lib/contracts/auth";
+import type { SessionState, AccessibilityProfile } from "@/lib/contracts/auth";
 import type { ResourceState } from "@/lib/contracts/resource-state";
 import type { Task } from "@/lib/contracts/task";
 
@@ -24,15 +24,24 @@ export type WorkspaceContext = {
   connection: GoogleConnection;
   activeTask: ResourceState<Task>;
   limits: ReturnType<typeof contentLimits>;
+  accessibilityProfile: AccessibilityProfile | null;
 };
 
 export async function readWorkspaceContext(): Promise<WorkspaceContext> {
-  const [session, capabilities, connection, activeTask] = await Promise.all([
+  const [session, capabilities, connection, activeTask, accessibilityProfile] = await Promise.all([
     readSessionState(),
     readCapabilitySnapshot(),
     readGoogleConnection(),
-    readActiveTask()
+    readActiveTask(),
+    readAccessibilityProfile()
   ]);
 
-  return { session, capabilities, connection, activeTask, limits: contentLimits() };
+  return {
+    session,
+    capabilities,
+    connection,
+    activeTask,
+    limits: contentLimits(),
+    accessibilityProfile
+  };
 }

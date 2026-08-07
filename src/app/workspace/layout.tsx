@@ -13,7 +13,12 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   const context = await readWorkspaceContext();
 
   return (
-    <WorkspaceShell connection={context.connection} locale={locale} session={context.session}>
+    <WorkspaceShell
+      connection={context.connection}
+      initialProfile={context.accessibilityProfile}
+      locale={locale}
+      session={context.session}
+    >
       {children}
     </WorkspaceShell>
   );

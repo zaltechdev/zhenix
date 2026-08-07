@@ -28,17 +28,20 @@ const WORK_SURFACES = [
   "/workspace/slides"
 ];
 
+import type { AccessibilityProfile } from "@/lib/contracts/auth";
 import { HeadControlProvider } from "@/lib/client/vision/head-control-context";
 
 export function WorkspaceShell({
   locale,
   session,
   connection,
+  initialProfile,
   children
 }: {
   locale: Locale;
   session: SessionState;
   connection: GoogleConnection;
+  initialProfile?: AccessibilityProfile | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -111,7 +114,7 @@ export function WorkspaceShell({
   }, [closeDrawer, drawerOpen]);
 
   return (
-    <HeadControlProvider userId={userId}>
+    <HeadControlProvider initialProfile={initialProfile} userId={userId}>
       <CommandProvider>
         <div className="aksa-shell" data-drawer-open={drawerOpen}>
         <a className="aksa-skip-link" href="#main-content">

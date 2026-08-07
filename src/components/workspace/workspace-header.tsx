@@ -21,7 +21,7 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 
 
-import { Pause, Play } from "lucide-react";
+import { Pause, Play, Camera, RefreshCw } from "lucide-react";
 import { useHeadControl } from "@/lib/client/vision/head-control-context";
 
 export function WorkspaceHeader({
@@ -41,10 +41,7 @@ export function WorkspaceHeader({
   const isGoogleConnected = connection.state === "connected";
   const title = navigationLabelForPath(pathname, locale);
   const headControl = useHeadControl();
-  const showHeadControlToggle =
-    headControl.lifecycleState === "active" ||
-    headControl.lifecycleState === "tracking_lost" ||
-    headControl.lifecycleState === "paused";
+  const { lifecycleState, isPaused } = headControl;
 
   return (
     <header aria-label={m.workspace_header_label({}, options)} className="aksa-header">
@@ -62,24 +59,56 @@ export function WorkspaceHeader({
       </div>
 
       <div className="aksa-header__actions">
-        {showHeadControlToggle ? (
+        {lifecycleState === "idle" || lifecycleState === "disabled" ? (
           <button
-            aria-label={headControl.isPaused ? "Resume head control" : "Pause head control"}
-            className="aksa-button aksa-button--quiet aksa-button--sm"
-            onClick={() => (headControl.isPaused ? headControl.resumeControl() : headControl.pauseControl())}
+            aria-label={m.a11y_start_head_control({}, options)}
+            className="aksa-button aksa-button--secondary aksa-button--sm"
+            onClick={() => void headControl.startHeadControl()}
             type="button"
           >
-            {headControl.isPaused ? (
+            <Camera aria-hidden="true" className="aksa-icon" size={16} />
+            <span>{m.a11y_start_head_control({}, options)}</span>
+          </button>
+        ) : null}
+
+        {lifecycleState === "initializing" ? (
+          <StatusChip tone="pending" value={m.a11y_initializing_head_control({}, options)} />
+        ) : null}
+
+        {lifecycleState === "tracking_lost" ? (
+          <StatusChip tone="attention" value={m.a11y_tracking_lost_status({}, options)} />
+        ) : null}
+
+        {lifecycleState === "active" || lifecycleState === "paused" ? (
+          <button
+            aria-label={isPaused ? m.a11y_resume_head_control({}, options) : m.a11y_pause_head_control({}, options)}
+            className="aksa-button aksa-button--quiet aksa-button--sm"
+            onClick={() => (isPaused ? headControl.resumeControl() : headControl.pauseControl())}
+            type="button"
+          >
+            {isPaused ? (
               <>
                 <Play aria-hidden="true" className="aksa-icon" size={16} />
-                <span>Resume</span>
+                <span>{m.a11y_resume_head_control({}, options)}</span>
               </>
             ) : (
               <>
                 <Pause aria-hidden="true" className="aksa-icon" size={16} />
-                <span>Pause</span>
+                <span>{m.a11y_pause_head_control({}, options)}</span>
               </>
             )}
+          </button>
+        ) : null}
+
+        {lifecycleState === "error" ? (
+          <button
+            aria-label={m.a11y_retry_head_control({}, options)}
+            className="aksa-button aksa-button--secondary aksa-button--sm"
+            onClick={() => void headControl.startHeadControl()}
+            type="button"
+          >
+            <RefreshCw aria-hidden="true" className="aksa-icon" size={16} />
+            <span>{m.a11y_retry_head_control({}, options)}</span>
           </button>
         ) : null}
 

@@ -2,6 +2,7 @@
  * Client IndexedDB cache for accessibility profile persistence.
  * Enables instant profile loading on client startup before server profile fetch resolves.
  * Includes in-memory fallback for test and non-IndexedDB environments.
+ * Strictly user-scoped to prevent cross-account profile leakage on shared browsers.
  * Never stores biometric data, raw camera frames, landmarks, or blendshapes.
  */
 
@@ -11,8 +12,12 @@ const DB_NAME = "aksa_settings_cache";
 const STORE_NAME = "accessibility_profile";
 const memoryCache = new Map<string, AccessibilityProfile>();
 
-function getStoreKey(userId?: string | null): string {
-  return `user_profile_${userId && userId.trim() !== "" ? userId.trim() : "default"}`;
+function getStoreKey(userId: string): string {
+  const trimmed = userId ? userId.trim() : "";
+  if (!trimmed) {
+    throw new Error("User ID is required for accessibility profile caching");
+  }
+  return `user_profile_${trimmed}`;
 }
 
 function openDB(): Promise<IDBDatabase> {
@@ -36,7 +41,10 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function getCachedProfile(userId?: string | null): Promise<AccessibilityProfile | null> {
+export async function getCachedProfile(userId: string): Promise<AccessibilityProfile | null> {
+  if (!userId || userId.trim() === "") {
+    return null;
+  }
   const key = getStoreKey(userId);
   try {
     const db = await openDB();
@@ -56,7 +64,10 @@ export async function getCachedProfile(userId?: string | null): Promise<Accessib
   }
 }
 
-export async function setCachedProfile(profile: AccessibilityProfile, userId?: string | null): Promise<void> {
+export async function setCachedProfile(profile: AccessibilityProfile, userId: string): Promise<void> {
+  if (!userId || userId.trim() === "") {
+    throw new Error("Cannot set cached profile without explicit user ID");
+  }
   const key = getStoreKey(userId);
   memoryCache.set(key, profile);
 
@@ -75,7 +86,10 @@ export async function setCachedProfile(profile: AccessibilityProfile, userId?: s
   }
 }
 
-export async function clearCachedProfile(userId?: string | null): Promise<void> {
+export async function clearCachedProfile(userId: string): Promise<void> {
+  if (!userId || userId.trim() === "") {
+    return;
+  }
   const key = getStoreKey(userId);
   memoryCache.delete(key);
 

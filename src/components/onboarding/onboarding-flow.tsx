@@ -23,7 +23,6 @@ import { AccessibilityControls } from "@/components/workspace/accessibility-cont
 import { StatusChip } from "@/components/workspace/status-chip";
 
 import { HeadControlProvider, useHeadControl } from "@/lib/client/vision/head-control-context";
-import { CalibrationEngine, CalibrationState } from "@/lib/client/vision/calibration";
 
 export type OnboardingPhase = 1 | 2 | 3 | 4;
 
@@ -80,14 +79,6 @@ export function OnboardingFlow({ locale }: { locale: Locale }) {
 
 function OnboardingFlowContent({ locale }: { locale: Locale }) {
   const headControl = useHeadControl();
-  const calibrationEngineRef = useRef(new CalibrationEngine(20));
-  const [calibrationState, setCalibrationState] = useState<CalibrationState>({
-    status: "idle",
-    progressRatio: 0,
-    samplesCount: 0,
-    baseline: null,
-    errorMessage: null
-  });
   // Underlying 12 substeps mapping into 4 phases
   const [substepIndex, setSubstepIndex] = useOnboardingStep(12);
 
@@ -172,24 +163,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   }, [headControl]);
 
   const handleStartCalibration = useCallback(() => {
-    calibrationEngineRef.current.start();
-    setCalibrationState(calibrationEngineRef.current.getState());
-
-    // Simulate baseline acquisition loop over 1.5 seconds if video active
-    let sampleCounter = 0;
-    const interval = setInterval(() => {
-      sampleCounter += 1;
-      const pose = { yaw: (Math.random() - 0.5) * 2, pitch: (Math.random() - 0.5) * 2, roll: 0 };
-      const st = calibrationEngineRef.current.addSample(pose);
-      setCalibrationState(st);
-
-      if (st.status === "completed" || st.status === "failed" || sampleCounter >= 25) {
-        clearInterval(interval);
-        if (st.baseline) {
-          headControl.setNeutralBaseline(st.baseline);
-        }
-      }
-    }, 60);
+    headControl.startCalibration();
   }, [headControl]);
 
   const requestMicrophone = useCallback(async () => {
@@ -557,31 +531,31 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
                       <StatusChip
                         tone={
-                          calibrationState.status === "completed"
+                          headControl.calibrationState.status === "completed"
                             ? "ready"
-                            : calibrationState.status === "failed"
+                            : headControl.calibrationState.status === "failed"
                               ? "attention"
-                              : calibrationState.status === "capturing"
+                              : headControl.calibrationState.status === "capturing"
                                 ? "pending"
                                 : "neutral"
                         }
                         value={
-                          calibrationState.status === "completed"
+                          headControl.calibrationState.status === "completed"
                             ? "Neutral position calibrated successfully"
-                            : calibrationState.status === "capturing"
-                              ? `Capturing baseline... ${Math.round(calibrationState.progressRatio * 100)}%`
-                              : calibrationState.status === "failed"
-                                ? calibrationState.errorMessage ?? "Calibration failed"
+                            : headControl.calibrationState.status === "capturing"
+                              ? `Capturing baseline... ${Math.round(headControl.calibrationState.progressRatio * 100)}%`
+                              : headControl.calibrationState.status === "failed"
+                                ? headControl.calibrationState.errorMessage ?? "Calibration failed"
                                 : "Neutral pose not calibrated"
                         }
                       />
                     </div>
 
-                    {calibrationState.status === "capturing" ? (
+                    {headControl.calibrationState.status === "capturing" ? (
                       <div className="aksa-progress-bar-container" style={{ width: "100%", height: "8px", background: "var(--color-aksa-line)", borderRadius: "4px", overflow: "hidden", marginBottom: "16px" }}>
                         <div
                           style={{
-                            width: `${Math.round(calibrationState.progressRatio * 100)}%`,
+                            width: `${Math.round(headControl.calibrationState.progressRatio * 100)}%`,
                             height: "100%",
                             background: "var(--color-aksa-teal-deep)",
                             transition: "width 100ms ease"
@@ -593,12 +567,12 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     <div className="aksa-onboarding__controls" style={{ display: "flex", gap: "12px" }}>
                       <button
                         className="aksa-button aksa-button--primary"
-                        disabled={calibrationState.status === "capturing"}
+                        disabled={headControl.calibrationState.status === "capturing"}
                         onClick={handleStartCalibration}
                         type="button"
                       >
                         <Sparkles aria-hidden="true" className="aksa-icon" size={16} />
-                        <span>{calibrationState.status === "completed" ? "Recalibrate neutral pose" : "Calibrate neutral pose"}</span>
+                        <span>{headControl.calibrationState.status === "completed" ? "Recalibrate neutral pose" : "Calibrate neutral pose"}</span>
                       </button>
                       <button
                         className="aksa-button aksa-button--secondary"

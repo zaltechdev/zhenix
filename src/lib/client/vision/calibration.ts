@@ -71,9 +71,14 @@ export class CalibrationEngine {
       };
 
       this.status = "completed";
+      this.samples = []; // Discard raw pose samples immediately
     }
 
     return this.getState();
+  }
+
+  public clearSamples(): void {
+    this.samples = [];
   }
 
   public getState(): CalibrationState {
