@@ -54,3 +54,22 @@ Zalfa Daffani Fadhillah Al Hanif (Zaltech - https://github.com/zaltechdev)
   - `tests/unit/gesture.test.ts`
   - `logs/log-zaltech.md`
 
+---
+### Timestamp: 2026-08-07 19:40:40
+* **Model used**: Gemini 3.6 Flash (High)
+* **Human Prompt**: `SPEEDRUN PHASE II-FINISH: WIRE THE REAL CONTROL LOOP`
+* **TLDR AI agents done**: Built and wired the end-to-end HeadControlProvider React context/coordinator into the workspace shell and onboarding flows. Integrated media stream feeding into VisionEngine, live pointer mapping, dwell selection, gesture detection, target resolution, and confirmation safety guards. Wired interactive CalibrationEngine into onboarding (neutral pose capture and recalibration). Connected AccessibilityControls directly to the live control engine with zero-lag slider updates and default resets. Added always-accessible Pause/Resume head control toggle button in WorkspaceHeader. Hardened eye_blink_long duration semantics (minimum 350ms hold requirement). User-isolated IndexedDB profile caching (key: user_profile_${userId}). Added localized gesture strings for EN/ID with paraglide compile. Added integration test suite (187 total tests passing). All quality gates passed (typecheck, lint, test, build) and pushed to origin/dev.
+* **file changed**:
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `src/components/workspace/workspace-header.tsx`
+  - `src/components/workspace/accessibility-controls.tsx`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/lib/client/vision/gesture-detector.ts`
+  - `src/lib/client/vision/profile-cache.ts`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `logs/log-zaltech.md`
+
+
