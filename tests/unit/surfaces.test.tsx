@@ -628,11 +628,12 @@ describe("capability summary", () => {
 });
 
 describe("slides surface", () => {
-  it("renders Google Slides title and coming-soon status badge", () => {
+  it("renders Slides as disabled without a coming-soon badge", () => {
     render(<SlidesSurface locale="en" />);
 
-    expect(screen.getByRole("heading", { level: 1, name: m.slides_coming_soon_title({}, { locale: "en" }) })).toBeInTheDocument();
-    expect(screen.getByText(m.slides_coming_soon_desc({}, { locale: "en" }))).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: m.slides_unavailable_title({}, { locale: "en" }) })).toBeInTheDocument();
+    expect(screen.getByText(m.slides_unavailable_desc({}, { locale: "en" }))).toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
   });
 
   it("exposes accessible links to available Google Workspace apps", () => {

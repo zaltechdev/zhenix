@@ -92,6 +92,15 @@ describe("workspace shell", () => {
     expect(main!.compareDocumentPosition(composer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("places the AI disclaimer below the composer", () => {
+    const { container } = renderShell();
+    const composer = container.querySelector("#command-composer");
+    const disclaimer = container.querySelector(".aksa-ai-disclaimer");
+    expect(composer).not.toBeNull();
+    expect(disclaimer).not.toBeNull();
+    expect(composer!.compareDocumentPosition(disclaimer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("lists every primary work surface with a visible label", () => {
     renderShell();
 

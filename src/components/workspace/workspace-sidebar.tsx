@@ -48,13 +48,13 @@ function NavigationList({
                 <span
                   aria-disabled="true"
                   className="aksa-nav__link aksa-nav__link--disabled"
-                  data-tooltip={collapsed ? item.label : undefined}
-                  title={collapsed ? item.label : undefined}
+                  data-tooltip={collapsed ? item.disabledReason ?? item.label : undefined}
+                  title={item.disabledReason ?? item.label}
                   aria-label={item.label}
+                  tabIndex={0}
                 >
                   <Icon aria-hidden="true" className="aksa-icon" />
                   <span className="aksa-nav__label">{item.label}</span>
-                  {item.badge && <span className="aksa-nav__badge aksa-nav__badge--nowrap">{item.badge}</span>}
                 </span>
               </li>
             );
@@ -73,7 +73,6 @@ function NavigationList({
               >
                 <Icon aria-hidden="true" className="aksa-icon" />
                 <span className="aksa-nav__label">{item.label}</span>
-                {item.badge && <span className="aksa-nav__badge aksa-nav__badge--nowrap">{item.badge}</span>}
               </Link>
             </li>
           );

@@ -11,6 +11,7 @@ import {
   type AccessibilityProfile
 } from "@/lib/contracts/auth";
 import { setCachedProfile } from "@/lib/client/vision/profile-cache";
+import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
 import { useHeadControl } from "@/lib/client/vision/head-control-context";
 import { useOptionalAksaActions } from "@/components/workspace/aksa-action-context";
 import {
@@ -58,27 +59,22 @@ const HEAD_PRESETS: Record<Exclude<HeadPreset, "custom">, Partial<AccessibilityP
 
 function useProfileSettings(initialProfile: AccessibilityProfile | null) {
   const headControl = useHeadControl();
-  const [profile, setProfile] = useState<AccessibilityProfile>(
-    initialProfile ?? headControl.profile ?? provisionalAccessibilityProfile
-  );
+  const [profileOverride, setProfileOverride] = useState<AccessibilityProfile | null>(null);
+  const profile =
+    profileOverride ??
+    (headControl.hasPendingAnonymousProfile
+      ? headControl.profile
+      : initialProfile ?? headControl.profile ?? provisionalAccessibilityProfile);
   const [saveFailed, setSaveFailed] = useState(false);
   const profileRef = useRef(profile);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
-  const editedRef = useRef(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
-
-  useEffect(() => {
-    if (initialProfile && !editedRef.current) {
-      profileRef.current = initialProfile;
-      setProfile(initialProfile);
-    }
-  }, [initialProfile]);
 
   useEffect(() => {
     return () => {
@@ -97,6 +93,11 @@ function useProfileSettings(initialProfile: AccessibilityProfile | null) {
         const parsed = accessibilityProfileSchema.safeParse(nextProfile);
         if (!parsed.success) {
           if (mountedRef.current && generation === generationRef.current) setSaveFailed(true);
+          return;
+        }
+
+        if (!headControl.userId) {
+          if (mountedRef.current && generation === generationRef.current) setSaveFailed(false);
           return;
         }
 
@@ -129,9 +130,8 @@ function useProfileSettings(initialProfile: AccessibilityProfile | null) {
 
   const applyProfile = useCallback(
     (nextProfile: AccessibilityProfile) => {
-      editedRef.current = true;
       profileRef.current = nextProfile;
-      setProfile(nextProfile);
+      setProfileOverride(nextProfile);
       headControl.updateProfile(nextProfile);
       setSaveFailed(false);
       const generation = generationRef.current + 1;
@@ -155,7 +155,11 @@ function presetStorageKey(userId: string | null): string {
   return `${HEAD_PRESET_STORAGE_PREFIX}:${userId ?? "anonymous"}`;
 }
 
-function useHeadPreset(userId: string | null): [HeadPreset, (preset: HeadPreset) => void] {
+function useHeadPreset(
+  userId: string | null,
+  sharedPreset: HeadPreset | undefined,
+  updateSharedPreset: ((preset: HeadPreset) => void) | undefined
+): [HeadPreset, (preset: HeadPreset) => void] {
   const [preset, setPresetState] = useState<HeadPreset>(() => {
     if (typeof window === "undefined") return "auto";
     try {
@@ -171,16 +175,17 @@ function useHeadPreset(userId: string | null): [HeadPreset, (preset: HeadPreset)
   const setPreset = useCallback(
     (nextPreset: HeadPreset) => {
       setPresetState(nextPreset);
+      updateSharedPreset?.(nextPreset);
       try {
         window.localStorage.setItem(presetStorageKey(userId), nextPreset);
       } catch {
         // Preset metadata is optional. The active profile still uses server autosave.
       }
     },
-    [userId]
+    [updateSharedPreset, userId]
   );
 
-  return [preset, setPreset];
+  return [sharedPreset ?? preset, setPreset];
 }
 
 function matchesPreset(profile: AccessibilityProfile, preset: Partial<AccessibilityProfile>): boolean {
@@ -292,15 +297,44 @@ export function AccessibilityPreferences({
   locale: Locale;
 }) {
   const { profile, saveFailed, update } = useProfileSettings(initialProfile);
+  const appPreferences = useOptionalAppPreferences();
   const options = { locale };
 
   return (
     <div className="aksa-controls">
       <SwitchField
-        checked={profile.reducedMotion}
+        checked={appPreferences?.preferences.highContrast ?? false}
+        id="high-contrast"
+        label={m.accessibility_high_contrast({}, options)}
+        onChange={(checked) => appPreferences?.updatePreferences({ highContrast: checked })}
+      />
+      <div className="aksa-field">
+        <label className="aksa-label" htmlFor="a11y-text-size">
+          {m.accessibility_text_size_label({}, options)}
+        </label>
+        <select
+          className="aksa-select"
+          id="a11y-text-size"
+          onChange={(event) =>
+            appPreferences?.updatePreferences({
+              textSize: event.target.value as "default" | "large" | "extra_large"
+            })
+          }
+          value={appPreferences?.preferences.textSize ?? "default"}
+        >
+          <option value="default">{m.accessibility_text_size_default({}, options)}</option>
+          <option value="large">{m.accessibility_text_size_large({}, options)}</option>
+          <option value="extra_large">{m.accessibility_text_size_extra_large({}, options)}</option>
+        </select>
+      </div>
+      <SwitchField
+        checked={appPreferences?.preferences.reducedMotion ?? profile.reducedMotion}
         id="reduced-motion"
         label={m.a11y_reduced_motion_label({}, options)}
-        onChange={(checked) => update("reducedMotion", checked)}
+        onChange={(checked) => {
+          appPreferences?.updatePreferences({ reducedMotion: checked });
+          update("reducedMotion", checked);
+        }}
       />
       {saveFailed ? (
         <p className="aksa-controls__save-status" role="status">
@@ -320,8 +354,13 @@ export function HeadControlSettings({
 }) {
   const headControl = useHeadControl();
   const actions = useOptionalAksaActions();
+  const appPreferences = useOptionalAppPreferences();
   const { profile, profileRef, saveFailed, applyProfile, update } = useProfileSettings(initialProfile);
-  const [preset, setPreset] = useHeadPreset(headControl.userId);
+  const [preset, setPreset] = useHeadPreset(
+    headControl.userId,
+    appPreferences?.preferences.headPreset,
+    (nextPreset) => appPreferences?.updatePreferences({ headPreset: nextPreset })
+  );
   const options = { locale };
   const isHeadOn = !["idle", "disabled", "error"].includes(headControl.lifecycleState);
   const usesDwell = profile.selectionMode === "dwell" || profile.selectionMode === "both";
@@ -388,6 +427,7 @@ export function HeadControlSettings({
               : m.controls_head_disabled({}, options)
           }
           onChange={(checked) => {
+            appPreferences?.updatePreferences({ headControlEnabled: checked });
             if (checked) {
               void headControl.startHeadControl();
             } else {

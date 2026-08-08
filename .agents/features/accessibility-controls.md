@@ -135,6 +135,7 @@ Owner: Henix.
 - Tracking-loss detection, the `Face control paused.` state, and the recovery options.
 - Calibration sequence, live preview of setting changes, and the unusable-setting guard.
 - Local IndexedDB cache of the profile for immediate startup.
+- Anonymous presentation and control preferences use a safe client cache; account preferences save through the authenticated profile boundary and merge explicitly changed anonymous fields during sign-in.
 - Keyboard and mouse parity across the whole application.
 - Reduced-motion behavior for dwell and pointer feedback.
 - Accessible announcements for tracking state changes through a polite live region.
@@ -173,6 +174,7 @@ Tables from `.agents/db_schema.md`: `accessibility_profiles`, `consent_records`.
 | `gesture_type` | `mouth_open`, `brow_raise`, `eye_blink_long`, or `smile` |
 | `gesture_threshold`, `gesture_cooldown_ms` | Integers, null when gesture is off |
 | `reduced_motion` | User override of the system preference |
+| `ui_preferences` | Validated theme, language, contrast, text-size, sidebar, head, and voice preference snapshot |
 | `calibrated_at` | Timestamp of the last successful calibration |
 | Consent | `camera` and `settings_persistence` rows with policy version |
 

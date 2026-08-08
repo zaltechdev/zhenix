@@ -242,6 +242,17 @@ describe("onboarding", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the final ready state concise and points to Accessibility and Controls", () => {
+    window.sessionStorage.setItem("aksa-onboarding-step", "10");
+    render(<OnboardingFlow locale="en" />);
+
+    fireEvent.click(screen.getByRole("button", { name: m.onboarding_continue({}, { locale: "en" }) }));
+
+    expect(screen.getByRole("heading", { name: m.onboarding_ready_title({}, { locale: "en" }) })).toBeInTheDocument();
+    expect(document.querySelector(".aksa-onboarding-complete-box")).toBeNull();
+    expect(screen.getByText(m.onboarding_complete_body({}, { locale: "en" }))).toBeInTheDocument();
+  });
+
   it("keeps the camera processing video mounted after changing onboarding phase", () => {
     const rendered = render(<OnboardingFlow locale="en" />);
     const controlVideo = rendered.container.querySelector("video.aksa-camera-control-video");

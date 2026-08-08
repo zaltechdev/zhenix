@@ -7,10 +7,12 @@ import { ID, US } from "country-flag-icons/react/3x2";
 import { m } from "@/paraglide/messages.js";
 import { setLocale } from "@/paraglide/runtime.js";
 import type { Locale } from "@/paraglide/runtime.js";
+import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
 
 export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const appPreferences = useOptionalAppPreferences();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const messageOptions = { locale };
 
@@ -36,6 +38,7 @@ export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
   function handleSwitch(newLocale: Locale) {
     setIsOpen(false);
     if (newLocale === locale) return;
+    appPreferences?.updatePreferences({ language: newLocale });
     // eslint-disable-next-line
     document.cookie = `PARAGLIDE_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
     setLocale(newLocale, { reload: false });
@@ -96,4 +99,3 @@ export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
     </div>
   );
 }
-

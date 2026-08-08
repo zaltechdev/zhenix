@@ -4,13 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import { Accessibility, Check, Eye, Type, X } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
+import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
+import type { UserPreferences } from "@/lib/contracts/auth";
+import { useOptionalHeadControl } from "@/lib/client/vision/head-control-context";
 
 export function AccessibilityWidget({ locale = "en" }: { locale?: Locale }) {
   const [isOpen, setIsOpen] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
-  const [largeText, setLargeText] = useState(false);
+  const [textSize, setTextSize] = useState<UserPreferences["textSize"]>("default");
+  const [reducedMotion, setReducedMotion] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
   const messageOptions = { locale };
+  const appPreferences = useOptionalAppPreferences();
+  const headControl = useOptionalHeadControl();
+  const activeHighContrast = appPreferences?.preferences.highContrast ?? highContrast;
+  const activeTextSize = appPreferences?.preferences.textSize ?? textSize;
+  const activeReducedMotion = appPreferences?.preferences.reducedMotion ?? reducedMotion;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -32,15 +41,28 @@ export function AccessibilityWidget({ locale = "en" }: { locale?: Locale }) {
   }, []);
 
   function toggleHighContrast() {
-    const next = !highContrast;
+    const next = !activeHighContrast;
     setHighContrast(next);
-    document.documentElement.classList.toggle("high-contrast", next);
+    appPreferences?.updatePreferences({ highContrast: next });
+    if (!appPreferences) document.documentElement.classList.toggle("high-contrast", next);
   }
 
-  function toggleLargeText() {
-    const next = !largeText;
-    setLargeText(next);
-    document.documentElement.classList.toggle("large-text", next);
+  function changeTextSize(next: UserPreferences["textSize"]) {
+    setTextSize(next);
+    appPreferences?.updatePreferences({ textSize: next });
+    if (!appPreferences) {
+      document.documentElement.classList.toggle("text-size-large", next === "large");
+      document.documentElement.classList.toggle("text-size-extra-large", next === "extra_large");
+      document.documentElement.classList.toggle("large-text", next !== "default");
+    }
+  }
+
+  function toggleReducedMotion() {
+    const next = !activeReducedMotion;
+    setReducedMotion(next);
+    appPreferences?.updatePreferences({ reducedMotion: next });
+    if (headControl) headControl.updateProfile({ ...headControl.profile, reducedMotion: next });
+    if (!appPreferences) document.documentElement.classList.toggle("reduce-motion", next);
   }
 
   return (
@@ -82,8 +104,8 @@ export function AccessibilityWidget({ locale = "en" }: { locale?: Locale }) {
 
           <div className="landing-a11y-menu__options">
             <button
-              aria-pressed={highContrast}
-              className={`landing-a11y-option ${highContrast ? "landing-a11y-option--active" : ""}`}
+              aria-pressed={activeHighContrast}
+              className={`landing-a11y-option ${activeHighContrast ? "landing-a11y-option--active" : ""}`}
               onClick={toggleHighContrast}
               type="button"
             >
@@ -91,20 +113,39 @@ export function AccessibilityWidget({ locale = "en" }: { locale?: Locale }) {
                 <Eye aria-hidden="true" className="landing-icon" />
                 <span>{m.accessibility_high_contrast({}, messageOptions)}</span>
               </div>
-              {highContrast ? <Check aria-hidden="true" className="landing-icon landing-icon--check" /> : null}
+              {activeHighContrast ? <Check aria-hidden="true" className="landing-icon landing-icon--check" /> : null}
             </button>
 
+            <label className="landing-a11y-option landing-a11y-option--field">
+              <div className="landing-a11y-option__info">
+                <Type aria-hidden="true" className="landing-icon" />
+                <span>{m.accessibility_text_size_label({}, messageOptions)}</span>
+              </div>
+              <select
+                aria-label={m.accessibility_text_size_label({}, messageOptions)}
+                className="landing-a11y-option__select"
+                onChange={(event) => changeTextSize(event.target.value as UserPreferences["textSize"])}
+                value={activeTextSize}
+              >
+                <option value="default">{m.accessibility_text_size_default({}, messageOptions)}</option>
+                <option value="large">{m.accessibility_text_size_large({}, messageOptions)}</option>
+                <option value="extra_large">
+                  {m.accessibility_text_size_extra_large({}, messageOptions)}
+                </option>
+              </select>
+            </label>
+
             <button
-              aria-pressed={largeText}
-              className={`landing-a11y-option ${largeText ? "landing-a11y-option--active" : ""}`}
-              onClick={toggleLargeText}
+              aria-pressed={activeReducedMotion}
+              className={`landing-a11y-option ${activeReducedMotion ? "landing-a11y-option--active" : ""}`}
+              onClick={toggleReducedMotion}
               type="button"
             >
               <div className="landing-a11y-option__info">
-                <Type aria-hidden="true" className="landing-icon" />
-                <span>{m.accessibility_large_text({}, messageOptions)}</span>
+                <span aria-hidden="true" className="landing-a11y-option__motion-icon">≈</span>
+                <span>{m.accessibility_reduce_motion({}, messageOptions)}</span>
               </div>
-              {largeText ? <Check aria-hidden="true" className="landing-icon landing-icon--check" /> : null}
+              {activeReducedMotion ? <Check aria-hidden="true" className="landing-icon landing-icon--check" /> : null}
             </button>
           </div>
         </div>

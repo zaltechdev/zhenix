@@ -15,6 +15,13 @@
       "when": 1786208283576,
       "tag": "0001_amused_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786216847888,
+      "tag": "0003_preference_persistence",
+      "breakpoints": true
     }
   ]
 }

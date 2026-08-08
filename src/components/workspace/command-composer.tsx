@@ -440,34 +440,42 @@ export function CommandComposer({
 
         {hasContent ? (
           <button
-            className="aksa-button aksa-button--quiet"
+            aria-label={m.composer_clear({}, options)}
+            className="aksa-button aksa-button--quiet aksa-composer__clear"
             onClick={() => dispatch({ type: "clear" })}
+            title={m.composer_clear({}, options)}
             type="button"
           >
             <Eraser aria-hidden="true" className="aksa-icon" />
-            <span>{m.composer_clear({}, options)}</span>
+            <span className="sr-only">{m.composer_clear({}, options)}</span>
           </button>
         ) : null}
 
         {isCancellable(state) ? (
           <button
-            className="aksa-button aksa-button--secondary"
+            aria-label={m.composer_cancel_task({}, options)}
+            className="aksa-button aksa-button--quiet aksa-composer__cancel"
             onClick={() => dispatch({ type: "cancel_requested" })}
+            title={m.composer_cancel_task({}, options)}
             type="button"
           >
             <X aria-hidden="true" className="aksa-icon" />
-            <span>{m.composer_cancel_task({}, options)}</span>
+            <span className="sr-only">{m.composer_cancel_task({}, options)}</span>
           </button>
         ) : null}
 
         <button
+          aria-label={submitting ? m.composer_working({}, options) : m.composer_submit({}, options)}
           className="aksa-button aksa-button--primary aksa-composer__submit"
           disabled={!canSubmit(state)}
           onClick={() => void submit()}
+          title={submitting ? m.composer_working({}, options) : m.composer_submit({}, options)}
           type="button"
         >
           <Send aria-hidden="true" className="aksa-icon" />
-          <span>{submitting ? m.composer_working({}, options) : m.composer_submit({}, options)}</span>
+          <span className="sr-only">
+            {submitting ? m.composer_working({}, options) : m.composer_submit({}, options)}
+          </span>
         </button>
       </div>
 

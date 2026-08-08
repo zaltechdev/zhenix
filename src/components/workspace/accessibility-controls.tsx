@@ -27,28 +27,23 @@ export function AccessibilityControls({
   initialProfile: AccessibilityProfile | null;
 }) {
   const headControl = useHeadControl();
-  const [profile, setProfile] = useState<AccessibilityProfile>(
-    initialProfile ?? headControl.profile ?? provisionalAccessibilityProfile
-  );
+  const [profileOverride, setProfileOverride] = useState<AccessibilityProfile | null>(null);
+  const profile =
+    profileOverride ??
+    (headControl.hasPendingAnonymousProfile
+      ? headControl.profile
+      : initialProfile ?? headControl.profile ?? provisionalAccessibilityProfile);
   const [saveFailed, setSaveFailed] = useState(false);
   const profileRef = useRef(profile);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
-  const editedRef = useRef(false);
   const mountedRef = useRef(true);
   const options = { locale };
 
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
-
-  useEffect(() => {
-    if (initialProfile && !editedRef.current) {
-      profileRef.current = initialProfile;
-      setProfile(initialProfile);
-    }
-  }, [initialProfile]);
 
   const persistLatest = useCallback(
     (nextProfile: AccessibilityProfile, generation: number) => {
@@ -61,6 +56,11 @@ export function AccessibilityControls({
         const parsed = accessibilityProfileSchema.safeParse(nextProfile);
         if (!parsed.success) {
           if (mountedRef.current && generation === generationRef.current) setSaveFailed(true);
+          return;
+        }
+
+        if (!headControl.userId) {
+          if (mountedRef.current && generation === generationRef.current) setSaveFailed(false);
           return;
         }
 
@@ -103,9 +103,8 @@ export function AccessibilityControls({
 
   const applyProfile = useCallback(
     (nextProfile: AccessibilityProfile) => {
-      editedRef.current = true;
       profileRef.current = nextProfile;
-      setProfile(nextProfile);
+      setProfileOverride(nextProfile);
       headControl.updateProfile(nextProfile);
       setSaveFailed(false);
       const generation = generationRef.current + 1;

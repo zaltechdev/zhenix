@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import type { AksaIntent } from "@/lib/contracts/voice-intent";
 import { executeAksaIntent as dispatchAksaIntent } from "@/lib/client/actions/aksa-action-dispatcher";
 import { useHeadControl } from "@/lib/client/vision/head-control-context";
+import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
 
 const SIDEBAR_PREFERENCE_KEY = "aksa-sidebar-collapsed";
 const SIDEBAR_PREFERENCE_EVENT = "aksa-sidebar-preference";
@@ -52,22 +53,28 @@ export function WorkspaceActionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const headControl = useHeadControl();
   const { pauseControl, resumeControl } = headControl;
-  const sidebarCollapsed = useSyncExternalStore(
+  const storedSidebarCollapsed = useSyncExternalStore(
     subscribeToSidebarPreference,
     getSidebarPreferenceSnapshot,
     () => false
   );
+  const appPreferences = useOptionalAppPreferences();
+  const sidebarCollapsed = appPreferences?.preferences.sidebarCollapsed ?? storedSidebarCollapsed;
   const [calibrationOpen, setCalibrationOpen] = useState(false);
 
-  const setSidebarCollapsed = useCallback((collapsed: boolean) => {
-    sidebarPreferenceFallback = collapsed;
-    try {
-      window.localStorage.setItem(SIDEBAR_PREFERENCE_KEY, String(collapsed));
-    } catch {
-      // Preference storage is optional and must never block workspace controls.
-    }
-    window.dispatchEvent(new Event(SIDEBAR_PREFERENCE_EVENT));
-  }, []);
+  const setSidebarCollapsed = useCallback(
+    (collapsed: boolean) => {
+      appPreferences?.updatePreferences({ sidebarCollapsed: collapsed });
+      sidebarPreferenceFallback = collapsed;
+      try {
+        window.localStorage.setItem(SIDEBAR_PREFERENCE_KEY, String(collapsed));
+      } catch {
+        // Preference storage is optional and must never block workspace controls.
+      }
+      window.dispatchEvent(new Event(SIDEBAR_PREFERENCE_EVENT));
+    },
+    [appPreferences]
+  );
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed(!sidebarCollapsed);

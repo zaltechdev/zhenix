@@ -2,7 +2,14 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { encryptToken, decryptToken } from "@/lib/server/crypto/crypto";
 import { db } from "@/lib/server/db/client";
 import { users, workspaces, accessibilityProfiles, oauthConnections } from "@/lib/server/db/schema";
-import { bootstrapUserWorkspaceAndProfile, getAccessibilityProfile, saveAccessibilityProfile } from "@/lib/server/db/dal";
+import {
+  bootstrapUserWorkspaceAndProfile,
+  getAccessibilityProfile,
+  getUserPreferences,
+  saveAccessibilityProfile,
+  saveUserPreferences
+} from "@/lib/server/db/dal";
+import { defaultUserPreferences } from "@/lib/contracts/auth";
 import { storeGoogleTokens, isGoogleConnected, getConnectedEmail, clearStoredConnection, getValidAccessToken } from "@/lib/server/google/token-store";
 import { eq } from "drizzle-orm";
 
@@ -98,6 +105,38 @@ describe("Phase I Foundation - User Bootstrap & Idempotency", () => {
     expect(reloaded?.pointerSensitivity).toBe(85);
     expect(reloaded?.gestureType).toBe("smile");
     expect(reloaded?.reacquisitionPointerBehavior).toBe("reset_center");
+  });
+
+  it("saves and reloads the signed-in preference snapshot", async () => {
+    await bootstrapUserWorkspaceAndProfile(userId, userEmail, "Test User 1");
+
+    const saved = await saveUserPreferences(userId, {
+      ...defaultUserPreferences,
+      highContrast: true,
+      textSize: "extra_large",
+      reducedMotion: true,
+      theme: "dark",
+      language: "id",
+      headControlEnabled: true,
+      headPreset: "custom",
+      voiceLanguage: "id",
+      voiceMode: "commands",
+      sidebarCollapsed: true
+    });
+
+    expect(saved).toMatchObject({
+      highContrast: true,
+      textSize: "extra_large",
+      reducedMotion: true,
+      theme: "dark",
+      language: "id",
+      headControlEnabled: true,
+      headPreset: "custom",
+      voiceLanguage: "id",
+      voiceMode: "commands",
+      sidebarCollapsed: true
+    });
+    expect(await getUserPreferences(userId)).toEqual(saved);
   });
 });
 

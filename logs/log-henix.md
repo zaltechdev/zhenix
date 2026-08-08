@@ -1,3 +1,13 @@
+### Timestamp: [2026-08-08 20:50:30]
+* **Model used**: Gemini 3.6 Flash (High)
+* **Human Prompt**: `should be floating, not docking | see? this is floating, not docking | stil not satisfy the req | shadow too harsh`
+* **TLDR AI agents done**: Converted workspace command composer from a full-width solid docked bottom footer block to a floating pill card. Styled `.aksa-composer-footer` as an absolute floating container at the bottom of the workspace pane (`position: absolute; bottom: 0; left: 0; right: 0; z-index: 30; pointer-events: none`). Added a translucent theme-adaptive background gradient fade (`linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--color-aksa-paper) 65%, transparent) 40%, var(--color-aksa-paper) 95%)`) to smoothly fade scrolling text behind the composer without harsh solid cut-offs. Replaced heavy hardcoded shadow with design system token `box-shadow: var(--shadow-aksa-overlay)` so elevation shadow is soft and theme-adaptive across light and dark modes (`pointer-events: auto`). Updated `.aksa-main` scroll padding (`padding-bottom: calc(180px + env(safe-area-inset-bottom))`) so bottom content scrolls fully into view. Updated e2e layout tests and verified 370 unit tests passed and typecheck passed.
+* **file changed**:
+  - `src/app/workspace.css`
+  - `tests/e2e/workspace.spec.ts`
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: [2026-08-07 21:59:55]
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `Fix and refine the landing-page navbar scroll behavior based on the attached reference video. Make the morph animation subtle/slower, remove the flashes morph, add frosh blur.`
@@ -1461,3 +1471,142 @@ Then STOP.
   - `tests/unit/calibration.test.ts`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `tests/unit/pointer-mapping.test.ts`
+
+---
+### Timestamp: 2026-08-09 02:49:09
+* **Model used**: GPT-5 Codex
+* **Human Prompt**:
+  ```
+  Use this as a tight UI + persistence corrective pass:
+
+  Repository: github.com/zaltechdev/zhenix
+  Branch: dev
+
+  Do NOT redesign the product.
+  Do NOT touch Head Control math.
+  Do NOT touch backend/Agent Core unrelated code.
+  Implement the annotated screenshots exactly and preserve current design language.
+
+  1. Sidebar polish
+  * Fix collapsed Aksa logo alignment; it is slightly off-center/right.
+  * Remove Coming soon text from Slides. If disabled, communicate through disabled state/tooltip only.
+  * Preserve current collapse behavior and accessible tooltips.
+  * Do not reintroduce chevrons.
+
+  2. Composer cleanup
+  Required:
+  * Keep floating centered composer.
+  * Move Aksa uses AI and can make mistakes. Check important results. below the composer, not above.
+  * Simplify action layout: Dictate, Live Voice, optional Clear only when content exists, Send icon button on the foremost right.
+  * Do not make Clear and Send look like two stacked full-width CTA buttons.
+  * Clear should be a subtle secondary/icon action.
+  * Send = compact primary icon button with localized aria-label.
+  * Preserve large enough hit targets for accessibility.
+
+  3. Better loading state
+  Replace the giant empty page + centered Loading spinner on auth/session resolution with a lightweight skeleton/immediate shell matching the destination layout. Preserve background/layout, show subtle form/card skeleton, avoid layout flash and fake progress, avoid a giant spinner, and respect Reduced Motion.
+
+  4. High Contrast must actually affect UI contrast
+  When enabled, increase contrast of body/helper text, labels, input borders, input text/placeholders, buttons, button borders, links, focus rings, and disabled/selected states. Do not only change the background. Keep it coherent in dark and light themes and accessible.
+
+  5. Accessibility quick panel — configurable options
+  Support High contrast, Text size, and Reduce motion. Text Size must use Default, Large, Extra large, or equivalent. Keep the panel compact; full configuration remains on Accessibility page.
+
+  6. Preference persistence — REQUIRED
+  Persist high contrast, text size, reduced motion, theme, language, Head Control enabled preference, Voice Control enabled preference, Head Control preset/custom values, selection mode, voice language/mode, reacquisition pointer behavior, and sidebar collapsed state where appropriate.
+  Signed-in user: persist through the existing user accessibility/control profile in DB.
+  Anonymous user: persist locally using the existing safe client preference mechanism.
+  Sign-in transition: do not wipe current preferences; reconcile local to account preferences using an explicit predictable strategy; do not silently reset controls.
+
+  7. Runtime state must survive UI changes
+  Changing language, theme, accessibility preferences, or sidebar state must not unintentionally disable Head Control or Voice Control. Do not recreate camera/mic runtime solely because UI preferences rerender.
+
+  8. Onboarding cleanup
+  Remove the redundant Aksa is ready chip/card from the final onboarding step. Keep title, concise description, Review settings, and Enter workspace. Change the copy to: You can change these preferences later in Accessibility and Controls. Localize naturally in ID.
+
+  9. Remove redundant chips/status clutter
+  Across onboarding/auth/workspace remove duplicated status chips, status repeating headings, and trivial card-inside-card state. Keep useful errors/warnings.
+
+  10. Auth accessibility panel
+  Keep the bottom-left Accessibility button. Use the current Aksa design system, remain keyboard/head-pointer usable, support configurable text size, immediately preview changes, persist preference, and require no sign-in.
+
+  11. Dark/light audit
+  Manually verify auth, onboarding, workspace, accessibility quick panel, composer, and sidebar in both themes for readable text, placeholders, borders, high-contrast behavior, focus states, and no dark-on-dark values.
+
+  12. Tests
+  Add focused regression coverage for anonymous preference persistence, signed-in preference persistence, sign-in does not wipe preferences, language/theme change does not disable Head/Voice Control, text-size options, high-contrast form/button styling, reduced motion, composer Send remains rightmost, disclaimer below composer, onboarding redundant ready card removed, Slides no longer renders Coming soon, and loading shell replaces giant spinner state.
+
+  Then run once at the end: bun run i18n:compile; bun run typecheck; bun run lint; bun run test; bun run build.
+
+  Commit atomically and push dev.
+
+  FINAL ACCEPTANCE
+  [ ] Collapsed logo aligned
+  [ ] Coming soon removed
+  [ ] Composer controls cleaned up
+  [ ] Send rightmost
+  [ ] AI notice below composer
+  [ ] Giant loading spinner replaced with stable loading shell
+  [ ] High Contrast affects text/forms/buttons, not background only
+  [ ] Text size configurable
+  [ ] Reduce Motion available
+  [ ] Anonymous preferences persist
+  [ ] Signed-in preferences persist
+  [ ] Sign-in does not wipe local preferences
+  [ ] Language/theme changes preserve active Head/Voice Control
+  [ ] Redundant onboarding Aksa is ready card removed
+  [ ] Onboarding copy points to Accessibility and Controls
+  [ ] EN/ID complete
+  [ ] dark/light verified
+  [ ] tests/build green
+  [ ] pushed to dev
+
+  Final response under 15 lines: changed UI, persistence strategy, tests, commit SHA, remote SHA, then STOP.
+  ```
+* **TLDR AI agents done**: Implemented the UI corrective pass, added anonymous/account preference reconciliation, preserved runtime continuity, added regression coverage, and passed all final gates.
+* **file changed**:
+  - `.agents/db_schema.md`
+  - `.agents/features/accessibility-controls.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/globals.css`
+  - `src/app/layout.tsx`
+  - `src/app/loading.tsx`
+  - `src/app/workspace.css`
+  - `src/app/workspace/layout.tsx`
+  - `src/app/api/preferences/route.ts`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/components/shared/accessibility-widget.tsx`
+  - `src/components/shared/locale-switcher.tsx`
+  - `src/components/shared/theme-toggle.tsx`
+  - `src/components/workspace/accessibility-controls.tsx`
+  - `src/components/workspace/aksa-action-context.tsx`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/components/workspace/controls-settings.tsx`
+  - `src/components/workspace/google-workspace-launchpad.tsx`
+  - `src/components/workspace/navigation-items.ts`
+  - `src/components/workspace/slides-surface.tsx`
+  - `src/components/workspace/voice-control-context.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `src/components/workspace/workspace-sidebar.tsx`
+  - `src/lib/client/preferences/preference-context.tsx`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/profile-cache.ts`
+  - `src/lib/contracts/auth.ts`
+  - `src/lib/server/auth/gateway.ts`
+  - `src/lib/server/auth/service.ts`
+  - `src/lib/server/db/client.ts`
+  - `src/lib/server/db/dal.ts`
+  - `src/lib/server/db/migrations/0003_preference_persistence.sql`
+  - `src/lib/server/db/migrations/meta/0003_snapshot.json`
+  - `src/lib/server/db/migrations/meta/_journal.json`
+  - `src/lib/server/db/schema.ts`
+  - `src/lib/server/workspace/service.ts`
+  - `tests/unit/accessibility-widget.test.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/composer-ui.test.tsx`
+  - `tests/unit/loading-shell.test.tsx`
+  - `tests/unit/phase1-foundation.test.ts`
+  - `tests/unit/preferences.test.tsx`
+  - `tests/unit/surfaces.test.tsx`
+  - `tests/unit/workspace-shell.test.tsx`

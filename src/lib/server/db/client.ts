@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS accessibility_profiles (
   gesture_cooldown_ms integer,
   reacquisition_pointer_behavior text DEFAULT 'keep_position' NOT NULL,
   reduced_motion integer DEFAULT 0 NOT NULL,
+  ui_preferences text,
   calibrated_at integer,
   created_at integer NOT NULL,
   updated_at integer NOT NULL,
@@ -300,7 +301,12 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 `;
 
+const LOCAL_SCHEMA_UPGRADES = [
+  "ALTER TABLE accessibility_profiles ADD COLUMN ui_preferences text"
+];
+
 let initialized = false;
+let localSchemaReady: Promise<void> = Promise.resolve();
 
 function isLocalFileSqlite(url: string): boolean {
   return url.startsWith("file:") || url.includes(":memory:");
@@ -320,9 +326,20 @@ function createDbClient() {
   if (!initialized && process.env.NODE_ENV !== "production" && isLocalFileSqlite(url)) {
     initialized = true;
     try {
-      client.executeMultiple(INIT_SQL).catch(() => {
-        /* Best effort sync for local file SQLite in development/test mode */
-      });
+      localSchemaReady = client
+        .executeMultiple(INIT_SQL)
+        .then(async () => {
+          for (const statement of LOCAL_SCHEMA_UPGRADES) {
+            try {
+              await client.execute(statement);
+            } catch {
+              /* Existing local databases may already contain the column. */
+            }
+          }
+        })
+        .catch(() => {
+          /* Best effort sync for local file SQLite in development/test mode */
+        });
     } catch {
       /* Best effort */
     }
@@ -352,7 +369,13 @@ export function isDatabaseReady(): boolean {
   return databaseStatus().configured || process.env.NODE_ENV === "test" || !process.env.TURSO_DATABASE_URL;
 }
 
+export async function ensureLocalSchema(): Promise<void> {
+  getDb();
+  await localSchemaReady;
+}
+
 export function resetDatabaseAccessCache(): void {
   dbInstance = null;
   initialized = false;
+  localSchemaReady = Promise.resolve();
 }

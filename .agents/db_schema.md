@@ -180,7 +180,9 @@ Saved control settings. Contains no biometric data and no camera imagery.
 | `gesture_type` | `text` | Nullable, `CHECK (gesture_type IN ('mouth_open','brow_raise','eye_blink_long','smile'))` |
 | `gesture_threshold` | `integer` | Nullable, normalized 0 to 100 |
 | `gesture_cooldown_ms` | `integer` | Nullable |
+| `reacquisition_pointer_behavior` | `text` | `keep_position` or `reset_center` |
 | `reduced_motion` | `integer` | `0` or `1`, user override of the system preference |
+| `ui_preferences` | `text` | JSON for validated presentation, language, theme, sidebar, and control preferences |
 | `calibrated_at` | `integer` | Nullable, last successful calibration |
 | `created_at` | `integer` | Not null |
 | `updated_at` | `integer` | Not null |
@@ -192,6 +194,7 @@ Saved control settings. Contains no biometric data and no camera imagery.
 - Retention: retained while the account exists
 - Not stored: landmark coordinates, blendshape series, frames, face geometry, calibration imagery
 - Note: the client may cache these values in IndexedDB for immediate startup. The server row is authoritative.
+- Preference reconciliation: anonymous preferences use a safe client cache; changed fields merge into the account snapshot at sign-in, then the account row is authoritative.
 
 ### 3.7 `oauth_connections`
 

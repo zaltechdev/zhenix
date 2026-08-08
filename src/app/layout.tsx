@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { m } from "@/paraglide/messages.js";
 import { getRequestLocale } from "@/lib/i18n/request";
 import { HeadControlProvider } from "@/lib/client/vision/head-control-context";
+import { PreferenceProvider } from "@/lib/client/preferences/preference-context";
 import "./globals.css";
 
 const hostGrotesk = Host_Grotesk({
@@ -52,7 +53,7 @@ export default async function RootLayout({
         {/* Blocking script: set data-theme before paint to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('aksa-theme')||(document.cookie.match(/aksa-theme=([^;]+)/)||[])[1];var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=t?t:(d?'dark':'light');document.documentElement.dataset.theme=theme;if(t){document.cookie='aksa-theme='+t+'; path=/; max-age=31536000; SameSite=Lax';}}catch(e){}})();`
+            __html: `(function(){try{var p=JSON.parse(localStorage.getItem('aksa-preferences:anonymous')||'null')||{};var t=p.theme||localStorage.getItem('aksa-theme')||(document.cookie.match(/aksa-theme=([^;]+)/)||[])[1];var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=t?t:(d?'dark':'light');var r=document.documentElement;r.dataset.theme=theme;if(p.language==='id'||p.language==='en'){r.lang=p.language;}r.classList.toggle('high-contrast',p.highContrast===true);r.classList.toggle('text-size-large',p.textSize==='large');r.classList.toggle('text-size-extra-large',p.textSize==='extra_large');r.classList.toggle('large-text',p.textSize==='large'||p.textSize==='extra_large');r.classList.toggle('reduce-motion',p.reducedMotion===true);if(t){document.cookie='aksa-theme='+t+'; path=/; max-age=31536000; SameSite=Lax';}}catch(e){}})();`
           }}
         />
       </head>
@@ -63,7 +64,9 @@ export default async function RootLayout({
         >
           {m.skip_to_content({}, { locale })}
         </a>
-        <HeadControlProvider>{children}</HeadControlProvider>
+        <PreferenceProvider initialLocale={locale}>
+          <HeadControlProvider>{children}</HeadControlProvider>
+        </PreferenceProvider>
       </body>
     </html>
   );

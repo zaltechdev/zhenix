@@ -10,6 +10,7 @@ import { AccessibilityProfile } from "@/lib/contracts/auth";
 
 const DB_NAME = "aksa_settings_cache";
 const STORE_NAME = "accessibility_profile";
+const ANONYMOUS_KEY = "anonymous_profile";
 const memoryCache = new Map<string, AccessibilityProfile>();
 
 function getStoreKey(userId: string): string {
@@ -100,6 +101,59 @@ export async function clearCachedProfile(userId: string): Promise<void> {
       const store = tx.objectStore(STORE_NAME);
       const request = store.delete(key);
 
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+    });
+  } catch {
+    // Memory cache cleared, ignore DB error
+  }
+}
+
+/** Anonymous onboarding profile cache. It is deliberately separate from user-scoped keys. */
+export async function getAnonymousProfile(): Promise<AccessibilityProfile | null> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const request = tx.objectStore(STORE_NAME).get(ANONYMOUS_KEY);
+      request.onsuccess = () => {
+        resolve((request.result as AccessibilityProfile) ?? memoryCache.get(ANONYMOUS_KEY) ?? null);
+      };
+      request.onerror = () => resolve(memoryCache.get(ANONYMOUS_KEY) ?? null);
+    });
+  } catch {
+    return memoryCache.get(ANONYMOUS_KEY) ?? null;
+  }
+}
+
+export async function setAnonymousProfile(profile: AccessibilityProfile): Promise<void> {
+  memoryCache.set(ANONYMOUS_KEY, profile);
+
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const request = db
+        .transaction(STORE_NAME, "readwrite")
+        .objectStore(STORE_NAME)
+        .put(profile, ANONYMOUS_KEY);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+    });
+  } catch {
+    // Memory cache updated, ignore DB error
+  }
+}
+
+export async function clearAnonymousProfile(): Promise<void> {
+  memoryCache.delete(ANONYMOUS_KEY);
+
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const request = db
+        .transaction(STORE_NAME, "readwrite")
+        .objectStore(STORE_NAME)
+        .delete(ANONYMOUS_KEY);
       request.onsuccess = () => resolve();
       request.onerror = () => resolve();
     });

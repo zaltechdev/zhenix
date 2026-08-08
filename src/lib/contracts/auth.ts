@@ -129,3 +129,51 @@ export const accessibilityProfileSaveResultSchema = z.discriminatedUnion("outcom
 ]);
 
 export type AccessibilityProfileSaveResult = z.infer<typeof accessibilityProfileSaveResultSchema>;
+
+export const textSizeSchema = z.enum(["default", "large", "extra_large"]);
+export const themeSchema = z.enum(["light", "dark"]);
+export const headPresetSchema = z.enum(["auto", "standard", "low_light", "custom"]);
+export const voiceLanguageSchema = z.enum(["follow", "id", "en"]);
+export const voiceModeSchema = z.enum(["dictation", "commands", "both"]);
+
+/**
+ * Preferences that affect presentation or control availability, stored beside
+ * the accessibility profile without exposing account identity to the client.
+ */
+export const userPreferencesSchema = z.object({
+  highContrast: z.boolean(),
+  textSize: textSizeSchema,
+  reducedMotion: z.boolean(),
+  theme: themeSchema,
+  language: localeSchema,
+  headControlEnabled: z.boolean(),
+  voiceControlEnabled: z.boolean(),
+  headPreset: headPresetSchema,
+  voiceLanguage: voiceLanguageSchema,
+  voiceMode: voiceModeSchema,
+  sidebarCollapsed: z.boolean()
+});
+
+export type UserPreferences = z.infer<typeof userPreferencesSchema>;
+
+export const defaultUserPreferences: UserPreferences = {
+  highContrast: false,
+  textSize: "default",
+  reducedMotion: false,
+  theme: "light",
+  language: "en",
+  headControlEnabled: false,
+  voiceControlEnabled: true,
+  headPreset: "auto",
+  voiceLanguage: "follow",
+  voiceMode: "both",
+  sidebarCollapsed: false
+};
+
+export const userPreferencesSaveResultSchema = z.discriminatedUnion("outcome", [
+  z.object({ outcome: z.literal("saved"), preferences: userPreferencesSchema }),
+  z.object({ outcome: z.literal("invalid_input"), error: aksaErrorSchema }),
+  z.object({ outcome: z.literal("unavailable"), error: aksaErrorSchema })
+]);
+
+export type UserPreferencesSaveResult = z.infer<typeof userPreferencesSaveResultSchema>;

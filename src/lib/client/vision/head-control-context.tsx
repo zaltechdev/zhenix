@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   provisionalAccessibilityProfile,
+  accessibilityProfileSaveResultSchema,
   type AccessibilityProfile
 } from "@/lib/contracts/auth";
 import { NeutralBaseline } from "./head-pose";
@@ -47,10 +48,17 @@ import {
   type DirectionalCalibrationRange
 } from "./calibration";
 import { AksaPointer } from "@/components/workspace/aksa-pointer";
-import { getCachedProfile, setCachedProfile } from "./profile-cache";
+import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
+import {
+  getAnonymousProfile,
+  getCachedProfile,
+  setAnonymousProfile,
+  setCachedProfile
+} from "./profile-cache";
 
 export interface HeadControlContextValue {
   userId: string | null;
+  hasPendingAnonymousProfile: boolean;
   lifecycleState: VisionLifecycleState;
   errorCategory: VisionFailureCategory | null;
   pointerPosition: Vector2D;
@@ -138,6 +146,7 @@ export function HeadControlProvider({
   const [profile, setProfileState] = useState<AccessibilityProfile>(
     initialProfile ?? provisionalAccessibilityProfile
   );
+  const [hasPendingAnonymousProfile, setHasPendingAnonymousProfile] = useState(false);
   const [lifecycleState, setLifecycleState] = useState<VisionLifecycleState>("idle");
   const [errorCategory, setErrorCategory] = useState<VisionFailureCategory | null>(null);
   const [pointerPosition, setPointerPosition] = useState<Vector2D>(() =>
@@ -153,6 +162,7 @@ export function HeadControlProvider({
   const [neutralBaseline, setNeutralBaselineState] = useState<NeutralBaseline | null>(null);
   const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
   const [calibrationState, setCalibrationState] = useState<CalibrationState>(DEFAULT_CALIBRATION);
+  const appPreferences = useOptionalAppPreferences();
 
   // References for live callback freshness & teardown
   const profileRef = useRef<AccessibilityProfile>(profile);
@@ -313,6 +323,8 @@ export function HeadControlProvider({
       profileRef.current = newProfile;
       if (!runtimeUserIdRef.current) {
         profileChangedBeforeIdentityRef.current = true;
+        setHasPendingAnonymousProfile(true);
+        void setAnonymousProfile(newProfile);
       } else {
         void setCachedProfile(newProfile, runtimeUserIdRef.current);
       }
@@ -366,18 +378,59 @@ export function HeadControlProvider({
 
       // Preserve the active anonymous onboarding draft when entering the workspace.
       // A genuine account switch receives its own server or cached profile instead.
+      const hasAnonymousDraft = profileChangedBeforeIdentityRef.current;
+      if (hasAnonymousDraft && nextUserId) {
+        setHasPendingAnonymousProfile(true);
+      } else if ((!nextUserId && !hasAnonymousDraft) || (changedUser && previousUserId && !hasAnonymousDraft)) {
+        setHasPendingAnonymousProfile(false);
+      }
       const shouldApplyServerProfile =
         Boolean(nextInitialProfile) &&
-        (!profileChangedBeforeIdentityRef.current || Boolean(previousUserId));
+        (!hasAnonymousDraft || Boolean(previousUserId));
 
       if (changedUser && shouldApplyServerProfile && nextInitialProfile) {
         setProfileState(nextInitialProfile);
         profileRef.current = nextInitialProfile;
       }
 
+      if ((changedUser || isInitialConfiguration) && !nextUserId && !nextInitialProfile) {
+        void getAnonymousProfile().then((cached) => {
+          if (runtimeUserIdRef.current === null && cached && !profileChangedBeforeIdentityRef.current) {
+            setProfileState(cached);
+            profileRef.current = cached;
+          }
+        });
+      }
+
+      if (changedUser && nextUserId && hasAnonymousDraft) {
+        const draft = profileRef.current;
+        void fetch("/api/accessibility-profile", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(draft)
+        })
+          .then(async (response) => {
+            if (!response.ok) return null;
+            const payload: unknown = await response.json();
+            const parsed = accessibilityProfileSaveResultSchema.safeParse(payload);
+            return parsed.success && parsed.data.outcome === "saved" ? parsed.data.profile : null;
+          })
+          .then((saved) => {
+            if (saved && runtimeUserIdRef.current === nextUserId) {
+              profileChangedBeforeIdentityRef.current = false;
+              setProfileState(saved);
+              profileRef.current = saved;
+              void setCachedProfile(saved, nextUserId);
+            }
+          })
+          .catch(() => {
+            // The live anonymous draft remains active and can retry on the next account session.
+          });
+      }
+
       if ((changedUser || isInitialConfiguration) && nextUserId && !nextInitialProfile) {
         const configuredUserId = nextUserId;
-        if (changedUser) {
+        if (changedUser && !hasAnonymousDraft) {
           setProfileState(provisionalAccessibilityProfile);
           profileRef.current = provisionalAccessibilityProfile;
         }
@@ -825,6 +878,7 @@ export function HeadControlProvider({
   const startHeadControl = useCallback(
     async (videoElement?: HTMLVideoElement | null): Promise<boolean> => {
       startupCancelledRef.current = false;
+      appPreferences?.updatePreferences({ headControlEnabled: true });
       if (
         typeof window === "undefined" ||
         !window.isSecureContext ||
@@ -871,7 +925,7 @@ export function HeadControlProvider({
         return false;
       }
     },
-    [cleanFailedStartup, ensureBackgroundVideo, startCamera]
+    [appPreferences, cleanFailedStartup, ensureBackgroundVideo, startCamera]
   );
 
   const pauseControl = useCallback(() => {
@@ -900,6 +954,7 @@ export function HeadControlProvider({
   }, [resetInteractionState]);
 
   const disableControl = useCallback(() => {
+    appPreferences?.updatePreferences({ headControlEnabled: false });
     startupCancelledRef.current = true;
     if (engineRef.current) {
       engineRef.current.disable();
@@ -924,7 +979,7 @@ export function HeadControlProvider({
     removeBackgroundVideo();
     setErrorCategory(null);
     setLifecycleState("disabled");
-  }, [clearCalibrationTimeout, removeBackgroundVideo, resetInteractionState]);
+  }, [appPreferences, clearCalibrationTimeout, removeBackgroundVideo, resetInteractionState]);
 
   // Provider unmount teardown effect
   useEffect(() => {
@@ -966,6 +1021,7 @@ export function HeadControlProvider({
         disableControl,
         setNeutralBaseline,
         updateProfile,
+        hasPendingAnonymousProfile,
         configureRuntime
       }}
     >
@@ -989,6 +1045,10 @@ export function useHeadControl(): HeadControlContextValue {
     throw new Error("useHeadControl must be used within a HeadControlProvider");
   }
   return context;
+}
+
+export function useOptionalHeadControl(): HeadControlContextValue | null {
+  return useContext(HeadControlContext);
 }
 
 /** Configures the shared runtime when authenticated workspace data becomes available. */

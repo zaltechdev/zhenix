@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import type { SessionState } from "@/lib/contracts/auth";
-import type { AccessibilityProfile } from "@/lib/contracts/auth";
+import type { AccessibilityProfile, UserPreferences } from "@/lib/contracts/auth";
 import type { GoogleConnection } from "@/lib/contracts/google";
 import { CommandProvider } from "@/components/workspace/command-context";
 import { CommandComposer } from "@/components/workspace/command-composer";
@@ -16,21 +16,30 @@ import { WorkspaceActionProvider, useAksaActions } from "@/components/workspace/
 import { WorkspaceCalibrationExperience } from "@/components/workspace/calibration-experience";
 import { HeadControlRuntimeBoundary } from "@/lib/client/vision/head-control-context";
 import { VoiceControlProvider } from "@/components/workspace/voice-control-context";
+import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
 
 export function WorkspaceShell({
   locale,
   session,
   connection,
   initialProfile,
+  initialPreferences,
   children
 }: {
   locale: Locale;
   session: SessionState;
   connection: GoogleConnection;
   initialProfile?: AccessibilityProfile | null;
+  initialPreferences?: UserPreferences | null;
   children: ReactNode;
 }) {
   const userId = session.status === "authenticated" ? session.session.userId : null;
+  const reconcileAccountPreferences = useOptionalAppPreferences()?.reconcileAccountPreferences;
+
+  useEffect(() => {
+    if (!reconcileAccountPreferences) return;
+    void reconcileAccountPreferences(userId, initialPreferences ?? null);
+  }, [initialPreferences, reconcileAccountPreferences, userId]);
 
   return (
     <HeadControlRuntimeBoundary initialProfile={initialProfile} userId={userId}>
@@ -200,10 +209,10 @@ function WorkspaceShellContent({
 
           {shouldRenderBottomComposer ? (
             <footer className="aksa-composer-footer">
+              <CommandComposer locale={locale} />
               <p className="aksa-ai-disclaimer" role="note">
                 {m.workspace_ai_disclaimer({}, options)}
               </p>
-              <CommandComposer locale={locale} />
             </footer>
           ) : null}
         </div>

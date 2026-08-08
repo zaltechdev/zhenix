@@ -1243,10 +1243,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     {m.onboarding_complete_body({}, options)}
                   </p>
 
-                  <div className="aksa-onboarding-complete-box">
-                    <StatusChip tone="ready" value={m.onboarding_ready_title({}, options)} />
-                  </div>
-
                   <div className="aksa-onboarding-footer aksa-onboarding-footer--right">
                     <Link className="aksa-button aksa-button--secondary" href="/workspace/accessibility" onClick={finish}>
                       {m.onboarding_review_settings({}, options)}

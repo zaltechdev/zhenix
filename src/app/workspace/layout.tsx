@@ -16,6 +16,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
     <WorkspaceShell
       connection={context.connection}
       initialProfile={context.accessibilityProfile}
+      initialPreferences={context.preferences}
       locale={locale}
       session={context.session}
     >

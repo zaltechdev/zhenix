@@ -12,11 +12,11 @@ export function SlidesSurface({ locale }: { locale: Locale }) {
     <div className="aksa-dashboard-card">
       <div className="aksa-dashboard-card__header">
         <h1 className="aksa-dashboard-card__title">
-          {m.slides_coming_soon_title({}, options)}
+          {m.slides_unavailable_title({}, options)}
         </h1>
       </div>
       <p className="aksa-state-panel__body">
-        {m.slides_coming_soon_desc({}, options)}
+        {m.slides_unavailable_desc({}, options)}
       </p>
       <div className="aksa-surface-card__app-links">
         <Link className="aksa-button aksa-button--secondary aksa-button--sm" href="/workspace/documents">

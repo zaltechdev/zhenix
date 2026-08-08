@@ -4,16 +4,26 @@ import { authStatus } from "@/lib/server/config/runtime-config";
 import { validationFailedError, authFailedError, notConfiguredError } from "@/lib/server/errors/aksa-error";
 import {
   accessibilityProfileSchema,
+  userPreferencesSchema,
   signInInputSchema,
   signUpInputSchema,
   type AccessibilityProfile,
   type AccessibilityProfileSaveResult,
   type AuthResult,
-  type SessionState
+  type SessionState,
+  type UserPreferences,
+  type UserPreferencesSaveResult
 } from "@/lib/contracts/auth";
 import type { AuthGateway } from "@/lib/server/auth/gateway";
 import { auth } from "@/lib/server/auth/better-auth";
-import { getSession, getAccessibilityProfile, saveAccessibilityProfile as saveProfileToDb, bootstrapUserWorkspaceAndProfile } from "@/lib/server/db/dal";
+import {
+  bootstrapUserWorkspaceAndProfile,
+  getAccessibilityProfile,
+  getSession,
+  getUserPreferences,
+  saveAccessibilityProfile as saveProfileToDb,
+  saveUserPreferences as savePreferencesToDb
+} from "@/lib/server/db/dal";
 
 assertServerOnly("src/lib/server/auth/service.ts");
 
@@ -47,6 +57,18 @@ function createUnconfiguredAuthGateway(): AuthGateway {
 
     async saveAccessibilityProfile(profile): Promise<AccessibilityProfileSaveResult> {
       const parsed = accessibilityProfileSchema.safeParse(profile);
+      if (!parsed.success) {
+        return { outcome: "invalid_input", error: validationFailedError() };
+      }
+      return { outcome: "unavailable", error: notConfiguredError() };
+    },
+
+    async readUserPreferences(): Promise<UserPreferences | null> {
+      return null;
+    },
+
+    async saveUserPreferences(preferences): Promise<UserPreferencesSaveResult> {
+      const parsed = userPreferencesSchema.safeParse(preferences);
       if (!parsed.success) {
         return { outcome: "invalid_input", error: validationFailedError() };
       }
@@ -191,6 +213,27 @@ function createRealAuthGateway(): AuthGateway {
 
       const saved = await saveProfileToDb(session.userId, parsed.data);
       return { outcome: "saved", profile: saved };
+    },
+
+    async readUserPreferences(): Promise<UserPreferences | null> {
+      const session = await getSession();
+      if (!session) return null;
+      return getUserPreferences(session.userId);
+    },
+
+    async saveUserPreferences(preferences): Promise<UserPreferencesSaveResult> {
+      const session = await getSession();
+      if (!session) {
+        return { outcome: "unavailable", error: authFailedError() };
+      }
+
+      const parsed = userPreferencesSchema.safeParse(preferences);
+      if (!parsed.success) {
+        return { outcome: "invalid_input", error: validationFailedError() };
+      }
+
+      const saved = await savePreferencesToDb(session.userId, parsed.data);
+      return { outcome: "saved", preferences: saved };
     }
   };
 }
@@ -208,6 +251,10 @@ export async function readSessionState(): Promise<SessionState> {
 
 export async function readAccessibilityProfile(): Promise<AccessibilityProfile | null> {
   return authGateway().readAccessibilityProfile();
+}
+
+export async function readUserPreferences(): Promise<UserPreferences | null> {
+  return authGateway().readUserPreferences();
 }
 
 export function authConfiguration() {

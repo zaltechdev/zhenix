@@ -1,0 +1,1 @@
+ALTER TABLE `accessibility_profiles` ADD `ui_preferences` text;

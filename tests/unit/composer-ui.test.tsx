@@ -338,6 +338,20 @@ describe("command composer", () => {
     expect(liveVoice.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("keeps Clear optional and Send as the rightmost compact action", () => {
+    renderOfflineComposer();
+    const textarea = screen.getByRole("textbox");
+    expect(screen.queryByRole("button", { name: m.composer_clear({}, { locale: "en" }) })).not.toBeInTheDocument();
+
+    fireEvent.change(textarea, { target: { value: "Draft command" } });
+    const clear = screen.getByRole("button", { name: m.composer_clear({}, { locale: "en" }) });
+    const send = screen.getByRole("button", { name: m.composer_submit({}, { locale: "en" }) });
+    expect(clear).toHaveClass("aksa-composer__clear");
+    expect(send).toHaveClass("aksa-composer__submit");
+    expect(clear.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(send.querySelector(".sr-only")).toHaveTextContent(m.composer_submit({}, { locale: "en" }));
+  });
+
   it("executes one final command once across duplicate recognition callbacks", async () => {
     vi.stubGlobal("SpeechRecognition", RecognitionMock);
     renderOfflineComposer();

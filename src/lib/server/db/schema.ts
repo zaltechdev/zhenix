@@ -136,6 +136,7 @@ export const accessibilityProfiles = sqliteTable(
       .notNull()
       .default("keep_position"),
     reducedMotion: integer("reduced_motion").notNull().default(0),
+    uiPreferences: text("ui_preferences"),
     calibratedAt: integer("calibrated_at", { mode: "number" }),
     createdAt: integer("created_at", { mode: "number" }).notNull(),
     updatedAt: integer("updated_at", { mode: "number" }).notNull()

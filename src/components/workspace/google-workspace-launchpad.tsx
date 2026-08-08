@@ -12,35 +12,35 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
       name: m.nav_documents({}, options),
       desc: m.home_docs_desc({}, options),
       icon: FileText,
-      comingSoon: false
+      disabled: false
     },
     {
       href: "/workspace/sheets",
       name: m.nav_sheets({}, options),
       desc: m.home_sheets_desc({}, options),
       icon: Table2,
-      comingSoon: false
+      disabled: false
     },
     {
       href: "/workspace/files",
       name: m.nav_files({}, options),
       desc: m.home_drive_desc({}, options),
       icon: FolderOpen,
-      comingSoon: false
+      disabled: false
     },
     {
       href: "/workspace/mail",
       name: m.nav_mail({}, options),
       desc: m.home_gmail_desc({}, options),
       icon: Mail,
-      comingSoon: false
+      disabled: false
     },
     {
       href: "/workspace/slides",
       name: m.nav_slides({}, options),
       desc: m.home_slides_desc({}, options),
       icon: Presentation,
-      comingSoon: true
+      disabled: true
     }
   ];
 
@@ -56,12 +56,14 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
         {launchItems.map((item) => {
           const Icon = item.icon;
 
-          if (item.comingSoon) {
+          if (item.disabled) {
             return (
               <li className="aksa-launchpad__flat-item" key={item.name}>
                 <span
                   aria-disabled="true"
                   className="aksa-launchpad__flat-link aksa-launchpad__flat-link--disabled"
+                  aria-label={`${item.name}: ${m.nav_slides_disabled({}, options)}`}
+                  title={m.nav_slides_disabled({}, options)}
                 >
                   <div className="aksa-launchpad__flat-icon">
                     <Icon aria-hidden="true" className="aksa-icon" />
@@ -69,9 +71,6 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
                   <div className="aksa-launchpad__flat-info">
                     <span className="aksa-launchpad__flat-name">{item.name}</span>
                     <span className="aksa-launchpad__flat-desc">{item.desc}</span>
-                  </div>
-                  <div className="aksa-launchpad__flat-action">
-                    <span className="aksa-badge">{m.nav_coming_soon({}, options)}</span>
                   </div>
                 </span>
               </li>

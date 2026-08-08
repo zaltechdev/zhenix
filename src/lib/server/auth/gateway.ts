@@ -2,6 +2,8 @@ import type {
   AccessibilityProfile,
   AccessibilityProfileSaveResult,
   AuthResult,
+  UserPreferences,
+  UserPreferencesSaveResult,
   SessionState,
   SignInInput,
   SignUpInput
@@ -23,4 +25,6 @@ export type AuthGateway = {
   signOut(): Promise<void>;
   readAccessibilityProfile(): Promise<AccessibilityProfile | null>;
   saveAccessibilityProfile(profile: AccessibilityProfile): Promise<AccessibilityProfileSaveResult>;
+  readUserPreferences(): Promise<UserPreferences | null>;
+  saveUserPreferences(preferences: UserPreferences): Promise<UserPreferencesSaveResult>;
 };

@@ -11,6 +11,7 @@ import {
   type ReactNode
 } from "react";
 import type { Locale } from "@/paraglide/runtime.js";
+import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
 
 export type VoiceLanguage = "follow" | "id" | "en";
 export type VoiceMode = "dictation" | "commands" | "both";
@@ -75,8 +76,20 @@ export function VoiceControlProvider({
   });
   const [saveFailed, setSaveFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appPreferences = useOptionalAppPreferences();
+
+  const sharedSettings: VoiceControlSettings | null = appPreferences
+    ? {
+        enabled: appPreferences.preferences.voiceControlEnabled,
+        language: appPreferences.preferences.voiceLanguage,
+        mode: appPreferences.preferences.voiceMode
+      }
+    : null;
+
+  const activeSettings = sharedSettings ?? settings;
 
   useEffect(() => {
+    if (appPreferences) return;
     if (timerRef.current !== null) clearTimeout(timerRef.current);
 
     timerRef.current = setTimeout(() => {
@@ -91,16 +104,27 @@ export function VoiceControlProvider({
     return () => {
       if (timerRef.current !== null) clearTimeout(timerRef.current);
     };
-  }, [settings, userId]);
+  }, [appPreferences, settings, userId]);
 
-  const updateSettings = useCallback((changes: Partial<VoiceControlSettings>) => {
-    setSettings((current) => ({ ...current, ...changes }));
-    setSaveFailed(false);
-  }, []);
+  const updateSettings = useCallback(
+    (changes: Partial<VoiceControlSettings>) => {
+      if (appPreferences) {
+        appPreferences.updatePreferences({
+          ...(changes.enabled === undefined ? {} : { voiceControlEnabled: changes.enabled }),
+          ...(changes.language === undefined ? {} : { voiceLanguage: changes.language }),
+          ...(changes.mode === undefined ? {} : { voiceMode: changes.mode })
+        });
+      } else {
+        setSettings((current) => ({ ...current, ...changes }));
+        setSaveFailed(false);
+      }
+    },
+    [appPreferences]
+  );
 
   const value = useMemo(
-    () => ({ settings, updateSettings, saveFailed }),
-    [saveFailed, settings, updateSettings]
+    () => ({ settings: activeSettings, updateSettings, saveFailed: appPreferences?.saveFailed ?? saveFailed }),
+    [activeSettings, appPreferences?.saveFailed, saveFailed, updateSettings]
   );
 
   return <VoiceControlContext.Provider value={value}>{children}</VoiceControlContext.Provider>;

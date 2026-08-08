@@ -42,8 +42,8 @@ export type NavigationItem = {
   href: WorkspaceRoute;
   label: string;
   icon: LucideIcon;
-  badge?: string;
   disabled?: boolean;
+  disabledReason?: string;
 };
 
 export type NavigationGroup = {
@@ -62,8 +62,8 @@ export function googleWorkspaceNavigationItems(locale: Locale): NavigationItem[]
       href: "/workspace/slides",
       label: m.nav_slides({}, options),
       icon: Presentation,
-      badge: m.nav_coming_soon({}, options),
-      disabled: true
+      disabled: true,
+      disabledReason: m.nav_slides_disabled({}, options)
     },
     { href: "/workspace/files", label: m.nav_files({}, options), icon: FolderOpen },
     { href: "/workspace/mail", label: m.nav_mail({}, options), icon: Mail }

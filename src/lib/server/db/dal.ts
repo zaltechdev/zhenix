@@ -1,7 +1,7 @@
 import { eq, and, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { assertServerOnly } from "@/lib/server/server-guard";
-import { db } from "@/lib/server/db/client";
+import { db, ensureLocalSchema } from "@/lib/server/db/client";
 import {
   users,
   workspaces,
@@ -10,8 +10,12 @@ import {
   consentRecords
 } from "@/lib/server/db/schema";
 import { auth } from "@/lib/server/auth/better-auth";
-import type { AccessibilityProfile, Session } from "@/lib/contracts/auth";
-import { provisionalAccessibilityProfile } from "@/lib/contracts/auth";
+import type { AccessibilityProfile, Session, UserPreferences } from "@/lib/contracts/auth";
+import {
+  defaultUserPreferences,
+  provisionalAccessibilityProfile,
+  userPreferencesSchema
+} from "@/lib/contracts/auth";
 
 assertServerOnly("src/lib/server/db/dal.ts");
 
@@ -24,6 +28,7 @@ export async function bootstrapUserWorkspaceAndProfile(
   userEmail: string,
   userDisplayName?: string | null
 ): Promise<{ workspaceId: string }> {
+  await ensureLocalSchema();
   const now = Date.now();
 
   // 1. Check or create workspace
@@ -88,6 +93,7 @@ export async function bootstrapUserWorkspaceAndProfile(
       reacquisitionPointerBehavior:
         provisionalAccessibilityProfile.reacquisitionPointerBehavior,
       reducedMotion: provisionalAccessibilityProfile.reducedMotion ? 1 : 0,
+      uiPreferences: JSON.stringify(defaultUserPreferences),
       createdAt: now,
       updatedAt: now
     });
@@ -156,6 +162,89 @@ export async function getAccessibilityProfile(userId: string): Promise<Accessibi
   };
 }
 
+function storedUserPreferences(value: unknown): Partial<UserPreferences> {
+  if (typeof value !== "string" || value.trim() === "") return {};
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    const result = userPreferencesSchema.partial().safeParse(parsed);
+    return result.success ? result.data : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Reads presentation and control-availability preferences for the session owner. */
+export async function getUserPreferences(userId: string): Promise<UserPreferences> {
+  await ensureLocalSchema();
+  const [profile, user] = await Promise.all([
+    db.query.accessibilityProfiles.findFirst({
+      where: eq(accessibilityProfiles.userId, userId)
+    }),
+    db.query.users.findFirst({
+      where: eq(users.id, userId)
+    })
+  ]);
+  const stored = storedUserPreferences(profile?.uiPreferences);
+
+  return {
+    ...defaultUserPreferences,
+    ...stored,
+    language:
+      user?.locale === "id" ? "id" : user?.locale === "en" ? "en" : stored.language ?? "en",
+    reducedMotion: profile ? Boolean(profile.reducedMotion) : Boolean(stored.reducedMotion)
+  };
+}
+
+/** Saves presentation and control-availability preferences for the session owner. */
+export async function saveUserPreferences(
+  userId: string,
+  preferences: UserPreferences
+): Promise<UserPreferences> {
+  await ensureLocalSchema();
+  const parsed = userPreferencesSchema.parse(preferences);
+  const now = Date.now();
+  const existing = await db.query.accessibilityProfiles.findFirst({
+    where: eq(accessibilityProfiles.userId, userId)
+  });
+
+  if (existing) {
+    await db
+      .update(accessibilityProfiles)
+      .set({
+        reducedMotion: parsed.reducedMotion ? 1 : 0,
+        uiPreferences: JSON.stringify(parsed),
+        updatedAt: now
+      })
+      .where(eq(accessibilityProfiles.userId, userId));
+  } else {
+    await db.insert(accessibilityProfiles).values({
+      id: `prof_${userId}`,
+      userId,
+      pointerSensitivity: provisionalAccessibilityProfile.pointerSensitivity,
+      deadZone: provisionalAccessibilityProfile.deadZone,
+      smoothing: provisionalAccessibilityProfile.smoothing,
+      selectionMode: provisionalAccessibilityProfile.selectionMode,
+      dwellDurationMs: provisionalAccessibilityProfile.dwellDurationMs,
+      gestureType: provisionalAccessibilityProfile.gestureType,
+      gestureThreshold: provisionalAccessibilityProfile.gestureThreshold,
+      gestureCooldownMs: provisionalAccessibilityProfile.gestureCooldownMs,
+      reacquisitionPointerBehavior: provisionalAccessibilityProfile.reacquisitionPointerBehavior,
+      reducedMotion: parsed.reducedMotion ? 1 : 0,
+      uiPreferences: JSON.stringify(parsed),
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
+  await db
+    .update(users)
+    .set({ locale: parsed.language, updatedAt: new Date(now) })
+    .where(eq(users.id, userId));
+
+  return getUserPreferences(userId);
+}
+
 /**
  * Saves/updates accessibility profile for an authenticated user.
  */
@@ -163,6 +252,7 @@ export async function saveAccessibilityProfile(
   userId: string,
   profileData: AccessibilityProfile
 ): Promise<AccessibilityProfile> {
+  await ensureLocalSchema();
   const now = Date.now();
   const existing = await db.query.accessibilityProfiles.findFirst({
     where: eq(accessibilityProfiles.userId, userId)
@@ -182,6 +272,11 @@ export async function saveAccessibilityProfile(
         gestureCooldownMs: profileData.gestureCooldownMs,
         reacquisitionPointerBehavior: profileData.reacquisitionPointerBehavior,
         reducedMotion: profileData.reducedMotion ? 1 : 0,
+        uiPreferences: JSON.stringify({
+          ...defaultUserPreferences,
+          ...storedUserPreferences(existing.uiPreferences),
+          reducedMotion: profileData.reducedMotion
+        }),
         updatedAt: now
       })
       .where(eq(accessibilityProfiles.userId, userId));
@@ -199,6 +294,10 @@ export async function saveAccessibilityProfile(
       gestureCooldownMs: profileData.gestureCooldownMs,
       reacquisitionPointerBehavior: profileData.reacquisitionPointerBehavior,
       reducedMotion: profileData.reducedMotion ? 1 : 0,
+      uiPreferences: JSON.stringify({
+        ...defaultUserPreferences,
+        reducedMotion: profileData.reducedMotion
+      }),
       createdAt: now,
       updatedAt: now
     });
