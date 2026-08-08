@@ -11,7 +11,8 @@ import { provisionalAccessibilityProfile } from "@/lib/contracts/auth";
 import {
   createRecognition,
   isSpeechRecognitionSupported,
-  transcriptFromEvent
+  transcriptFromEvent,
+  type SpeechRecognitionLike
 } from "@/lib/client/voice/speech-recognition";
 import { useBrowserValue } from "@/lib/client/state/use-browser-value";
 import {
@@ -21,6 +22,7 @@ import {
 import { PENDING_COMMAND_STORAGE_KEY } from "@/lib/client/state/pending-command";
 import { AccessibilityControls } from "@/components/workspace/accessibility-controls";
 import { StatusChip } from "@/components/workspace/status-chip";
+import { AccessibilityWidget } from "@/components/shared/accessibility-widget";
 
 import {
   HeadControlRuntimeBoundary,
@@ -118,6 +120,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const voiceRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraAttemptRef = useRef(0);
   const phaseSubstepRef = useRef<Record<OnboardingPhase, number>>({
@@ -295,6 +298,8 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
       return;
     }
 
+    voiceRecognitionRef.current?.abort();
+    voiceRecognitionRef.current = recognition;
     setIsListening(true);
     recognition.onresult = (event) => {
       setTranscript(transcriptFromEvent(event));
@@ -304,6 +309,9 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
       setIsListening(false);
     };
     recognition.onend = () => {
+      if (voiceRecognitionRef.current === recognition) {
+        voiceRecognitionRef.current = null;
+      }
       setIsListening(false);
     };
 
@@ -316,6 +324,8 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   }, [locale]);
 
   const stopVoiceTest = useCallback(() => {
+    voiceRecognitionRef.current?.abort();
+    voiceRecognitionRef.current = null;
     setIsListening(false);
   }, []);
 
@@ -326,19 +336,64 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     clearOnboardingStep();
   }, [firstCommand]);
 
+  const disableHeadControl = useCallback(() => {
+    cameraAttemptRef.current += 1;
+    headControl.disableControl();
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraOutcome("idle");
+    setCameraFailure(null);
+  }, [headControl]);
+
+  const disableVoiceControl = useCallback(() => {
+    stopVoiceTest();
+    setVoiceSkippedText(true);
+  }, [stopVoiceTest]);
+
+  const nextEnabledPhase = useCallback(
+    (targetPhase: OnboardingPhase): OnboardingPhase => {
+      if (targetPhase === 2 && !selectedCards.head) {
+        return selectedCards.voice ? 3 : 4;
+      }
+      if (targetPhase === 3 && !selectedCards.voice) {
+        return 4;
+      }
+      return targetPhase;
+    },
+    [selectedCards]
+  );
+
   // Phase navigation
   const goToPhase = (targetPhase: OnboardingPhase) => {
+    const resolvedPhase = nextEnabledPhase(targetPhase);
     // Entering Head Control always starts with its explanation before calibration/tuning.
-    setSubstepIndex(targetPhase === 2 ? 2 : phaseSubstepRef.current[targetPhase]);
+    setSubstepIndex(resolvedPhase === 2 ? 2 : phaseSubstepRef.current[resolvedPhase]);
   };
 
   const skipPhase2 = () => {
-    stopCamera();
-    goToPhase(3);
+    disableHeadControl();
+    setSelectedCards((previous) => ({ ...previous, head: false }));
+    setSubstepIndex(selectedCards.voice ? phaseSubstepRef.current[3] : phaseSubstepRef.current[4]);
   };
 
   const skipPhase3 = () => {
-    goToPhase(4);
+    disableVoiceControl();
+    setSelectedCards((previous) => ({ ...previous, voice: false }));
+    setSubstepIndex(phaseSubstepRef.current[4]);
+  };
+
+  const toggleHeadOption = () => {
+    const enabled = !selectedCards.head;
+    setSelectedCards((previous) => ({ ...previous, head: enabled }));
+    if (!enabled) disableHeadControl();
+  };
+
+  const toggleVoiceOption = () => {
+    const enabled = !selectedCards.voice;
+    setSelectedCards((previous) => ({ ...previous, voice: enabled }));
+    if (!enabled) disableVoiceControl();
   };
 
   return (
@@ -471,7 +526,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                 <button
                   aria-pressed={selectedCards.head}
                   className={`aksa-onboarding-card ${selectedCards.head ? "is-selected" : ""}`}
-                  onClick={() => setSelectedCards((prev) => ({ ...prev, head: !prev.head }))}
+                  onClick={toggleHeadOption}
                   type="button"
                 >
                   <div className="aksa-onboarding-card__header">
@@ -488,7 +543,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                 <button
                   aria-pressed={selectedCards.voice}
                   className={`aksa-onboarding-card ${selectedCards.voice ? "is-selected" : ""}`}
-                  onClick={() => setSelectedCards((prev) => ({ ...prev, voice: !prev.voice }))}
+                  onClick={toggleVoiceOption}
                   type="button"
                 >
                   <div className="aksa-onboarding-card__header">
@@ -510,7 +565,11 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
               {/* Phase 1 Footer: Single Primary Action (No Back button on screen 1) */}
               <div className="aksa-onboarding-footer aksa-onboarding-footer--right">
-                <button className="aksa-button aksa-button--primary" onClick={() => goToPhase(2)} type="button">
+                <button
+                  className="aksa-button aksa-button--primary"
+                  onClick={() => goToPhase(selectedCards.head ? 2 : selectedCards.voice ? 3 : 4)}
+                  type="button"
+                >
                   <span>{m.onboarding_continue({}, options)}</span>
                   <ChevronRight aria-hidden="true" className="aksa-icon" size={18} />
                 </button>
@@ -550,6 +609,26 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                       playsInline
                       ref={videoRef}
                     />
+                    {effectiveCameraOutcome === "active" ? (
+                      <div className="aksa-camera-preview__status">
+                        <StatusChip
+                          tone={
+                            headControl.lifecycleState === "tracking_lost"
+                              ? "attention"
+                              : headControl.lifecycleState === "active"
+                                ? "ready"
+                                : "pending"
+                          }
+                          value={
+                            headControl.lifecycleState === "tracking_lost"
+                              ? m.a11y_tracking_lost_status({}, options)
+                              : headControl.lifecycleState === "active"
+                                ? m.onboarding_head_control_ready({}, options)
+                                : m.a11y_initializing_head_control({}, options)
+                          }
+                        />
+                      </div>
+                    ) : null}
                   </div>
 
                   {effectiveCameraOutcome === "idle" ? (
@@ -588,22 +667,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                   {effectiveCameraOutcome === "active" ? (
                     <div className="aksa-onboarding-preview-box">
                       <div className="aksa-onboarding-preview-header">
-                        <StatusChip
-                          tone={
-                            headControl.lifecycleState === "tracking_lost"
-                              ? "attention"
-                              : headControl.lifecycleState === "active"
-                                ? "ready"
-                                : "pending"
-                          }
-                          value={
-                            headControl.lifecycleState === "tracking_lost"
-                              ? m.a11y_tracking_lost_status({}, options)
-                              : headControl.lifecycleState === "active"
-                                ? m.onboarding_head_control_ready({}, options)
-                                : m.a11y_initializing_head_control({}, options)
-                          }
-                        />
                         <span className="aksa-hint">
                           {m.onboarding_camera_guidance({}, options)}
                         </span>
@@ -801,7 +864,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                         ? setSubstepIndex(4)
                         : substepIndex < 6
                           ? setSubstepIndex(6)
-                          : goToPhase(3)
+                          : goToPhase(selectedCards.voice ? 3 : 4)
                     }
                     type="button"
                   >
@@ -951,7 +1014,11 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
               {/* Phase 3 Footer */}
               <div className="aksa-onboarding-footer">
-                <button className="aksa-button aksa-button--quiet" onClick={() => goToPhase(2)} type="button">
+                <button
+                  className="aksa-button aksa-button--quiet"
+                  onClick={() => goToPhase(selectedCards.head ? 2 : 1)}
+                  type="button"
+                >
                   {m.onboarding_back({}, options)}
                 </button>
                 <div className="aksa-onboarding-footer__right">
@@ -1024,7 +1091,11 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                   </div>
 
                   <div className="aksa-onboarding-footer">
-                    <button className="aksa-button aksa-button--quiet" onClick={() => goToPhase(3)} type="button">
+                    <button
+                      className="aksa-button aksa-button--quiet"
+                      onClick={() => goToPhase(selectedCards.voice ? 3 : selectedCards.head ? 2 : 1)}
+                      type="button"
+                    >
                       {m.onboarding_back({}, options)}
                     </button>
                     <div className="aksa-onboarding-footer__right">
@@ -1067,6 +1138,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
           ) : null}
         </main>
       </div>
+      <AccessibilityWidget locale={locale} />
     </div>
   );
 }

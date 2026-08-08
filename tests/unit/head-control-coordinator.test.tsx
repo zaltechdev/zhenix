@@ -546,6 +546,49 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(result.current.activationFeedbackKey).toBe(0);
   });
 
+  it("cancels dwell immediately when selection is switched off", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = {
+      ...SETTINGS_OFF,
+      selectionMode: "dwell",
+      dwellDurationMs: 300
+    };
+    const button = document.createElement("button");
+    const click = vi.fn();
+    button.addEventListener("click", click);
+    document.body.appendChild(button);
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: vi.fn(() => button)
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 6; index += 1) {
+        engine.emit(visionFrame(index * 100));
+      }
+      engine.emit(visionFrame(800));
+      engine.emit(visionFrame(900));
+    });
+    expect(result.current.dwellProgress.state).toBe("dwelling");
+
+    act(() => result.current.updateProfile(SETTINGS_OFF));
+    act(() => engine.emit(visionFrame(1200)));
+
+    expect(result.current.activeTarget).toBeNull();
+    expect(result.current.dwellProgress.state).toBe("idle");
+    expect(click).not.toHaveBeenCalled();
+    expect(result.current.activationFeedbackKey).toBe(0);
+  });
+
   it("blocks a held gesture across modal opening, then allows a released fresh gesture", async () => {
     const engine = createControllableEngine();
     const profile: AccessibilityProfile = {

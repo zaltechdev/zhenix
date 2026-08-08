@@ -187,6 +187,32 @@ describe("onboarding", () => {
     ).toBeInTheDocument();
   });
 
+  it("skips onboarding phases for input methods deselected on welcome", () => {
+    render(<OnboardingFlow locale="en" />);
+
+    fireEvent.click(
+      screen.getByRole("heading", { name: m.onboarding_card_head({}, { locale: "en" }) }).closest("button")!
+    );
+    fireEvent.click(screen.getByRole("button", { name: m.onboarding_continue({}, { locale: "en" }) }));
+
+    expect(
+      screen.getByRole("heading", { name: m.onboarding_voice_explanation_title({}, { locale: "en" }) })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: m.onboarding_skip_voice({}, { locale: "en" }) }));
+    expect(
+      screen.getByRole("heading", { name: m.onboarding_first_task_title({}, { locale: "en" }) })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the accessibility launcher available during onboarding", () => {
+    render(<OnboardingFlow locale="en" />);
+
+    expect(
+      screen.getByRole("button", { name: m.accessibility_widget_title({}, { locale: "en" }) })
+    ).toBeInTheDocument();
+  });
+
   it("does not create text selection when programmatically focusing headings on phase transition", () => {
     render(<OnboardingFlow locale="en" />);
     advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));

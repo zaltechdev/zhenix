@@ -251,6 +251,7 @@ export function HeadControlProvider({
   // Synchronize live profile settings & write to user-scoped cache
   const updateProfile = useCallback(
     (newProfile: AccessibilityProfile) => {
+      const selectionWasChanged = profileRef.current.selectionMode !== newProfile.selectionMode;
       setProfileState(newProfile);
       profileRef.current = newProfile;
       if (!runtimeUserIdRef.current) {
@@ -261,6 +262,9 @@ export function HeadControlProvider({
 
       if (dwellRef.current) {
         dwellRef.current.updateConfig(newProfile.dwellDurationMs ?? 1200);
+        if (selectionWasChanged) {
+          dwellRef.current.requireFreshCycle();
+        }
       }
       if (gestureRef.current) {
         gestureRef.current.updateConfig({
@@ -272,6 +276,15 @@ export function HeadControlProvider({
           cooldownMs: newProfile.gestureCooldownMs ?? 600,
           onActivate: dispatchHeadSelection
         });
+        if (selectionWasChanged) {
+          gestureRef.current.disarmUntilRelease();
+        }
+      }
+      if (newProfile.selectionMode === "off") {
+        targetAssistRef.current.clear();
+        setActiveTarget(null);
+        setDwellProgress(DEFAULT_DWELL);
+        setGestureStatus(DEFAULT_GESTURE);
       }
     },
     [dispatchHeadSelection]
