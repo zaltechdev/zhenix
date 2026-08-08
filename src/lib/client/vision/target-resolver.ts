@@ -1,7 +1,10 @@
 /**
- * DOM hit testing & eligible target resolution engine.
- * Resolves Aksa pointer screen coordinates to real interactive DOM targets.
+ * DOM target resolution for dwell, gesture, and semantic Target Assist.
+ * Only controls that can be activated are eligible. Containers and body text
+ * are deliberately excluded even when they happen to be focusable.
  */
+
+import type { Vector2D } from "./pointer-mapping";
 
 export interface TargetResolution {
   element: HTMLElement | null;
@@ -9,7 +12,22 @@ export interface TargetResolution {
   isEligible: boolean;
 }
 
-const INTERACTIVE_TAGS = new Set(["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA", "DETAILS", "SUMMARY"]);
+export interface TargetRectangle {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export interface TargetCandidate {
+  element: HTMLElement;
+  bounds: DOMRect;
+  distancePx: number;
+  /** Stable document order used only after a distance tie. */
+  order: number;
+}
+
+const INTERACTIVE_TAGS = new Set(["BUTTON", "INPUT", "SELECT", "TEXTAREA", "DETAILS", "SUMMARY"]);
 
 const INTERACTIVE_ROLES = new Set([
   "button",
@@ -25,86 +43,162 @@ const INTERACTIVE_ROLES = new Set([
   "searchbox"
 ]);
 
-/**
- * Check if a single DOM element is an eligible interactive target for Aksa pointer selection.
- */
+const ELIGIBLE_TARGET_SELECTOR = [
+  "button",
+  "a[href]",
+  "input",
+  "textarea",
+  "select",
+  "details",
+  "summary",
+  "[role]",
+  "[data-aksa-interactive]"
+].join(", ");
+
+/** Calculate Euclidean distance from a point to the nearest part of a rectangle. */
+export function distanceToRectangle(point: Vector2D, rect: TargetRectangle): number {
+  const horizontal = Math.max(rect.left - point.x, 0, point.x - rect.right);
+  const vertical = Math.max(rect.top - point.y, 0, point.y - rect.bottom);
+  return Math.hypot(horizontal, vertical);
+}
+
+function hasUnavailableAncestor(element: HTMLElement): boolean {
+  let current: HTMLElement | null = element;
+  while (current) {
+    if (
+      current.hasAttribute("disabled") ||
+      current.matches(":disabled") ||
+      current.getAttribute("aria-disabled") === "true" ||
+      current.getAttribute("aria-hidden") === "true" ||
+      current.hasAttribute("hidden") ||
+      current.hasAttribute("inert")
+    ) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
+function isVisiblyInteractive(element: HTMLElement): boolean {
+  if (!element.isConnected) {
+    return false;
+  }
+
+  if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+    const style = window.getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function hasUsableRectangle(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+/** Check whether one DOM element can be selected by Aksa head control. */
 export function isEligibleTarget(element: Element | null): element is HTMLElement {
   if (!element || !(element instanceof HTMLElement)) {
     return false;
   }
 
-  // Exclude Aksa pointer overlay elements
-  if (element.closest(".aksa-pointer") !== null || element.closest("[data-aksa-pointer]") !== null) {
-    return false;
-  }
-
-  // Check disabled and hidden attributes
   if (
-    element.hasAttribute("disabled") ||
-    element.getAttribute("aria-disabled") === "true" ||
-    element.getAttribute("aria-hidden") === "true" ||
-    element.hasAttribute("hidden") ||
-    element.hasAttribute("inert")
+    element.closest(".aksa-pointer-overlay") !== null ||
+    element.closest(".aksa-pointer") !== null ||
+    element.closest("[data-aksa-pointer]") !== null
   ) {
     return false;
   }
 
-  // Explicit Aksa interactive marker
+  if (hasUnavailableAncestor(element) || !isVisiblyInteractive(element)) {
+    return false;
+  }
+
   if (element.hasAttribute("data-aksa-interactive")) {
     return true;
   }
 
-  // Interactive HTML tags
+  if (element.tagName === "A") {
+    return element.hasAttribute("href");
+  }
+
+  if (element.tagName === "INPUT" && (element as HTMLInputElement).type === "hidden") {
+    return false;
+  }
+
   if (INTERACTIVE_TAGS.has(element.tagName)) {
-    if (element.tagName === "A" && !element.hasAttribute("href") && !element.hasAttribute("tabindex")) {
-      return false;
-    }
     return true;
   }
 
-  // ARIA interactive roles
   const role = element.getAttribute("role");
-  if (role && INTERACTIVE_ROLES.has(role.toLowerCase())) {
-    return true;
+  return role !== null && INTERACTIVE_ROLES.has(role.toLowerCase());
+}
+
+/** Return all visible, eligible interactive controls in deterministic DOM order. */
+export function getEligibleTargetCandidates(
+  pointer: Vector2D,
+  scope: ParentNode | null = null
+): TargetCandidate[] {
+  if (typeof document === "undefined") {
+    return [];
   }
 
-  // Focusable elements with valid tabindex
-  const tabIndex = element.getAttribute("tabindex");
-  if (tabIndex !== null && !isNaN(Number(tabIndex)) && Number(tabIndex) >= 0) {
-    return true;
-  }
+  const searchRoot = scope ?? document;
+  return Array.from(searchRoot.querySelectorAll(ELIGIBLE_TARGET_SELECTOR)).flatMap((element, order) => {
+    if (!isEligibleTarget(element) || !hasUsableRectangle(element as HTMLElement)) {
+      return [];
+    }
 
-  return false;
+    const target = element as HTMLElement;
+    const bounds = target.getBoundingClientRect();
+    return [
+      {
+        element: target,
+        bounds,
+        distancePx: distanceToRectangle(pointer, bounds),
+        order
+      }
+    ];
+  });
 }
 
 /**
- * Resolve screen coordinates to the nearest eligible interactive DOM element.
- * Walks up the DOM hierarchy starting from `document.elementFromPoint(x, y)`.
+ * Find the nearest eligible target. Rectangular distance intentionally makes
+ * large accessible controls easier to acquire than their centres would.
+ */
+export function findNearestEligibleTarget(pointer: Vector2D): TargetCandidate | null {
+  return (
+    getEligibleTargetCandidates(pointer)
+      .sort((left, right) =>
+        left.distancePx === right.distancePx
+          ? left.order - right.order
+          : left.distancePx - right.distancePx
+      )[0] ?? null
+  );
+}
+
+/**
+ * Resolve a direct hit target for existing pointer consumers. Target Assist
+ * uses `getEligibleTargetCandidates` instead so near misses can be assisted.
  */
 export function resolveTargetAtPoint(x: number, y: number): TargetResolution {
   if (typeof document === "undefined" || typeof document.elementFromPoint !== "function") {
     return { element: null, bounds: null, isEligible: false };
   }
 
-  // Bounds check
   if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
     return { element: null, bounds: null, isEligible: false };
   }
 
-  const rawElement = document.elementFromPoint(x, y);
-  if (!rawElement) {
-    return { element: null, bounds: null, isEligible: false };
-  }
-
-  let current: Element | null = rawElement;
+  let current: Element | null = document.elementFromPoint(x, y);
   while (current && current !== document.body && current !== document.documentElement) {
     if (isEligibleTarget(current)) {
-      const rect = current.getBoundingClientRect();
-      return {
-        element: current,
-        bounds: rect,
-        isEligible: true
-      };
+      const element = current as HTMLElement;
+      return { element, bounds: element.getBoundingClientRect(), isEligible: true };
     }
     current = current.parentElement;
   }
