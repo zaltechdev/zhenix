@@ -5,6 +5,7 @@ import {
   smoothCoordinates,
   clampCoordinates,
   clampPoseDelta,
+  mapCameraPoseToScreenDelta,
   MAX_PITCH_DELTA_DEGREES,
   MAX_YAW_DELTA_DEGREES,
   PoseInputStabilizer
@@ -32,10 +33,10 @@ describe("Pointer Mapping Math", () => {
     expect(Math.abs(highSensDelta.y)).toBeGreaterThan(Math.abs(lowSensDelta.y));
   });
 
-  it("maps a physical right turn to screen right and left turn to screen left", () => {
-    // Ergonomic direction contract at the pose-to-pointer boundary.
-    const physicalRight = mapPoseToScreenDelta(8, 0, 50, 0, 1280, 720);
-    const physicalLeft = mapPoseToScreenDelta(-8, 0, 50, 0, 1280, 720);
+  it("maps MediaPipe camera yaw to physical screen direction at the pointer boundary", () => {
+    // MediaPipe camera-space yaw is negative for a physical right turn.
+    const physicalRight = mapCameraPoseToScreenDelta(-8, 0, 50, 0, 1280, 720);
+    const physicalLeft = mapCameraPoseToScreenDelta(8, 0, 50, 0, 1280, 720);
 
     expect(physicalRight.x).toBeGreaterThan(0);
     expect(physicalLeft.x).toBeLessThan(0);

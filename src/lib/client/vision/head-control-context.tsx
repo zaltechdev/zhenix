@@ -15,7 +15,7 @@ import {
 } from "@/lib/contracts/auth";
 import { NeutralBaseline } from "./head-pose";
 import {
-  mapPoseToScreenDelta,
+  mapCameraPoseToScreenDelta,
   smoothCoordinates,
   clampCoordinates,
   PoseInputStabilizer,
@@ -354,7 +354,7 @@ export function HeadControlProvider({
         setGestureStatus(DEFAULT_GESTURE);
 
         if (reacquisitionCountRef.current === STABLE_REACQUISITION_FRAMES_REQUIRED) {
-          const screenDelta = mapPoseToScreenDelta(
+          const screenDelta = mapCameraPoseToScreenDelta(
             stabilizedPose.yaw,
             stabilizedPose.pitch,
             currentProfile.pointerSensitivity,
@@ -393,7 +393,7 @@ export function HeadControlProvider({
       }
 
       // 4. Map Head Pose to Screen Coordinates using CURRENT profileRef.current
-      const screenDelta = mapPoseToScreenDelta(
+      const screenDelta = mapCameraPoseToScreenDelta(
         stabilizedPose.yaw,
         stabilizedPose.pitch,
         currentProfile.pointerSensitivity,

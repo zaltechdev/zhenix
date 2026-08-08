@@ -34,6 +34,13 @@ export interface StabilizedPoseInput extends PoseDelta {
 export const MAX_YAW_DELTA_DEGREES = 24;
 export const MAX_PITCH_DELTA_DEGREES = 18;
 
+/**
+ * MediaPipe transformation matrices use camera-space yaw. In that coordinate
+ * system a physical right turn is negative, while Aksa screen x increases
+ * rightward. Keep this conversion at the camera-pose to pointer boundary.
+ */
+export const CAMERA_YAW_TO_SCREEN_DIRECTION = -1;
+
 const MAX_YAW_FRAME_CHANGE_DEGREES = 8;
 const MAX_PITCH_FRAME_CHANGE_DEGREES = 6;
 const SPIKE_CONFIRM_TOLERANCE_DEGREES = 4;
@@ -279,9 +286,6 @@ export function mapPoseToScreenDelta(
 ): Vector2D {
   const boundedInput = clampPoseDelta({ yaw: yawDelta, pitch: pitchDelta });
 
-  // Translate camera-space yaw into ergonomic screen direction only at this pointer boundary.
-  // Positive pose yaw maps to physical right at this ergonomic boundary.
-  // Camera preview orientation remains independent.
   const cleanYaw = applyDeadZone(boundedInput.yaw, deadZoneSetting);
   const cleanPitch = applyDeadZone(boundedInput.pitch, deadZoneSetting);
 
@@ -314,6 +318,28 @@ export function mapPoseToScreenDelta(
     x: softLimit(normX, horizontalLimit),
     y: softLimit(normY, verticalLimit)
   };
+}
+
+/**
+ * Convert MediaPipe camera-space pose into Aksa pointer motion.
+ * Preview mirroring never affects these control coordinates.
+ */
+export function mapCameraPoseToScreenDelta(
+  cameraYawDelta: number,
+  cameraPitchDelta: number,
+  sensitivitySetting: number,
+  deadZoneSetting: number,
+  viewportWidth = 1920,
+  viewportHeight = 1080
+): Vector2D {
+  return mapPoseToScreenDelta(
+    cameraYawDelta * CAMERA_YAW_TO_SCREEN_DIRECTION,
+    cameraPitchDelta,
+    sensitivitySetting,
+    deadZoneSetting,
+    viewportWidth,
+    viewportHeight
+  );
 }
 
 /**
