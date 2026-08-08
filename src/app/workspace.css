@@ -51,6 +51,7 @@
 
 .aksa-nav__inner {
   display: flex;
+  min-height: 100%;
   flex-direction: column;
   gap: var(--space-5);
   padding: var(--space-5) var(--space-4);
@@ -67,6 +68,29 @@
   display: block;
   width: 88px;
   height: auto;
+}
+
+.aksa-nav__brand-icon {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.aksa-nav__collapse {
+  display: inline-flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: flex-end;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-aksa-muted);
+  cursor: pointer;
+}
+
+.aksa-nav__collapse:hover {
+  background: var(--color-aksa-paper);
+  color: var(--color-aksa-ink);
 }
 
 .aksa-nav__group {
@@ -137,6 +161,13 @@
 .aksa-nav__label {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.aksa-nav__brand:focus-visible,
+.aksa-nav__collapse:focus-visible,
+.aksa-nav__link:focus-visible {
+  outline: 3px solid var(--color-aksa-teal);
+  outline-offset: 2px;
 }
 
 /* Mobile drawer */
@@ -247,6 +278,11 @@
 }
 
 .aksa-composer-footer .aksa-composer {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  width: 100%;
   max-width: 800px;
   margin: 0 auto;
 }
@@ -1924,6 +1960,10 @@
     grid-template-columns: 264px minmax(0, 1fr);
   }
 
+  .aksa-shell[data-sidebar-collapsed="true"] {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
   .aksa-column {
     position: relative;
     display: flex;
@@ -1935,6 +1975,59 @@
 
   .aksa-nav--desktop {
     display: block;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__inner {
+    align-items: stretch;
+    padding-inline: var(--space-3);
+  }
+
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__brand {
+    justify-content: center;
+  }
+
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__group-heading {
+    display: none;
+  }
+
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__link {
+    position: relative;
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__label,
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__badge {
+    display: none;
+  }
+
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__collapse {
+    justify-content: center;
+  }
+
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__link:hover::after,
+  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__link:focus-visible::after {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + var(--space-2));
+    z-index: 50;
+    display: block;
+    width: max-content;
+    max-width: 16rem;
+    transform: translateY(-50%);
+    border: 1px solid var(--color-aksa-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-aksa-ink);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-aksa-cloud);
+    content: attr(data-tooltip);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    pointer-events: none;
+    white-space: nowrap;
   }
 
   .aksa-header__menu {
@@ -2825,6 +2918,195 @@
   top: -1px;
   opacity: 0;
   pointer-events: none;
+}
+
+/* Focused dashboard calibration uses the active head-control stream. */
+.aksa-calibration-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: var(--color-aksa-overlay, rgb(15 23 42 / 45%));
+  padding: var(--space-5);
+}
+
+.aksa-calibration-dialog {
+  display: flex;
+  width: min(860px, 100%);
+  max-height: calc(100dvh - 2 * var(--space-5));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-aksa-line);
+  border-radius: var(--radius-xl);
+  background: var(--color-aksa-cloud);
+  box-shadow: var(--shadow-aksa-overlay);
+}
+
+.aksa-calibration-dialog__body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+.aksa-calibration-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.aksa-calibration-dialog__title,
+.aksa-calibration-dialog__description,
+.aksa-calibration-dialog__step,
+.aksa-calibration-dialog__instruction,
+.aksa-calibration-dialog__helper {
+  margin: 0;
+}
+
+.aksa-calibration-dialog__title {
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.aksa-calibration-dialog__description,
+.aksa-calibration-dialog__helper {
+  margin-top: var(--space-2);
+  color: var(--color-aksa-muted);
+  line-height: 1.45;
+}
+
+.aksa-calibration-dialog__preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-aksa-charcoal);
+}
+
+.aksa-calibration-dialog__preview .aksa-camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aksa-calibration-dialog__preview-status {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: var(--radius-round);
+  background: rgb(2 16 23 / 72%);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-aksa-paper);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.aksa-calibration-dialog__guidance {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+  background: rgb(2 16 23 / 78%);
+  padding: var(--space-4);
+  color: var(--color-aksa-paper);
+}
+
+.aksa-calibration-dialog__guidance-copy {
+  min-width: 0;
+}
+
+.aksa-calibration-dialog__step {
+  color: var(--color-aksa-teal-soft);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.aksa-calibration-dialog__instruction {
+  margin-top: var(--space-1);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.aksa-calibration-dialog__helper {
+  color: rgb(255 255 255 / 82%);
+  font-size: 0.8125rem;
+}
+
+.aksa-calibration-dialog__target {
+  display: inline-flex;
+  width: 3.5rem;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-aksa-teal);
+  border-radius: var(--radius-round);
+  background: rgb(6 36 43 / 72%);
+  color: var(--color-aksa-teal-soft);
+}
+
+.aksa-calibration-dialog__progress {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-round);
+  background: rgb(255 255 255 / 24%);
+}
+
+.aksa-calibration-dialog__progress-value {
+  height: 100%;
+  background: var(--color-aksa-teal);
+  transition: width var(--duration-fast) var(--ease-calm);
+}
+
+.aksa-calibration-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-aksa-line);
+  padding: var(--space-4) var(--space-6);
+}
+
+@media (max-width: 600px) {
+  .aksa-calibration-backdrop {
+    padding: 0;
+  }
+
+  .aksa-calibration-dialog {
+    width: 100%;
+    min-height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .aksa-calibration-dialog__body {
+    padding: var(--space-4);
+  }
+
+  .aksa-calibration-dialog__header {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .aksa-calibration-dialog__actions {
+    padding: var(--space-4);
+  }
 }
 
 .aksa-onboarding-panel--head-control {

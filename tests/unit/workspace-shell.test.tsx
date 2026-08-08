@@ -57,6 +57,7 @@ function renderShell(
 beforeEach(() => {
   pathname.current = "/workspace/files";
   window.sessionStorage.clear();
+  window.localStorage.clear();
 });
 
 afterEach(() => cleanup());
@@ -149,6 +150,47 @@ describe("workspace shell", () => {
 
     expect(within(nav).getByRole("link", { name: m.nav_search({}, { locale: "id" }) })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: m.nav_history({}, { locale: "id" }) })).toBeInTheDocument();
+  });
+
+  it("collapses and expands the desktop sidebar without losing route state", () => {
+    renderShell();
+
+    const shell = document.querySelector(".aksa-shell");
+    const collapse = screen.getByRole("button", {
+      name: m.workspace_sidebar_collapse({}, { locale: "en" })
+    });
+    expect(collapse).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(collapse);
+
+    const expand = screen.getByRole("button", {
+      name: m.workspace_sidebar_expand({}, { locale: "en" })
+    });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    expect(shell).toHaveAttribute("data-sidebar-collapsed", "true");
+    expect(
+      screen.getByRole("link", { name: m.nav_files({}, { locale: "en" }) })
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: m.nav_files({}, { locale: "en" }) })
+    ).toHaveAttribute("title", m.nav_files({}, { locale: "en" }));
+
+    fireEvent.click(expand);
+    expect(
+      screen.getByRole("button", { name: m.workspace_sidebar_collapse({}, { locale: "en" }) })
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("persists the collapsed preference", async () => {
+    window.localStorage.setItem("aksa-sidebar-collapsed", "true");
+    renderShell();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: m.workspace_sidebar_expand({}, { locale: "en" }) })
+      ).toHaveAttribute("aria-expanded", "false");
+    });
+    expect(window.localStorage.getItem("aksa-sidebar-collapsed")).toBe("true");
   });
 });
 

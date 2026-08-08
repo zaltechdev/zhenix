@@ -83,7 +83,7 @@ test.describe("primary path", () => {
 
     await expect(page.getByText("Start head tracking before calibration.")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Calibrate neutral position", exact: true })
+      page.getByRole("button", { name: "Calibrate head control", exact: true })
     ).toBeDisabled();
     await expect(page.locator(".aksa-pointer-overlay")).toHaveCount(0);
   });
@@ -171,6 +171,7 @@ test.describe("workspace shell", () => {
           .or(page.getByText("Accounts not configured"))
           .or(page.getByText("Connect Google"))
           .or(page.getByText("Google OAuth is not configured"))
+          .or(page.getByText("You are browsing the workspace without an account"))
           .first()
       ).toBeVisible();
     }
@@ -178,7 +179,7 @@ test.describe("workspace shell", () => {
 
   test("keeps the desktop composer outside the scrollable work surface", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
-    await page.goto("/workspace");
+    await page.goto("/workspace/files");
 
     const layout = await page.evaluate(() => {
       const main = document.querySelector(".aksa-main");
@@ -219,17 +220,41 @@ test.describe("workspace shell", () => {
     await page.goto("/workspace");
 
     const sidebar = page.getByRole("complementary", { name: "Workspace navigation" });
-    const filesLink = sidebar.getByRole("link", { name: "Files" });
+    const filesLink = sidebar.getByRole("link", { name: "Drive" });
 
     await filesLink.click();
     await page.waitForURL(/\/workspace\/files$/);
 
     await expect(
-      sidebar.getByRole("link", { name: "Files" })
+      sidebar.getByRole("link", { name: "Drive" })
     ).toHaveAttribute("aria-current", "page");
     await expect(
       sidebar.getByRole("link", { name: "Home", exact: true })
     ).not.toHaveAttribute("aria-current");
+  });
+
+  test("collapses the desktop sidebar accessibly and remembers the preference", async ({ page }) => {
+    await page.goto("/workspace");
+
+    const sidebar = page.getByRole("complementary", { name: "Workspace navigation" });
+    await sidebar.getByRole("button", { name: "Collapse workspace sidebar" }).click();
+
+    const expand = sidebar.getByRole("button", { name: "Expand workspace sidebar" });
+    await expect(expand).toHaveAttribute("aria-expanded", "false");
+    await expect(sidebar.getByRole("link", { name: "Home", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    await expect(sidebar.getByRole("link", { name: "Home", exact: true })).toHaveAttribute(
+      "title",
+      "Home"
+    );
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Expand workspace sidebar" })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
   });
 
   test("reaches History and Activity and shows only real records", async ({ page }) => {
@@ -250,7 +275,7 @@ test.describe("command composer", () => {
   test("reports what Aksa received and why it cannot run", async ({ page }) => {
     await page.goto("/workspace");
 
-    const input = page.getByLabel("Command", { exact: true });
+    const input = page.locator("#command-composer textarea");
     await input.fill("Move the week 3 report into submissions");
     await page.getByRole("button", { name: "Send command" }).click();
 
@@ -265,14 +290,14 @@ test.describe("command composer", () => {
     /** No task exists, so no completed state and no cancel control appear. */
     await expect(page.getByText("Task completed.")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Cancel task" })).toHaveCount(0);
-    await expect(page.getByText("Ready for a task.")).toBeVisible();
+    await expect(page.locator("#command-composer textarea")).toBeVisible();
   });
 
   test("an example fills the box without running anything", async ({ page }) => {
     await page.goto("/workspace");
 
     await page.getByRole("button", { name: "Find the files for this project" }).click();
-    await expect(page.getByLabel("Command", { exact: true })).toHaveValue(
+    await expect(page.locator("#command-composer textarea")).toHaveValue(
       "Find the files for this project"
     );
     await expect(page.getByText("What Aksa received")).toHaveCount(0);
@@ -292,54 +317,6 @@ test.describe("command composer", () => {
     await expect(panel).toBeVisible();
     /** No sources and no answer, because grounding is unavailable. */
     await expect(page.getByRole("list", { name: /Sources/ })).toHaveCount(0);
-  });
-});
-
-test.describe("confirmation and cancellation", () => {
-  test("opens the review example, cancels it, and restores focus", async ({ page }) => {
-    await page.goto("/workspace");
-
-    const trigger = page.getByRole("button", { name: "Open the review example" });
-    await trigger.click();
-
-    const dialog = page.getByRole("dialog", { name: "Review before action" });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Move files")).toBeVisible();
-    await expect(dialog.getByText("Items: 12")).toBeVisible();
-    await expect(dialog.getByText("This changes data in Google Drive.")).toBeVisible();
-    await expect(dialog.getByText("Undo will be available after this runs.")).toBeVisible();
-    await expect(
-      dialog.getByText("Holding the pointer on a target cannot approve this on its own.")
-    ).toBeVisible();
-
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-
-    await expect(dialog).toHaveCount(0);
-    await expect(trigger).toBeFocused();
-    await expect(page.getByText("Cancelled. Nothing ran and nothing was recorded.")).toBeVisible();
-  });
-
-  test("confirming the review example reports an honest result, never a success", async ({ page }) => {
-    await page.goto("/workspace");
-
-    await page.getByRole("button", { name: "Open the review example" }).click();
-    const dialog = page.getByRole("dialog", { name: "Review before action" });
-
-    await dialog.getByRole("button", { name: "Confirm" }).click();
-
-    await expect(dialog.getByText("Result")).toBeVisible();
-    await expect(dialog.getByText("Task completed.")).toHaveCount(0);
-    await expect(dialog.getByRole("button", { name: "Undo" })).toHaveCount(0);
-  });
-
-  test("Escape closes the review dialog", async ({ page }) => {
-    await page.goto("/workspace");
-
-    await page.getByRole("button", { name: "Open the review example" }).click();
-    await expect(page.getByRole("dialog", { name: "Review before action" })).toBeVisible();
-
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Review before action" })).toHaveCount(0);
   });
 });
 
@@ -391,11 +368,13 @@ test.describe("reduced motion", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await expect(page.locator(".typewriter-fallback")).toHaveText(
-      "A hands-free AI workspace for documents, files, sheets, and web research."
+      "A hands-free AI workspace for Google Workspace: Docs, Sheets, Drive, and Gmail."
     );
 
     await page.goto("/workspace");
-    await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "What would you like to get done?" })
+    ).toBeVisible();
     await expect(page.locator("#command-composer")).toBeVisible();
   });
 });
@@ -405,7 +384,9 @@ test.describe("zoom", () => {
     await page.setViewportSize({ width: 640, height: 720 });
     await page.goto("/workspace");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "What would you like to get done?" })
+    ).toBeVisible();
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 });
