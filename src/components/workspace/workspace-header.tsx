@@ -21,6 +21,7 @@ import { StatusChip } from "@/components/workspace/status-chip";
 import { navigationLabelForPath } from "@/components/workspace/navigation-items";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { useHeadControl } from "@/lib/client/vision/head-control-context";
+import { useAksaActions } from "@/components/workspace/aksa-action-context";
 import type { VisionFailureCategory } from "@/lib/client/vision/vision-engine";
 
 /**
@@ -64,6 +65,7 @@ export function WorkspaceHeader({
   const isGoogleConnected = connection.state === "connected";
   const title = navigationLabelForPath(pathname, locale);
   const headControl = useHeadControl();
+  const { executeAksaIntent } = useAksaActions();
   const { lifecycleState, isPaused } = headControl;
   const calibrationProgress = Math.round(
     headControl.calibrationState.progressRatio * 100
@@ -118,7 +120,7 @@ export function WorkspaceHeader({
           <button
             aria-label={isPaused ? m.a11y_resume_head_control({}, options) : m.a11y_pause_head_control({}, options)}
             className="aksa-button aksa-button--quiet aksa-button--sm"
-            onClick={() => (isPaused ? headControl.resumeControl() : headControl.pauseControl())}
+            onClick={() => void executeAksaIntent(isPaused ? "HEAD_RESUME" : "HEAD_PAUSE")}
             type="button"
           >
             {isPaused ? (
@@ -144,10 +146,15 @@ export function WorkspaceHeader({
               options
             )}
           />
-        ) : lifecycleState === "active" ? (
+        ) : lifecycleState !== "initializing" ? (
           <button
+            aria-label={
+              headControl.calibrationState.status === "completed"
+                ? m.a11y_recalibrate_head_control({}, options)
+                : m.a11y_calibrate_head_control({}, options)
+            }
             className="aksa-button aksa-button--quiet aksa-button--sm"
-            onClick={headControl.startCalibration}
+            onClick={() => void executeAksaIntent("HEAD_CALIBRATE")}
             type="button"
           >
             <Sparkles aria-hidden="true" className="aksa-icon" size={16} />

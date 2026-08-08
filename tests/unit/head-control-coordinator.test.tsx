@@ -861,12 +861,12 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     expect(result.current.calibrationState.status).toBe("capturing");
     expect(result.current.calibrationState.samplesCount).toBe(7);
-    expect(result.current.neutralBaseline).toEqual(pose);
+    expect(result.current.neutralBaseline).toBeNull();
 
     act(() => engine.emit(visionFrame(4000, { pose })));
     expect(result.current.calibrationState.status).toBe("capturing");
-    expect(result.current.neutralBaseline).toEqual(pose);
-    expect(engine.setNeutralBaseline).toHaveBeenCalledWith(pose);
+    expect(result.current.neutralBaseline).toBeNull();
+    expect(engine.setNeutralBaseline).not.toHaveBeenCalled();
   });
 
   it("calibration consumes unmirrored supplied frame poses and discards raw samples after completion", () => {

@@ -169,3 +169,19 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Tests prove User A, User B, and empty state isolation, stale-result rejection, and server-profile authority over stale browser cache. The complete 210-test suite passed.
 - Prevention: Cache APIs require an explicit user ID at compile time and runtime, and provider tests exercise cross-account rerenders.
 - Commit or PR: `169eb32`.
+
+## 2026-08-08 13:18 - Workspace recalibration and command controls were disconnected
+
+- Status: fixed
+- Owner: Henix
+- Area: Workspace head control, sidebar navigation, deterministic voice actions
+- Symptoms: Workspace recalibration only exposed the active-state trigger, had no focused guided experience, and could leave interaction state active at the boundary. Sidebar navigation had no desktop collapse state, and core voice commands had no local allowlisted execution path.
+- Reproduction: Start or inspect Workspace head control, invoke recalibration from the header, then exercise navigation and voice command controls with the semantic provider unavailable.
+- Expected: Dashboard recalibration reuses the active runtime for Center, Left, Right, Up, Down, and Return center; sidebar state is accessible and persistent; basic commands execute locally.
+- Actual: Recalibration had no dashboard-owned guided overlay, sidebar labels could not collapse, and command execution depended on the server command path.
+- Root cause: Runtime calibration and UI orchestration were not exposed through one focused Workspace action boundary; navigation and command handling lacked canonical local intents.
+- Fix: Added the shared guided calibration overlay and stream handoff, preserved applied ranges on failed or cancelled attempts, suppressed pointer interaction during calibration, added the persistent accessible sidebar rail, and routed EN/ID commands through canonical intents and one dispatcher before optional semantic fallback.
+- Files changed: `messages/en.json`, `messages/id.json`, `src/app/workspace.css`, `src/components/workspace/aksa-action-context.tsx`, `src/components/workspace/calibration-experience.tsx`, `src/components/workspace/command-composer.tsx`, `src/components/workspace/workspace-header.tsx`, `src/components/workspace/workspace-shell.tsx`, `src/components/workspace/workspace-sidebar.tsx`, `src/lib/client/actions/aksa-action-dispatcher.ts`, `src/lib/client/state/composer-machine.ts`, `src/lib/client/vision/head-control-context.tsx`, `src/lib/contracts/voice-intent.ts`, `src/lib/voice/intent-router.ts`, focused tests.
+- Verification: Localization compile, typecheck, lint, 338 unit tests, production build, 21/21 Workspace E2E tests, focused calibration Playwright coverage, and focused no-reacquisition runtime coverage passed.
+- Prevention: Keep runtime calibration, active-stream reuse, pointer lockout, canonical intent routing, and sidebar accessibility assertions in the focused gates.
+- Commit or PR: Pending.

@@ -54,6 +54,7 @@ export interface HeadControlContextValue {
   isRestLocked: boolean;
   profile: AccessibilityProfile;
   neutralBaseline: NeutralBaseline | null;
+  activeStream: MediaStream | null;
   calibrationState: CalibrationState;
   isPaused: boolean;
   startHeadControl: (videoElement?: HTMLVideoElement | null) => Promise<boolean>;
@@ -144,6 +145,7 @@ export function HeadControlProvider({
   const [activationFeedbackKey, setActivationFeedbackKey] = useState(0);
   const [isRestLocked, setIsRestLocked] = useState(false);
   const [neutralBaseline, setNeutralBaselineState] = useState<NeutralBaseline | null>(null);
+  const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
   const [calibrationState, setCalibrationState] = useState<CalibrationState>(DEFAULT_CALIBRATION);
 
   // References for live callback freshness & teardown
@@ -153,8 +155,10 @@ export function HeadControlProvider({
   const gestureRef = useRef<GestureDetector | null>(null);
   const calibrationEngineRef = useRef<CalibrationEngine>(new CalibrationEngine());
   const calibrationRangeRef = useRef<CalibrationState["range"]>(null);
+  const calibrationFallbackRangeRef = useRef<CalibrationState["range"]>(null);
   const calibrationAttemptRef = useRef(0);
   const calibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
   const currentPosRef = useRef<Vector2D>(pointerPosition);
   const reacquisitionCountRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
@@ -167,6 +171,24 @@ export function HeadControlProvider({
   const runtimeUserIdRef = useRef<string | null>(userId);
   const runtimeConfiguredRef = useRef(false);
   const profileChangedBeforeIdentityRef = useRef(false);
+
+  const resetInteractionState = useCallback((resetPointer: boolean) => {
+    poseInputRef.current.reset();
+    restLockRef.current.reset();
+    setIsRestLocked(false);
+    targetAssistRef.current.clear();
+    if (dwellRef.current) dwellRef.current.requireFreshCycle();
+    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
+    setActiveTarget(null);
+    setDwellProgress(DEFAULT_DWELL);
+    setGestureStatus(DEFAULT_GESTURE);
+
+    if (resetPointer && typeof window !== "undefined") {
+      const centered = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      currentPosRef.current = centered;
+      setPointerPosition(centered);
+    }
+  }, []);
 
   const removeBackgroundVideo = useCallback(() => {
     if (backgroundVideoRef.current) {
@@ -360,20 +382,22 @@ export function HeadControlProvider({
 
   const setNeutralBaseline = useCallback((baseline: NeutralBaseline) => {
     setNeutralBaselineState(baseline);
-    poseInputRef.current.reset();
-    restLockRef.current.reset();
-    setIsRestLocked(false);
-    targetAssistRef.current.clear();
+    resetInteractionState(false);
     if (engineRef.current) {
       engineRef.current.setNeutralBaseline(baseline);
     }
-  }, []);
+  }, [resetInteractionState]);
 
   const clearCalibrationTimeout = useCallback(() => {
     if (calibrationTimeoutRef.current !== null) {
       clearTimeout(calibrationTimeoutRef.current);
       calibrationTimeoutRef.current = null;
     }
+  }, []);
+
+  const restoreCalibrationRange = useCallback(() => {
+    const fallback = calibrationFallbackRangeRef.current;
+    calibrationRangeRef.current = fallback ? { ...fallback } : null;
   }, []);
 
   const scheduleCalibrationTimeout = useCallback(
@@ -385,11 +409,12 @@ export function HeadControlProvider({
         }
         const state = calibrationEngineRef.current.fail("timeout", attemptId);
         setCalibrationState(state);
-        calibrationRangeRef.current = null;
+        restoreCalibrationRange();
+        resetInteractionState(true);
         calibrationTimeoutRef.current = null;
       }, CALIBRATION_CONFIG.timeoutMs);
     },
-    [clearCalibrationTimeout]
+    [clearCalibrationTimeout, resetInteractionState, restoreCalibrationRange]
   );
 
   // Calibration triggers
@@ -399,48 +424,37 @@ export function HeadControlProvider({
     }
     clearCalibrationTimeout();
     const attemptId = calibrationEngineRef.current.start();
+    const appliedRange = calibrationRangeRef.current;
+    calibrationFallbackRangeRef.current = appliedRange ? { ...appliedRange } : null;
     calibrationRangeRef.current = null;
     calibrationAttemptRef.current = attemptId;
     scheduleCalibrationTimeout(attemptId);
-    if (dwellRef.current) dwellRef.current.requireFreshCycle();
-    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
-    restLockRef.current.reset();
-    setIsRestLocked(false);
-    targetAssistRef.current.clear();
-    setActiveTarget(null);
-    setDwellProgress(DEFAULT_DWELL);
-    setGestureStatus(DEFAULT_GESTURE);
+    resetInteractionState(true);
     setCalibrationState(calibrationEngineRef.current.getState());
-  }, [clearCalibrationTimeout, lifecycleState, scheduleCalibrationTimeout]);
+  }, [clearCalibrationTimeout, lifecycleState, resetInteractionState, scheduleCalibrationTimeout]);
 
   const cancelCalibration = useCallback(() => {
     clearCalibrationTimeout();
     calibrationAttemptRef.current += 1;
     calibrationEngineRef.current.cancel();
-    calibrationRangeRef.current = null;
+    restoreCalibrationRange();
+    resetInteractionState(true);
     setCalibrationState(calibrationEngineRef.current.getState());
-  }, [clearCalibrationTimeout]);
+  }, [clearCalibrationTimeout, resetInteractionState, restoreCalibrationRange]);
 
   const prepareForSafeReacquisition = useCallback(() => {
     reacquisitionCountRef.current = 0;
     lastFrameTimeRef.current = 0;
-    poseInputRef.current.reset();
-    restLockRef.current.reset();
-    setIsRestLocked(false);
-    targetAssistRef.current.clear();
+    resetInteractionState(true);
     activeModalRef.current = null;
-    if (dwellRef.current) dwellRef.current.requireFreshCycle();
-    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     if (calibrationEngineRef.current.getState().status === "capturing") {
       clearCalibrationTimeout();
       calibrationAttemptRef.current += 1;
       calibrationEngineRef.current.fail("tracking_lost");
+      restoreCalibrationRange();
       setCalibrationState(calibrationEngineRef.current.getState());
     }
-    setActiveTarget(null);
-    setDwellProgress(DEFAULT_DWELL);
-    setGestureStatus(DEFAULT_GESTURE);
-  }, [clearCalibrationTimeout]);
+  }, [clearCalibrationTimeout, resetInteractionState, restoreCalibrationRange]);
 
   // Frame processing callback reading CURRENT profileRef.current
   const handleFrame = useCallback(
@@ -453,23 +467,16 @@ export function HeadControlProvider({
       // 1. Tracking loss clears every inherited interaction and calibration sample.
       if (!data.faceDetected || data.lifecycleState === "tracking_lost") {
         reacquisitionCountRef.current = 0;
-        poseInputRef.current.reset();
-        restLockRef.current.reset();
-        setIsRestLocked(false);
-        targetAssistRef.current.clear();
+        resetInteractionState(false);
         setLifecycleState("tracking_lost");
         setErrorCategory("tracking_lost");
-        if (dwellRef.current) dwellRef.current.requireFreshCycle();
-        if (gestureRef.current) gestureRef.current.disarmUntilRelease();
         if (calibrationEngineRef.current.getState().status === "capturing") {
           clearCalibrationTimeout();
           calibrationAttemptRef.current += 1;
           calibrationEngineRef.current.fail("tracking_lost");
+          restoreCalibrationRange();
           setCalibrationState(calibrationEngineRef.current.getState());
         }
-        setDwellProgress(DEFAULT_DWELL);
-        setGestureStatus(DEFAULT_GESTURE);
-        setActiveTarget(null);
         return;
       }
 
@@ -529,17 +536,23 @@ export function HeadControlProvider({
         );
         setCalibrationState(state);
         calibrationRangeRef.current = state.range;
-        if (state.baseline && state.step === 2) {
-          setNeutralBaseline(state.baseline);
-        }
         if (state.status === "completed" && state.baseline) {
           clearCalibrationTimeout();
+          calibrationFallbackRangeRef.current = state.range ? { ...state.range } : null;
+          calibrationRangeRef.current = state.range;
           setNeutralBaseline(state.baseline);
+          resetInteractionState(true);
         } else if (state.status === "failed") {
           clearCalibrationTimeout();
         } else if (state.step !== previousStep) {
           scheduleCalibrationTimeout(calibrationAttemptRef.current);
         }
+
+        // Calibration is a pointer-control safety boundary. Keep the pointer
+        // centered and leave dwell and gesture controllers disarmed until the
+        // next normal tracking frame after the overlay closes.
+        resetInteractionState(state.status === "completed" || state.status === "failed");
+        return;
       }
 
       // 4. Map Head Pose to Screen Coordinates using CURRENT profileRef.current
@@ -574,7 +587,8 @@ export function HeadControlProvider({
       // 5. Confirmation Lockout & Re-Arm Guard
       const currentModal =
         typeof document !== "undefined"
-          ? document.querySelector('[data-aksa-confirmation-guard="true"]') ||
+          ? document.querySelector('[data-aksa-calibration-guard="true"]') ||
+            document.querySelector('[data-aksa-confirmation-guard="true"]') ||
             document.querySelector('[aria-modal="true"]')
           : null;
 
@@ -590,7 +604,11 @@ export function HeadControlProvider({
       const isControlActive =
         data.lifecycleState === "active" &&
         currentProfile.selectionMode !== "off" &&
-        !calibrationWasCapturing;
+        !calibrationWasCapturing &&
+        !Boolean(
+          typeof document !== "undefined" &&
+            document.querySelector('[data-aksa-calibration-guard="true"]')
+        );
 
       const targetAssist = isControlActive
         ? targetAssistRef.current.process(
@@ -647,7 +665,13 @@ export function HeadControlProvider({
         setGestureStatus(DEFAULT_GESTURE);
       }
     },
-    [clearCalibrationTimeout, scheduleCalibrationTimeout, setNeutralBaseline]
+    [
+      clearCalibrationTimeout,
+      resetInteractionState,
+      restoreCalibrationRange,
+      scheduleCalibrationTimeout,
+      setNeutralBaseline
+    ]
   );
 
   const startCamera = useCallback(
@@ -672,6 +696,10 @@ export function HeadControlProvider({
             setErrorCategory(
               state === "tracking_lost" ? "tracking_lost" : failure ?? null
             );
+            if (state === "error" || state === "disabled") {
+              activeStreamRef.current = null;
+              setActiveStream(null);
+            }
             if (state === "error") {
               prepareForSafeReacquisition();
               removeBackgroundVideo();
@@ -697,6 +725,8 @@ export function HeadControlProvider({
         } catch {
           // Stream cleanup below remains authoritative.
         }
+        activeStreamRef.current = null;
+        setActiveStream(null);
         cleanStartup();
         setLifecycleState("error");
         setErrorCategory(category);
@@ -754,6 +784,8 @@ export function HeadControlProvider({
 
       try {
         engineRef.current.start(processingVideo, stream);
+        activeStreamRef.current = stream;
+        setActiveStream(stream);
         return true;
       } catch {
         return failStartup("camera_unavailable");
@@ -825,32 +857,26 @@ export function HeadControlProvider({
     if (engineRef.current) {
       engineRef.current.pause();
     }
-    poseInputRef.current.reset();
-    restLockRef.current.reset();
-    setIsRestLocked(false);
-    targetAssistRef.current.clear();
+    if (calibrationEngineRef.current.getState().status === "capturing") {
+      clearCalibrationTimeout();
+      calibrationAttemptRef.current += 1;
+      calibrationEngineRef.current.cancel();
+      restoreCalibrationRange();
+      setCalibrationState(calibrationEngineRef.current.getState());
+    }
+    resetInteractionState(false);
     lastFrameTimeRef.current = 0;
-    if (dwellRef.current) dwellRef.current.requireFreshCycle();
-    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
-    setActiveTarget(null);
-    setDwellProgress(DEFAULT_DWELL);
-    setGestureStatus(DEFAULT_GESTURE);
     setLifecycleState("paused");
-  }, []);
+  }, [clearCalibrationTimeout, resetInteractionState, restoreCalibrationRange]);
 
   const resumeControl = useCallback(() => {
     reacquisitionCountRef.current = 0;
-    poseInputRef.current.reset();
-    restLockRef.current.reset();
-    setIsRestLocked(false);
-    targetAssistRef.current.clear();
+    resetInteractionState(true);
     lastFrameTimeRef.current = 0;
-    if (dwellRef.current) dwellRef.current.requireFreshCycle();
-    if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     if (engineRef.current) {
       engineRef.current.resume();
     }
-  }, []);
+  }, [resetInteractionState]);
 
   const disableControl = useCallback(() => {
     startupCancelledRef.current = true;
@@ -861,22 +887,20 @@ export function HeadControlProvider({
     if (gestureRef.current) gestureRef.current.reset();
     reacquisitionCountRef.current = 0;
     lastFrameTimeRef.current = 0;
-    poseInputRef.current.reset();
-    restLockRef.current.reset();
-    setIsRestLocked(false);
-    targetAssistRef.current.clear();
+    resetInteractionState(true);
     activeModalRef.current = null;
     clearCalibrationTimeout();
     calibrationAttemptRef.current += 1;
     calibrationEngineRef.current.cancel();
+    calibrationFallbackRangeRef.current = null;
+    calibrationRangeRef.current = null;
     setCalibrationState(calibrationEngineRef.current.getState());
-    setActiveTarget(null);
-    setDwellProgress(DEFAULT_DWELL);
-    setGestureStatus(DEFAULT_GESTURE);
+    activeStreamRef.current = null;
+    setActiveStream(null);
     removeBackgroundVideo();
     setErrorCategory(null);
     setLifecycleState("disabled");
-  }, [clearCalibrationTimeout, removeBackgroundVideo]);
+  }, [clearCalibrationTimeout, removeBackgroundVideo, resetInteractionState]);
 
   // Provider unmount teardown effect
   useEffect(() => {
@@ -906,6 +930,7 @@ export function HeadControlProvider({
         isRestLocked,
         profile,
         neutralBaseline,
+        activeStream,
         calibrationState,
         isPaused,
         startHeadControl,
@@ -925,7 +950,7 @@ export function HeadControlProvider({
       <AksaPointer
         dwellProgress={dwellProgress}
         hasTarget={activeTarget !== null}
-        lifecycleState={lifecycleState}
+        lifecycleState={calibrationState.status === "capturing" ? "paused" : lifecycleState}
         position={pointerPosition}
         reducedMotion={profile.reducedMotion}
         activationKey={activationFeedbackKey}
