@@ -10,7 +10,14 @@ import type {
   WriteProposal
 } from "@/lib/server/google/gateway";
 import { readSessionState } from "@/lib/server/auth/service";
-import { isGoogleConnected, getConnectedEmail } from "@/lib/server/google/token-store";
+import { getConnectedEmail, getGoogleConnectionState, getValidAccessToken } from "@/lib/server/google/token-store";
+import {
+  listDocumentsForUser,
+  proposeDocumentAppend,
+  readDocumentForUser,
+  readDriveItemForUser,
+  respondToDocumentConfirmation
+} from "@/lib/server/google/docs-workflow";
 
 assertServerOnly("src/lib/server/google/service.ts");
 
@@ -52,25 +59,47 @@ function createRealGoogleGateway(): GoogleWorkspaceGateway {
         };
       }
 
-      const connected = await isGoogleConnected(session.session.userId);
+      let state: GoogleConnection["state"] = await getGoogleConnectionState(session.session.userId);
+      if (state === "connected") {
+        const accessToken = await getValidAccessToken(session.session.userId);
+        if (!accessToken && (await getGoogleConnectionState(session.session.userId)) === "connected") {
+          state = "error";
+        }
+      }
       const email = await getConnectedEmail(session.session.userId);
 
       return {
-        state: connected ? "connected" : "not_connected",
-        accountEmail: email,
-        grantedCapabilities: connected ? ["docs_read", "drive_read", "drive_picker"] : [],
+        state,
+        accountEmail: state === "connected" || state === "needs_reconnect" ? email : null,
+        grantedCapabilities: state === "connected" ? ["docs_read", "docs_write", "drive_read"] : [],
         checkedAt: Date.now()
       };
     },
 
-    searchDrive: () => blocked(),
-    readDriveItem: () => blocked(),
+    async searchDrive(input) {
+      const session = await readSessionState();
+      if (session.status !== "authenticated") return blocked();
+      return listDocumentsForUser(session.session, input.query, input.pageToken ?? null);
+    },
+    async readDriveItem(itemId) {
+      const session = await readSessionState();
+      if (session.status !== "authenticated") return blocked();
+      return readDriveItemForUser(session.session, itemId);
+    },
     proposeDriveMove: () => blockedProposal(),
     proposeDriveRename: () => blockedProposal(),
     proposeDriveCreateFolder: () => blockedProposal(),
 
-    readDocument: () => blocked(),
-    proposeDocumentEdit: () => blockedProposal(),
+    async readDocument(documentId) {
+      const session = await readSessionState();
+      if (session.status !== "authenticated") return blocked();
+      return readDocumentForUser(session.session, documentId);
+    },
+    async proposeDocumentEdit(input) {
+      const session = await readSessionState();
+      if (session.status !== "authenticated") return blockedProposal();
+      return proposeDocumentAppend(session.session, input);
+    },
 
     readSheetRange: () => blocked(),
     proposeSheetWrite: () => blockedProposal(),
@@ -79,7 +108,15 @@ function createRealGoogleGateway(): GoogleWorkspaceGateway {
     readMailMessage: () => blocked(),
     proposeMailDraft: () => blockedProposal(),
 
-    executeConfirmedWrite: () => blockedExecution(),
+    async executeConfirmedWrite(confirmationId) {
+      const session = await readSessionState();
+      if (session.status !== "authenticated") return blockedExecution();
+      const result = await respondToDocumentConfirmation(session.session, confirmationId, "approve");
+      if (result.outcome === "completed") return { outcome: "completed", task: result.task };
+      if (result.outcome === "failed") return { outcome: "blocked", error: result.error };
+      if (result.outcome === "cancelled") return { outcome: "blocked", error: createAksaError("cancelled") };
+      return { outcome: "blocked", error: "error" in result ? result.error : createAksaError("unavailable") };
+    },
 
     async readPickerCapability(): Promise<DrivePickerCapability> {
       return { available: false, requiredCapability: "drive_picker" };

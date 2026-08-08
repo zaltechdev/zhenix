@@ -43,6 +43,8 @@ export const confirmationSchema = z.object({
   undoSupported: z.boolean(),
   /** Required whenever `undoSupported` is false, so the user knows before approving. */
   undoUnsupportedReasonKey: z.string().max(120).nullable(),
+  /** Bounded preview of the proposed change. It is never a provider request body. */
+  preview: z.string().max(4000).nullable().optional(),
   expiresAt: z.number().int().nonnegative(),
   canApprove: z.boolean(),
   canEdit: z.boolean(),

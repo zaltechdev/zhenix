@@ -1,193 +1,106 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState, type FormEvent } from "react";
+import { m } from "@/paraglide/messages.js";
+import type { Locale } from "@/paraglide/runtime.js";
+import type { DriveItem } from "@/lib/contracts/google";
 
-/**
- * Google Picker integration for Aksa.
- *
- * Loads the Google Picker API script, opens the picker filtered to Google Docs,
- * and returns the selected document ID.
- *
- * The access token for the Picker is obtained from the server via
- * /api/google/picker-token. It is used only for the Picker session and
- * not stored.
- */
-
-type PickerState =
-  | "idle"
-  | "loading"
-  | "ready"
-  | "picking"
-  | "error";
+type PickerState = "idle" | "loading" | "ready" | "error";
 
 type GooglePickerProps = {
   onDocumentSelected: (documentId: string, title: string) => void;
   disabled?: boolean;
   label: string;
+  locale: Locale;
   className?: string;
 };
 
-/** Prevent loading the script more than once. */
-let gapiLoaded = false;
-let pickerLoaded = false;
-
-function loadGapiScript(): Promise<void> {
-  if (gapiLoaded) return Promise.resolve();
-
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[src="https://apis.google.com/js/api.js"]');
-    if (existing) {
-      gapiLoaded = true;
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://apis.google.com/js/api.js";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      gapiLoaded = true;
-      resolve();
-    };
-    script.onerror = () => reject(new Error("Failed to load Google API script"));
-    document.head.appendChild(script);
-  });
-}
-
-function loadPickerApi(): Promise<void> {
-  if (pickerLoaded) return Promise.resolve();
-
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined" || !("gapi" in window)) {
-      reject(new Error("GAPI not loaded"));
-      return;
-    }
-
-    (window as unknown as { gapi: { load: (lib: string, opts: { callback: () => void; onerror: (err: unknown) => void }) => void } })
-      .gapi.load("picker", {
-        callback: () => {
-          pickerLoaded = true;
-          resolve();
-        },
-        onerror: (err: unknown) => reject(err)
-      });
-  });
-}
-
-export function GooglePicker({ onDocumentSelected, disabled, label, className }: GooglePickerProps) {
+/**
+ * Server-backed Docs chooser. Google access tokens never enter this component;
+ * the server returns only real, user-scoped Drive metadata.
+ */
+export function GooglePicker({ onDocumentSelected, disabled, label, locale, className }: GooglePickerProps) {
   const [state, setState] = useState<PickerState>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [query, setQuery] = useState("");
+  const [items, setItems] = useState<DriveItem[]>([]);
+  const options = { locale };
 
-  /** Preload the Picker API on mount. */
-  useEffect(() => {
-    loadGapiScript()
-      .then(() => loadPickerApi())
-      .then(() => setState("ready"))
-      .catch(() => setState("error"));
-  }, []);
-
-  const openPicker = useCallback(async () => {
-    if (state !== "ready" && state !== "idle") return;
-
+  const loadDocuments = useCallback(async (event?: FormEvent) => {
+    event?.preventDefault();
     setState("loading");
-    setErrorMessage(null);
-
     try {
-      /** Ensure APIs are loaded. */
-      await loadGapiScript();
-      await loadPickerApi();
-
-      /** Get a short-lived token from the server. */
-      const response = await fetch("/api/google/picker-token");
-      if (!response.ok) {
-        throw new Error("Failed to get picker token");
+      const response = await fetch(`/api/google/docs?query=${encodeURIComponent(query.trim())}`);
+      const result = await response.json() as {
+        status?: string;
+        data?: { items?: DriveItem[] };
+      };
+      if (!response.ok || (result.status !== "ready" && result.status !== "empty")) {
+        throw new Error("documents_unavailable");
       }
-
-      const { accessToken, apiKey, appId } = await response.json();
-
-      if (!apiKey) {
-        throw new Error("Google Picker API key is not configured");
-      }
-
-      setState("picking");
-
-      const google = (window as unknown as { google: { picker: PickerNamespace } }).google;
-
-      const view = new google.picker.DocsView();
-      view.setIncludeFolders(false);
-      view.setMimeTypes("application/vnd.google-apps.document");
-
-      const builder = new google.picker.PickerBuilder()
-        .setOAuthToken(accessToken)
-        .setDeveloperKey(apiKey)
-        .addView(view)
-        .setCallback((data: PickerCallbackData) => {
-          if (data.action === "picked" && data.docs && data.docs.length > 0) {
-            const doc = data.docs[0];
-            onDocumentSelected(doc.id, doc.name ?? "Untitled");
-          }
-          if (data.action === "cancel" || data.action === "picked") {
-            setState("ready");
-            buttonRef.current?.focus();
-          }
-        });
-
-      if (appId) {
-        builder.setAppId(appId);
-      }
-
-      const picker = builder.build();
-      picker.setVisible(true);
-    } catch (err) {
+      setItems(result.data?.items ?? []);
+      setState("ready");
+    } catch {
+      setItems([]);
       setState("error");
-      setErrorMessage(err instanceof Error ? err.message : "Picker failed");
-      buttonRef.current?.focus();
     }
-  }, [state, onDocumentSelected]);
+  }, [query]);
+
+  if (state === "idle") {
+    return (
+      <button
+        className={className ?? "aksa-button aksa-button--primary"}
+        disabled={disabled}
+        onClick={() => void loadDocuments()}
+        type="button"
+      >
+        {label}
+      </button>
+    );
+  }
 
   return (
     <div className="aksa-picker-container">
-      <button
-        className={className ?? "aksa-button aksa-button--primary"}
-        disabled={disabled || state === "loading" || state === "picking"}
-        onClick={openPicker}
-        ref={buttonRef}
-        type="button"
-      >
-        {state === "loading" || state === "picking" ? "Opening..." : label}
-      </button>
-      {state === "error" && errorMessage ? (
-        <p className="aksa-hint aksa-hint--error" role="alert">
-          {errorMessage}
-        </p>
+      <form className="aksa-picker-search" onSubmit={(event) => void loadDocuments(event)}>
+        <label htmlFor="google-docs-search" className="aksa-sr-only">
+          {m.documents_search_label({}, options)}
+        </label>
+        <input
+          className="aksa-input"
+          id="google-docs-search"
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={m.documents_search_placeholder({}, options)}
+          type="search"
+          value={query}
+        />
+        <button className="aksa-button aksa-button--secondary" disabled={state === "loading"} type="submit">
+          {m.documents_search_submit({}, options)}
+        </button>
+      </form>
+
+      {state === "loading" ? (
+        <p className="aksa-hint" role="status">{m.documents_documents_loading({}, options)}</p>
+      ) : null}
+      {state === "error" ? (
+        <p className="aksa-hint aksa-hint--error" role="alert">{m.documents_documents_error({}, options)}</p>
+      ) : null}
+      {state === "ready" && items.length === 0 ? (
+        <p className="aksa-hint">{m.documents_documents_empty({}, options)}</p>
+      ) : null}
+      {items.length > 0 ? (
+        <ul aria-label={m.documents_title_label({}, options)} className="aksa-picker-results">
+          {items.map((item) => (
+            <li key={item.id}>
+              <button
+                className="aksa-button aksa-button--quiet"
+                onClick={() => onDocumentSelected(item.id, item.name)}
+                type="button"
+              >
+                {item.name}
+              </button>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );
 }
-
-/** Minimal type declarations for the Google Picker API. */
-type PickerNamespace = {
-  DocsView: new () => PickerDocsView;
-  PickerBuilder: new () => PickerBuilderInstance;
-};
-
-type PickerDocsView = {
-  setIncludeFolders: (include: boolean) => PickerDocsView;
-  setMimeTypes: (mimeTypes: string) => PickerDocsView;
-};
-
-type PickerBuilderInstance = {
-  setOAuthToken: (token: string) => PickerBuilderInstance;
-  setDeveloperKey: (key: string) => PickerBuilderInstance;
-  setAppId: (appId: string) => PickerBuilderInstance;
-  addView: (view: PickerDocsView) => PickerBuilderInstance;
-  setCallback: (callback: (data: PickerCallbackData) => void) => PickerBuilderInstance;
-  build: () => { setVisible: (visible: boolean) => void };
-};
-
-type PickerCallbackData = {
-  action: string;
-  docs?: Array<{ id: string; name?: string; mimeType?: string }>;
-};

@@ -317,6 +317,22 @@ export function activityEventCopy(eventType: ActivityEventType, locale: Locale):
   }
 }
 
+export function activityActionCopy(label: string, locale: Locale): string {
+  const options = { locale };
+  switch (label) {
+    case "documents_activity_read":
+      return m.documents_activity_read({}, options);
+    case "documents_activity_review":
+      return m.documents_activity_review({}, options);
+    case "documents_activity_write":
+      return m.documents_activity_write({}, options);
+    case "documents_activity_verify":
+      return m.documents_activity_verify({}, options);
+    default:
+      return label;
+  }
+}
+
 export function confirmationActionCopy(action: ConfirmationAction, locale: Locale): string {
   const options = { locale };
   switch (action) {
@@ -398,6 +414,8 @@ export function googleConnectionCopy(state: GoogleConnectionState, locale: Local
       return m.google_state_revoked({}, options);
     case "disconnecting":
       return m.google_state_disconnecting({}, options);
+    case "error":
+      return m.google_state_error({}, options);
   }
 }
 

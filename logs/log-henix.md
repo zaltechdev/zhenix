@@ -1633,3 +1633,90 @@ Then STOP.
   - `src/app/workspace/page.tsx`
   - `tests/unit/workspace-home.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-09 03:42:35
+* **Model used**: GPT-5 Codex
+* **Human Prompt**:
+  ```
+  Execute AKSA CORE MVP PHASE 1 REAL GOOGLE OAUTH + REAL DOCS.
+
+  Repository: github.com/zaltechdev/zhenix
+  Branch: dev
+  Mode: STRICT / LOW-USAGE / EXECUTE, DO NOT WANDER
+
+  Mission: turn the Workspace shell into one real end-to-end path:
+  Aksa account -> Connect Google -> real OAuth -> find/open a real Google Doc -> read ->
+  propose edit -> user confirms -> real write -> read-back verification -> History/Activity.
+
+  Deliver only production-grade Google OAuth and one excellent Google Docs workflow.
+  Reuse Better Auth, Drizzle persistence, oauth_connections, encrypted refresh-token storage,
+  user-scoped tokens, existing OAuth routes, Docs scaffolding, Activity, ToolCall, and confirmation
+  persistence. Do not rebuild the architecture or add fake/mock runtime success.
+
+  OAuth requirements: authenticated session, CSRF/state validation bound to the initiating user,
+  encrypted refresh token at rest, no token exposure, strict user isolation, current-user-only
+  disconnect, truthful connection states, and needs_reconnect after permanent refresh failure.
+  Request only identity, Docs discovery, Docs read, and Docs edit scopes. Do not request Gmail or
+  Sheets scopes.
+
+  Docs requirements: use real server-backed Drive discovery or the closest existing real Picker;
+  display only accessible real resources; read real Docs content with honest loading, empty,
+  inaccessible, deleted, expired, and API failure states; implement one narrow append-text edit;
+  require confirmation with title, intended change, and preview; cancel performs zero mutation;
+  confirm performs a real Docs write; read back and verify the expected change before success;
+  persist read, mutation request, confirmation, write, verification, and outcomes through existing
+  History, Activity, ToolCall, confirmation, artifact, and audit persistence.
+
+  Keep the current Workspace layout and bounded workflow. Do not start Sheets, Gmail, Slides,
+  broad Drive UX, generic Agent Core, Head Control, onboarding redesign, or unrelated UI polish.
+  Do not regress preferences, theme, language, accessibility, controls, Head Control, or Voice Control.
+
+  Add focused regression coverage for OAuth binding/state/encryption/isolation/disconnect/reconnect,
+  real discovery/read, confirmation gating, cancel/no-write, confirm/write, read-back verification,
+  no false success, and History persistence. Mock only the Google network boundary.
+
+  Run the final gates once: bun run i18n, bun run typecheck, bun run lint, bun run test, bun run build.
+  If live Google configuration is missing, report the exact missing configuration and do not claim
+  live verification. Never commit secrets or tokens. Commit atomically and push origin dev.
+
+  Final response maximum 18 lines with OAuth, Docs, Persistence, Tests, Live Google, commit SHA,
+  remote HEAD SHA, and STOP.
+  ```
+* **TLDR AI agents done**: Completed the real user-scoped Google OAuth lifecycle and bounded Docs discovery, read, append proposal, confirmation, write, read-back verification, History, and Activity workflow; added focused boundary tests and preserved unrelated work.
+* **file changed**:
+  - `.env.example`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/api/google/auth/route.ts`
+  - `src/app/api/google/callback/route.ts`
+  - `src/app/api/google/connection/route.ts`
+  - `src/app/api/google/docs/route.ts`
+  - `src/app/api/google/docs/[documentId]/route.ts`
+  - `src/app/api/google/docs/[documentId]/edit/route.ts`
+  - `src/app/api/google/docs/confirm/route.ts`
+  - `src/app/api/google/picker-token/route.ts`
+  - `src/app/workspace/settings/page.tsx`
+  - `src/components/workspace/activity-list.tsx`
+  - `src/components/workspace/confirmation-dialog.tsx`
+  - `src/components/workspace/document-surface.tsx`
+  - `src/components/workspace/documents-client.tsx`
+  - `src/components/workspace/google-picker.tsx`
+  - `src/lib/contracts/confirmation.ts`
+  - `src/lib/contracts/google.ts`
+  - `src/lib/i18n/copy.ts`
+  - `src/lib/server/activity/service.ts`
+  - `src/lib/server/config/runtime-config.ts`
+  - `src/lib/server/db/dal.ts`
+  - `src/lib/server/google/docs-api.ts`
+  - `src/lib/server/google/docs-workflow.ts`
+  - `src/lib/server/google/drive-api.ts`
+  - `src/lib/server/google/gateway.ts`
+  - `src/lib/server/google/http.ts`
+  - `src/lib/server/google/oauth.ts`
+  - `src/lib/server/google/service.ts`
+  - `src/lib/server/google/token-store.ts`
+  - `src/lib/server/tasks/service.ts`
+  - `tests/unit/google-docs-workflow.test.ts`
+  - `tests/unit/google-oauth.test.ts`
+  - `logs/log-henix.md`

@@ -1,7 +1,7 @@
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import type { ActivityEvent, ActivityOutcome } from "@/lib/contracts/activity";
-import { activityEventCopy, errorShortCopy, formatDateTime } from "@/lib/i18n/copy";
+import { activityActionCopy, activityEventCopy, errorShortCopy, formatDateTime } from "@/lib/i18n/copy";
 import { StatusChip, type StatusTone } from "@/components/workspace/status-chip";
 
 const toneForOutcome: Record<ActivityOutcome, StatusTone> = {
@@ -27,7 +27,7 @@ export function ActivityList({ events, locale }: { events: ActivityEvent[]; loca
       {events.map((event) => (
         <li className="aksa-activity__item" key={event.id}>
           <div className="aksa-activity__row">
-            <span className="aksa-activity__label">{event.actionLabel}</span>
+            <span className="aksa-activity__label">{activityActionCopy(event.actionLabel, locale)}</span>
             <StatusChip tone={toneForOutcome[event.outcome]} value={activityEventCopy(event.eventType, locale)} />
             <StatusChip
               tone={event.verified ? "ready" : "neutral"}

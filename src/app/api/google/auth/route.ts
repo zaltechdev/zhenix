@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { buildAuthorizationUrl, isGoogleOAuthConfigured } from "@/lib/server/google/oauth";
+import {
+  buildAuthorizationUrl,
+  createGoogleOAuthState,
+  GOOGLE_OAUTH_STATE_COOKIE,
+  isGoogleOAuthConfigured
+} from "@/lib/server/google/oauth";
 import { getSession } from "@/lib/server/db/dal";
 
 /**
@@ -20,11 +25,11 @@ export async function GET() {
     );
   }
 
-  const state = crypto.randomUUID();
-  const authUrl = buildAuthorizationUrl(state);
+  const oauthState = createGoogleOAuthState(session.userId);
+  const authUrl = buildAuthorizationUrl(oauthState.state);
 
   const response = NextResponse.redirect(authUrl);
-  response.cookies.set("google_oauth_state", state, {
+  response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE, oauthState.cookieValue, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

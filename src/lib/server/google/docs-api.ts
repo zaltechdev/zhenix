@@ -1,4 +1,5 @@
 import { assertServerOnly } from "@/lib/server/server-guard";
+import { fetchGoogleJson } from "@/lib/server/google/http";
 
 assertServerOnly("src/lib/server/google/docs-api.ts");
 
@@ -10,6 +11,8 @@ assertServerOnly("src/lib/server/google/docs-api.ts");
  */
 
 const DOCS_BASE = "https://docs.googleapis.com/v1/documents";
+
+export { GoogleApiError } from "@/lib/server/google/http";
 
 export type GoogleDocsGetResponse = {
   documentId: string;
@@ -132,19 +135,16 @@ export async function getDocument(
   accessToken: string,
   documentId: string
 ): Promise<GoogleDocsGetResponse> {
-  const response = await fetch(`${DOCS_BASE}/${encodeURIComponent(documentId)}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json"
-    }
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new GoogleApiError(response.status, text, "documents.get");
-  }
-
-  return response.json();
+  return fetchGoogleJson<GoogleDocsGetResponse>(
+    `${DOCS_BASE}/${encodeURIComponent(documentId)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json"
+      }
+    },
+    "documents.get"
+  );
 }
 
 /**
@@ -155,52 +155,17 @@ export async function batchUpdateDocument(
   documentId: string,
   request: GoogleBatchUpdateRequest
 ): Promise<GoogleBatchUpdateResponse> {
-  const response = await fetch(`${DOCS_BASE}/${encodeURIComponent(documentId)}:batchUpdate`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      Accept: "application/json"
+  return fetchGoogleJson<GoogleBatchUpdateResponse>(
+    `${DOCS_BASE}/${encodeURIComponent(documentId)}:batchUpdate`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body: JSON.stringify(request)
     },
-    body: JSON.stringify(request)
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new GoogleApiError(response.status, text, "documents.batchUpdate");
-  }
-
-  return response.json();
-}
-
-export class GoogleApiError extends Error {
-  readonly status: number;
-  readonly method: string;
-
-  constructor(status: number, body: string, method: string) {
-    super(`Google API ${method} failed with ${status}`);
-    this.status = status;
-    this.method = method;
-    this.name = "GoogleApiError";
-  }
-
-  get isNotFound() {
-    return this.status === 404;
-  }
-
-  get isPermissionDenied() {
-    return this.status === 403;
-  }
-
-  get isRevisionConflict() {
-    return this.status === 400;
-  }
-
-  get isRateLimited() {
-    return this.status === 429;
-  }
-
-  get isServerError() {
-    return this.status >= 500;
-  }
+    "documents.batchUpdate"
+  );
 }

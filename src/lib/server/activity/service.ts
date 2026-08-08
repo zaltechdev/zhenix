@@ -1,8 +1,9 @@
 import { assertServerOnly } from "@/lib/server/server-guard";
 import { readSessionState } from "@/lib/server/auth/service";
 import { createAksaError } from "@/lib/server/errors/aksa-error";
-import { blockedResource, emptyResource, type ResourceState } from "@/lib/contracts/resource-state";
+import { blockedResource, type ResourceState } from "@/lib/contracts/resource-state";
 import type { ActivityFeed } from "@/lib/contracts/activity";
+import { readPersistedActivity } from "@/lib/server/google/docs-workflow";
 
 assertServerOnly("src/lib/server/activity/service.ts");
 
@@ -27,5 +28,5 @@ export async function readWorkspaceActivity(): Promise<ResourceState<ActivityFee
     return blockedResource<ActivityFeed>(createAksaError("authentication_required"));
   }
 
-  return emptyResource<ActivityFeed>("no_activity");
+  return readPersistedActivity(session.session.userId, session.session.workspaceId);
 }

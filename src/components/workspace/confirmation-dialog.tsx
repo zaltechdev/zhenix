@@ -111,6 +111,13 @@ export function ConfirmationDialog({
             <p className="aksa-hint">{m.confirmation_illustrative_note({}, options)}</p>
           ) : null}
 
+          {confirmation.preview ? (
+            <>
+              <h3 className="aksa-dialog__subheading">{m.confirmation_preview_heading({}, options)}</h3>
+              <pre className="aksa-dialog__preview">{confirmation.preview}</pre>
+            </>
+          ) : null}
+
           <h3 className="aksa-dialog__subheading">{m.confirmation_scope_heading({}, options)}</h3>
           <p className="aksa-dialog__count">
             {m.confirmation_scope_count(

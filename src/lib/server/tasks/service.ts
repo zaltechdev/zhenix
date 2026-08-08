@@ -11,6 +11,7 @@ import {
   type ConfirmationResponse
 } from "@/lib/contracts/confirmation";
 import type { UndoOutcome } from "@/lib/contracts/undo";
+import { readPersistedTaskHistory, respondToDocumentConfirmation } from "@/lib/server/google/docs-workflow";
 
 assertServerOnly("src/lib/server/tasks/service.ts");
 
@@ -55,7 +56,11 @@ export async function readTaskHistory(): Promise<ResourceState<TaskList>> {
   if (blocked !== null) {
     return blocked;
   }
-  return emptyResource<TaskList>("no_tasks");
+  const session = await readSessionState();
+  if (session.status !== "authenticated") {
+    return emptyResource<TaskList>("no_tasks");
+  }
+  return readPersistedTaskHistory(session.session.userId, session.session.workspaceId);
 }
 
 export async function cancelTask(taskId: string): Promise<CancellationResult> {
@@ -82,11 +87,25 @@ export async function respondToConfirmation(
     return { outcome: "unavailable", error: createAksaError("authentication_required") };
   }
 
-  /**
-   * Approving a confirmation is the only path to a write, and no write path is
-   * implemented yet, so nothing can be consumed.
-   */
-  return { outcome: "unavailable", error: createAksaError("unavailable") };
+  const result = await respondToDocumentConfirmation(
+    { userId: session.session.userId, workspaceId: session.session.workspaceId },
+    response.confirmationId,
+    response.decision
+  );
+  switch (result.outcome) {
+    case "completed":
+      return { outcome: "executed", task: result.task };
+    case "cancelled":
+      return { outcome: "cancelled", task: result.task };
+    case "edit_requested":
+      return { outcome: "edit_requested", confirmation: result.confirmation };
+    case "expired":
+      return { outcome: "expired", error: result.error };
+    case "already_consumed":
+      return { outcome: "already_consumed", error: result.error };
+    case "failed":
+      return { outcome: "unavailable", error: result.error };
+  }
 }
 
 export async function requestUndo(undoId: string): Promise<UndoOutcome> {

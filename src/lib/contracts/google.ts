@@ -14,7 +14,8 @@ export const googleConnectionStates = [
   "connected",
   "needs_reconnect",
   "revoked",
-  "disconnecting"
+  "disconnecting",
+  "error"
 ] as const;
 
 export const googleConnectionStateSchema = z.enum(googleConnectionStates);

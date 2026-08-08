@@ -7,7 +7,8 @@ import {
   workspaces,
   workspaceMembers,
   accessibilityProfiles,
-  consentRecords
+  consentRecords,
+  auditLogs
 } from "@/lib/server/db/schema";
 import { auth } from "@/lib/server/auth/better-auth";
 import type { AccessibilityProfile, Session, UserPreferences } from "@/lib/contracts/auth";
@@ -317,7 +318,7 @@ export async function recordConsent(
 ): Promise<void> {
   const now = Date.now();
   await db.insert(consentRecords).values({
-    id: `cs_${userId}_${consentType}_${now}`,
+    id: `cs_${crypto.randomUUID()}`,
     userId,
     consentType,
     granted: granted ? 1 : 0,
@@ -325,5 +326,26 @@ export async function recordConsent(
     grantedAt: granted ? now : null,
     revokedAt: granted ? null : now,
     createdAt: now
+  });
+}
+
+/** Records a redacted security event without provider payloads or user content. */
+export async function recordAuditLog(input: {
+  userId: string;
+  workspaceId?: string | null;
+  eventType: string;
+  subjectType?: string | null;
+  subjectId?: string | null;
+  detail?: string | null;
+}): Promise<void> {
+  await db.insert(auditLogs).values({
+    id: `audit_${crypto.randomUUID()}`,
+    userId: input.userId,
+    workspaceId: input.workspaceId ?? null,
+    eventType: input.eventType,
+    subjectType: input.subjectType ?? null,
+    subjectId: input.subjectId ?? null,
+    detail: input.detail ?? null,
+    createdAt: Date.now()
   });
 }

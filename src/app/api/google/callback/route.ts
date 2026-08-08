@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exchangeCodeForTokens, extractEmailFromIdToken } from "@/lib/server/google/oauth";
+import {
+  exchangeCodeForTokens,
+  getGoogleUserInfo,
+  GOOGLE_OAUTH_STATE_COOKIE,
+  verifyGoogleOAuthState
+} from "@/lib/server/google/oauth";
 import { storeGoogleTokens } from "@/lib/server/google/token-store";
-import { getSession } from "@/lib/server/db/dal";
+import { getSession, recordAuditLog, recordConsent } from "@/lib/server/db/dal";
 
 /**
  * GET /api/google/callback
@@ -18,31 +23,47 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
+  const storedState = request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE)?.value;
+
+  const redirectWithError = (reason: string) => {
+    const response = NextResponse.redirect(new URL(`/workspace?google_error=${reason}`, request.url));
+    response.cookies.delete(GOOGLE_OAUTH_STATE_COOKIE);
+    return response;
+  };
+
+  if (!verifyGoogleOAuthState(storedState, state, session.userId)) {
+    return redirectWithError("invalid_state");
+  }
 
   if (error) {
-    return NextResponse.redirect(new URL("/workspace?google_error=consent_denied", request.url));
+    return redirectWithError("consent_denied");
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/workspace?google_error=missing_code", request.url));
-  }
-
-  const storedState = request.cookies.get("google_oauth_state")?.value;
-  if (!storedState || storedState !== state) {
-    return NextResponse.redirect(new URL("/workspace?google_error=invalid_state", request.url));
+    return redirectWithError("missing_code");
   }
 
   try {
     const tokens = await exchangeCodeForTokens(code);
-    const email = tokens.idToken ? extractEmailFromIdToken(tokens.idToken) : null;
+    const userInfo = await getGoogleUserInfo(tokens.accessToken);
+    const email = userInfo.email;
+    const providerAccountId = userInfo.sub;
 
-    await storeGoogleTokens(session.userId, tokens, email);
+    await storeGoogleTokens(session.userId, tokens, email, providerAccountId);
+    await recordConsent(session.userId, "google_connection", true);
+    await recordAuditLog({
+      userId: session.userId,
+      workspaceId: session.workspaceId,
+      eventType: "google_connected",
+      subjectType: "oauth_connection",
+      subjectId: "google"
+    });
 
     const response = NextResponse.redirect(new URL("/workspace/documents", request.url));
-    response.cookies.delete("google_oauth_state");
+    response.cookies.delete(GOOGLE_OAUTH_STATE_COOKIE);
 
     return response;
   } catch {
-    return NextResponse.redirect(new URL("/workspace?google_error=token_exchange_failed", request.url));
+    return redirectWithError("token_exchange_failed");
   }
 }

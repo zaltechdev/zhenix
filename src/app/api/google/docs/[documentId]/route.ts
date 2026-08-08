@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidAccessToken, isGoogleConnected } from "@/lib/server/google/token-store";
-import { getDocument, GoogleApiError } from "@/lib/server/google/docs-api";
-import { adaptGoogleDocument } from "@/lib/server/google/docs-adapter";
 import { getSession } from "@/lib/server/db/dal";
+import { readDocumentForUser } from "@/lib/server/google/docs-workflow";
+import { createAksaError } from "@/lib/contracts/errors";
 
 /**
  * GET /api/google/docs/[documentId]
@@ -16,66 +15,24 @@ export async function GET(
   const session = await getSession();
   if (!session) {
     return NextResponse.json(
-      { status: "blocked", error: { category: "authentication_required" } },
+      { status: "blocked", error: createAksaError("authentication_required") },
       { status: 401 }
     );
   }
 
   const { documentId } = await params;
 
-  if (!documentId || documentId.length === 0) {
+  if (!documentId || documentId.length === 0 || documentId.length > 200) {
     return NextResponse.json(
-      { status: "blocked", error: { category: "validation_failed", message: "Missing document ID" } },
+      { status: "blocked", error: createAksaError("validation_failed") },
       { status: 400 }
     );
   }
 
-  const connected = await isGoogleConnected(session.userId);
-  if (!connected) {
-    return NextResponse.json(
-      { status: "blocked", error: { category: "connection_required" } },
-      { status: 401 }
-    );
-  }
-
-  const accessToken = await getValidAccessToken(session.userId);
-  if (!accessToken) {
-    return NextResponse.json(
-      { status: "blocked", error: { category: "connection_required" } },
-      { status: 401 }
-    );
-  }
-
-  try {
-    const rawDoc = await getDocument(accessToken, documentId);
-    const model = adaptGoogleDocument(rawDoc);
-
-    return NextResponse.json({ status: "ready", data: model });
-  } catch (err) {
-    if (err instanceof GoogleApiError) {
-      if (err.isNotFound) {
-        return NextResponse.json(
-          { status: "blocked", error: { category: "not_found" } },
-          { status: 404 }
-        );
-      }
-      if (err.isPermissionDenied) {
-        return NextResponse.json(
-          { status: "blocked", error: { category: "permission_denied" } },
-          { status: 403 }
-        );
-      }
-      if (err.isRateLimited) {
-        return NextResponse.json(
-          { status: "blocked", error: { category: "rate_limited" } },
-          { status: 429 }
-        );
-      }
-    }
-
-    return NextResponse.json(
-      { status: "blocked", error: { category: "internal_error" } },
-      { status: 500 }
-    );
-  }
+  const result = await readDocumentForUser(
+    { userId: session.userId, workspaceId: session.workspaceId },
+    documentId
+  );
+  const status = result.status === "ready" ? 200 : result.status === "blocked" ? 400 : 200;
+  return NextResponse.json(result, { status });
 }

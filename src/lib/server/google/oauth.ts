@@ -1,26 +1,37 @@
 import { assertServerOnly } from "@/lib/server/server-guard";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { z } from "zod";
+import { fetchGoogleJson } from "@/lib/server/google/http";
 
 assertServerOnly("src/lib/server/google/oauth.ts");
 
 /**
- * Google OAuth 2.0 utilities for the Aksa Docs PoC.
+ * Google OAuth 2.0 utilities for the Aksa Docs MVP.
  *
  * Uses direct fetch to Google token endpoints. No `googleapis` package.
  * Refresh tokens are stored server-side only. Access tokens are never sent to the client
- * except for the short-lived Picker token (see picker-token route).
+ * The Docs MVP keeps all access tokens on the server; the browser receives only
+ * normalized metadata and document models.
  */
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 
-/** Scopes for the Docs PoC. drive.file gives per-file access via Picker. */
-const POC_SCOPES = [
-  "https://www.googleapis.com/auth/drive.file",
+/** Least-privilege scopes for server-side Docs discovery, read, and append write. */
+export const GOOGLE_OAUTH_STATE_COOKIE = "google_oauth_state";
+
+/**
+ * Drive metadata is used only to discover real Docs. Docs permission covers the
+ * single read and append-write path in this phase. No Sheets, Gmail, or Slides
+ * permission is requested.
+ */
+export const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/drive.metadata.readonly",
   "https://www.googleapis.com/auth/documents",
   "openid",
   "email"
-];
+] as const;
 
 function requireEnv(key: string): string {
   const value = process.env[key];
@@ -47,6 +58,76 @@ export function isGoogleOAuthConfigured(): boolean {
   }
 }
 
+type OAuthStatePayload = {
+  state: string;
+  userId: string;
+  issuedAt: number;
+};
+
+const googleTokenResponseSchema = z.object({
+  access_token: z.string().min(1),
+  refresh_token: z.string().min(1).nullable().optional(),
+  expires_in: z.number().positive().optional(),
+  scope: z.string().optional(),
+  id_token: z.string().min(1).nullable().optional()
+});
+
+function authStateSecret(): string {
+  const value = process.env.AUTH_SECRET;
+  if (!value || value.startsWith("replace-with") || value.length < 32) {
+    throw new Error("Missing required env: AUTH_SECRET");
+  }
+  return value;
+}
+
+function encodeState(payload: OAuthStatePayload): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+function signState(encoded: string): string {
+  return createHmac("sha256", authStateSecret()).update(encoded).digest("base64url");
+}
+
+/** Creates a cookie value bound to the authenticated Aksa user who initiated OAuth. */
+export function createGoogleOAuthState(userId: string): { state: string; cookieValue: string } {
+  const state = crypto.randomUUID();
+  const encoded = encodeState({ state, userId, issuedAt: Date.now() });
+  return { state, cookieValue: `${encoded}.${signState(encoded)}` };
+}
+
+/** Verifies the state, its age, and the initiating authenticated Aksa user. */
+export function verifyGoogleOAuthState(
+  cookieValue: string | undefined,
+  expectedState: string | null,
+  expectedUserId: string
+): boolean {
+  if (!cookieValue || !expectedState) return false;
+
+  const [encoded, signature] = cookieValue.split(".");
+  if (!encoded || !signature) return false;
+
+  try {
+    const expectedSignature = signState(encoded);
+    const actual = Buffer.from(signature, "base64url");
+    const expected = Buffer.from(expectedSignature, "base64url");
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+      return false;
+    }
+
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as OAuthStatePayload;
+    const age = Date.now() - payload.issuedAt;
+    return (
+      payload.state === expectedState &&
+      payload.userId === expectedUserId &&
+      Number.isFinite(payload.issuedAt) &&
+      age >= 0 &&
+      age <= 10 * 60 * 1000
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Build the Google OAuth authorization URL.
  * Uses `access_type=offline` to get a refresh token on first consent.
@@ -57,7 +138,7 @@ export function buildAuthorizationUrl(state: string): string {
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
     response_type: "code",
-    scope: POC_SCOPES.join(" "),
+    scope: GOOGLE_SCOPES.join(" "),
     access_type: "offline",
     prompt: "consent",
     state,
@@ -73,6 +154,23 @@ export type GoogleTokens = {
   scope: string;
   idToken: string | null;
 };
+
+type GoogleUserInfo = {
+  sub?: unknown;
+  email?: unknown;
+};
+
+export class GoogleOAuthError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(status: number, code: string | null) {
+    super("Google OAuth request failed");
+    this.status = status;
+    this.code = code;
+    this.name = "GoogleOAuthError";
+  }
+}
 
 /**
  * Exchange an authorization code for tokens.
@@ -93,11 +191,17 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokens>
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Token exchange failed: ${response.status} ${text}`);
+    let code: string | null = null;
+    try {
+      const data = (await response.json()) as { error?: unknown };
+      code = typeof data.error === "string" ? data.error : null;
+    } catch {
+      // Keep provider response details out of errors and logs.
+    }
+    throw new GoogleOAuthError(response.status, code);
   }
 
-  const data = await response.json();
+  const data = googleTokenResponseSchema.parse(await response.json());
 
   return {
     accessToken: data.access_token,
@@ -126,11 +230,17 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Token refresh failed: ${response.status} ${text}`);
+    let code: string | null = null;
+    try {
+      const data = (await response.json()) as { error?: unknown };
+      code = typeof data.error === "string" ? data.error : null;
+    } catch {
+      // Keep provider response details out of errors and logs.
+    }
+    throw new GoogleOAuthError(response.status, code);
   }
 
-  const data = await response.json();
+  const data = googleTokenResponseSchema.parse(await response.json());
 
   return {
     accessToken: data.access_token,
@@ -138,6 +248,27 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
     expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
     scope: data.scope ?? "",
     idToken: data.id_token ?? null
+  };
+}
+
+/** Uses the access token at Google's userinfo endpoint instead of trusting unverified JWT claims. */
+export async function getGoogleUserInfo(accessToken: string): Promise<{ sub: string; email: string | null }> {
+  const userInfo = await fetchGoogleJson<GoogleUserInfo>(
+    "https://openidconnect.googleapis.com/v1/userinfo",
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json"
+      }
+    },
+    "openid.userinfo"
+  );
+  if (typeof userInfo.sub !== "string" || userInfo.sub.length === 0) {
+    throw new GoogleOAuthError(500, null);
+  }
+  return {
+    sub: userInfo.sub,
+    email: typeof userInfo.email === "string" ? userInfo.email : null
   };
 }
 
@@ -166,6 +297,17 @@ export function extractEmailFromIdToken(idToken: string): string | null {
       Buffer.from(idToken.split(".")[1], "base64url").toString("utf-8")
     );
     return typeof payload.email === "string" ? payload.email : null;
+  } catch {
+    return null;
+  }
+}
+
+export function extractSubjectFromIdToken(idToken: string): string | null {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(idToken.split(".")[1], "base64url").toString("utf-8")
+    );
+    return typeof payload.sub === "string" ? payload.sub : null;
   } catch {
     return null;
   }

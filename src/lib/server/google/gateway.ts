@@ -1,6 +1,5 @@
 import type { ResourceState } from "@/lib/contracts/resource-state";
 import type {
-  DocumentResource,
   DraftRequest,
   DraftResource,
   DriveItem,
@@ -10,6 +9,7 @@ import type {
   MailMessageBody,
   SheetRange
 } from "@/lib/contracts/google";
+import type { AksaDocumentModel } from "@/lib/contracts/aksa-document";
 import type { Confirmation } from "@/lib/contracts/confirmation";
 import type { Task } from "@/lib/contracts/task";
 
@@ -53,9 +53,9 @@ export type DriveCreateFolderInput = {
 
 export type DocumentEditInput = {
   documentId: string;
-  tabId: string;
-  /** Normalized replacement blocks. The frontend never sends a Google request body. */
-  blocks: DocumentResource["blocks"];
+  /** The phase-one mutation is intentionally limited to appending text. */
+  appendText: string;
+  expectedRevisionId: string;
 };
 
 export type SheetWriteInput = {
@@ -89,7 +89,7 @@ export type GoogleWorkspaceGateway = {
   proposeDriveCreateFolder(input: DriveCreateFolderInput): Promise<WriteProposal>;
 
   /* Docs */
-  readDocument(documentId: string, tabId?: string | null): Promise<ResourceState<DocumentResource>>;
+  readDocument(documentId: string, tabId?: string | null): Promise<ResourceState<AksaDocumentModel>>;
   proposeDocumentEdit(input: DocumentEditInput): Promise<WriteProposal>;
 
   /* Sheets */

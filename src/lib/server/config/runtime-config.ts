@@ -68,6 +68,16 @@ export function googleStatus(): ConfigurationStatus {
   return statusFor(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
 }
 
+export function googleApiConfig() {
+  return {
+    timeoutMs: readInteger("GOOGLE_API_TIMEOUT_MS", 10_000),
+    maxRetries: readInteger("GOOGLE_API_MAX_RETRIES", 2),
+    retryBaseDelayMs: readInteger("GOOGLE_API_RETRY_BASE_MS", 250),
+    retryJitterMs: readInteger("GOOGLE_API_RETRY_JITTER_MS", 100),
+    maxRetryDelayMs: readInteger("GOOGLE_API_MAX_RETRY_DELAY_MS", 5_000)
+  };
+}
+
 export function googleAiStudioStatus(): ConfigurationStatus {
   return statusFor(["GOOGLE_AI_API_KEY", "GOOGLE_AI_MODEL"]);
 }

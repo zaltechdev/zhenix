@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
-import { isGoogleConnected, getConnectedEmail, clearStoredConnection } from "@/lib/server/google/token-store";
+import {
+  clearStoredConnection,
+  getConnectedEmail,
+  getGoogleConnectionState,
+  getValidAccessToken
+} from "@/lib/server/google/token-store";
 import { isGoogleOAuthConfigured } from "@/lib/server/google/oauth";
-import { getSession } from "@/lib/server/db/dal";
+import { getSession, recordAuditLog } from "@/lib/server/db/dal";
 
 /**
  * GET /api/google/connection
@@ -26,11 +31,25 @@ export async function GET() {
     });
   }
 
-  const connected = await isGoogleConnected(session.userId);
+  const initialState = await getGoogleConnectionState(session.userId);
+  const connected = initialState === "connected";
+  const accessToken = connected ? await getValidAccessToken(session.userId) : null;
+  if (connected && !accessToken) {
+    /** Verify the stored refresh credential before claiming a usable connection. */
+    const currentState = await getGoogleConnectionState(session.userId);
+    if (currentState === "connected") {
+      return NextResponse.json({
+        state: "error",
+        accountEmail: await getConnectedEmail(session.userId),
+        configured: true
+      });
+    }
+  }
+  const state = await getGoogleConnectionState(session.userId);
   const email = await getConnectedEmail(session.userId);
 
   return NextResponse.json({
-    state: connected ? "connected" : "not_connected",
+    state,
     accountEmail: email,
     configured: true
   });
@@ -48,6 +67,13 @@ export async function DELETE() {
   }
 
   await clearStoredConnection(session.userId);
+  await recordAuditLog({
+    userId: session.userId,
+    workspaceId: session.workspaceId,
+    eventType: "google_disconnected",
+    subjectType: "oauth_connection",
+    subjectId: "google"
+  });
 
   return NextResponse.json({ state: "not_connected", accountEmail: null });
 }

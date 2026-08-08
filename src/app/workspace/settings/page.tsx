@@ -49,10 +49,13 @@ export default async function SettingsPage() {
           value={googleConnectionCopy(connection.state, locale)}
         />
         <p className="aksa-hint">{m.google_connection_read_only_note({}, options)}</p>
-        <button className="aksa-button aksa-button--secondary" disabled type="button">
-          {m.google_connect({}, options)}
-        </button>
-        <p className="aksa-hint">{m.error_not_configured({}, options)}</p>
+        {googleConfiguration().configured ? (
+          <a className="aksa-button aksa-button--secondary" href="/api/google/auth">
+            {m.google_connect({}, options)}
+          </a>
+        ) : (
+          <p className="aksa-hint">{m.error_not_configured({}, options)}</p>
+        )}
       </Panel>
 
       <Panel
