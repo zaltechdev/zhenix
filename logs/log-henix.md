@@ -635,6 +635,37 @@ DO NOT START PHASE III.
   - `logs/log-henix.md`
 
 ---
+### Timestamp: 2026-08-08 13:18:13
+* **Model used**: GPT-5
+* **Human Prompt**: `# AKSA - REAL DASHBOARD CALIBRATION + COLLAPSIBLE SIDEBAR + DETERMINISTIC VOICE CORE. Repository github.com/zaltechdev/zhenix, branch dev. Implement real shared guided dashboard calibration with active-camera reuse and safety boundaries; add accessible persistent responsive sidebar collapse; add deterministic EN/ID canonical voice intents with shared action dispatch, optional semantic fallback, offline behavior, and tests. Do not mix backend work, redesign unrelated UI, or start Phase III.`
+* **TLDR AI agents done**: Connected Workspace recalibration to the shared MediaPipe guided engine, added safe active-stream overlay behavior, added persistent accessible sidebar collapse, and added deterministic voice routing with one dispatcher and semantic fallback boundary.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/components/workspace/aksa-action-context.tsx`
+  - `src/components/workspace/calibration-experience.tsx`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/components/workspace/workspace-header.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `src/components/workspace/workspace-sidebar.tsx`
+  - `src/lib/client/actions/aksa-action-dispatcher.ts`
+  - `src/lib/client/state/composer-machine.ts`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/contracts/voice-intent.ts`
+  - `src/lib/voice/intent-router.ts`
+  - `tests/unit/aksa-action-dispatcher.test.ts`
+  - `tests/unit/composer-machine.test.ts`
+  - `tests/unit/composer-ui.test.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/voice-intent-router.test.ts`
+  - `tests/unit/workspace-calibration-experience.test.tsx`
+  - `tests/unit/workspace-shell.test.tsx`
+  - `tests/e2e/workspace.spec.ts`
+  - `.agents/debug-henix.md`
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: 2026-08-08 09:42:54
 * **Model used**: GPT-5.6
 * **Human Prompt**: `Head control why jump to part 2? should be part 1 first add bahasa indonesia lingusitic support for voice command`
