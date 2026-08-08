@@ -1610,3 +1610,26 @@ Then STOP.
   - `tests/unit/preferences.test.tsx`
   - `tests/unit/surfaces.test.tsx`
   - `tests/unit/workspace-shell.test.tsx`
+
+---
+### Timestamp: 2026-08-09 02:57:31
+* **Model used**: GPT-5 Codex
+* **Human Prompt**:
+  ```
+  Files mentioned by the user:
+  - C:/Users/henix/AppData/Local/Temp/codex-clipboard-fcc64e91-be74-4a03-9877-325d888270b5.png
+  - C:/Users/henix/AppData/Local/Temp/codex-clipboard-87512f23-5e6f-4cca-949b-1d741dfd88f2.png
+  - C:/Users/henix/AppData/Local/Temp/codex-clipboard-172eb8db-2715-4e20-ad6a-15ca5b2c0112.png
+  - C:/Users/henix/AppData/Local/Temp/codex-clipboard-3c05446e-008c-4249-b864-6a426e038da6.png
+  - C:/Users/henix/AppData/Local/Temp/codex-clipboard-3d7cf900-2449-47b7-8b3c-713b5b7f5a32.png
+  - C:/Users/henix/AppData/Local/Temp/codex-clipboard-7ad7fda3-c12a-4dd8-a89c-6b75789318f2.png
+  - C:/Users/henix/AppData/Local/Temp/codex-clipboard-a7ad46c2-be71-49bf-a82a-60d8efed2cd4.png
+
+  My request for Codex:
+  Confirm if all problem fixed
+  ```
+* **TLDR AI agents done**: Rechecked the screenshots against a fresh local browser render, found the home composer disclaimer gap, fixed it, and added regression coverage.
+* **file changed**:
+  - `src/app/workspace/page.tsx`
+  - `tests/unit/workspace-home.test.tsx`
+  - `logs/log-henix.md`

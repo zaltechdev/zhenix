@@ -1,4 +1,5 @@
 import { getRequestLocale } from "@/lib/i18n/request";
+import { m } from "@/paraglide/messages.js";
 import { readTaskHistory } from "@/lib/server/tasks/service";
 import { readWorkspaceContext } from "@/lib/server/workspace/service";
 import { WelcomeHeader } from "@/components/workspace/welcome-header";
@@ -28,6 +29,9 @@ export default async function WorkspaceHomePage() {
 
       <div className="aksa-home-dashboard__composer-area">
         <CommandComposer inflow locale={locale} mode="welcome" />
+        <p className="aksa-ai-disclaimer" role="note">
+          {m.workspace_ai_disclaimer({}, { locale })}
+        </p>
         <QuickStartSuggestions locale={locale} />
       </div>
 
