@@ -184,7 +184,7 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Files changed: `messages/en.json`, `messages/id.json`, `src/app/workspace.css`, `src/components/workspace/aksa-action-context.tsx`, `src/components/workspace/calibration-experience.tsx`, `src/components/workspace/command-composer.tsx`, `src/components/workspace/workspace-header.tsx`, `src/components/workspace/workspace-shell.tsx`, `src/components/workspace/workspace-sidebar.tsx`, `src/lib/client/actions/aksa-action-dispatcher.ts`, `src/lib/client/state/composer-machine.ts`, `src/lib/client/vision/head-control-context.tsx`, `src/lib/contracts/voice-intent.ts`, `src/lib/voice/intent-router.ts`, focused tests.
 - Verification: Localization compile, typecheck, lint, 338 unit tests, production build, 21/21 Workspace E2E tests, focused calibration Playwright coverage, and focused no-reacquisition runtime coverage passed.
 - Prevention: Keep runtime calibration, active-stream reuse, pointer lockout, canonical intent routing, and sidebar accessibility assertions in the focused gates.
-- Commit or PR: Pending.
+- Commit or PR: `7ba7b7e`.
 
 ## 2026-08-08 14:44 - Startup neutral reused an invalid pointer origin
 
@@ -217,3 +217,19 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Localization, typecheck, lint, 357 unit tests, production build, and 24 Workspace Playwright tests passed. Dark-mode browser inspection showed readable readouts, locale changed to Indonesian while `Face tracking lost` remained mounted, and the final browser error list was empty.
 - Prevention: Unit coverage asserts interim suppression, recognition alternatives, duplicate final idempotency, dictation non-execution, next-recognition locale, refresh continuity, and exact console-level routing.
 - Commit or PR: `45946e2`, `c188994`.
+
+## 2026-08-08 19:40 - Rest Lock accumulated idle noise and recovery moved the pointer
+
+- Status: fixed
+- Owner: Henix
+- Area: head-control idle stability, target assistance, tracking recovery
+- Symptoms: A stationary user could still see gradual pointer movement. A tracking interruption could restore the pointer from viewport center instead of its last rendered position, and one noisy target-assist frame could drop the active target.
+- Reproduction: Feed small accepted pose deltas while Rest Lock is active, interrupt and recover tracking after moving away from viewport center, then inject one escape spike while a target is assisted.
+- Expected: Rest freezes the rendered pointer, recovery resumes from its last visible position, and isolated target noise pauses selection without moving the visual target.
+- Actual: The internal pointer position continued following mapped noise, recovery rebuilt movement from viewport center, and target assist released immediately.
+- Root cause: Rest Lock had no explicit physical-motion state boundary, the coordinator retained the mapped target instead of the frozen rendered output, recovery had no preserved pointer origin, and target release had no sustained-frame requirement.
+- Fix: Added `MOVING`, `REST_CANDIDATE`, and `RESTING` states with physical-motion hysteresis; kept internal and rendered pointer positions synchronized; preserved the last rendered recovery origin; added a calibrated neutral envelope and safe range floor; required sustained target escape while suppressing dwell and gestures during isolated spikes. Permanent fix.
+- Files changed: `src/lib/client/vision/head-control-context.tsx`, `src/lib/client/vision/pointer-mapping.ts`, `src/lib/client/vision/rest-lock.ts`, `src/lib/client/vision/target-assist.ts`, focused tests.
+- Verification: Lint, typecheck, 370 unit tests, 45 focused Playwright tests, and the production build passed. Browser checks covered desktop, mobile, EN/ID continuity, Controls, onboarding, sidebar collapse, composer placement, and automated accessibility. Physical head movement was not verifiable because no live face input was available.
+- Prevention: Keep stationary-noise, physical-release hysteresis, recovery-origin, isolated-spike, and fresh-selection regressions in the focused coordinator suite.
+- Commit or PR: `d074d18`.

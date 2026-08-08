@@ -855,3 +855,29 @@ DO NOT START PHASE III.
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/composer-ui.test.tsx`
   - `tests/unit/workspace-shell.test.tsx`
+
+---
+### Timestamp: 2026-08-08 19:40:48
+* **Model used**: GPT-5
+* **Human Prompt**: `/goal Implement the attached prompt, do not mix Henix/Zaltech log`
+* **TLDR AI agents done**: Completed the corrective pass without overwriting unrelated dirty work. Reworked head-pointer rest, recovery origin, and target-assist hysteresis; added deterministic EN/ID Controls voice commands; kept Send rightmost; fixed selected-card contrast; verified desktop, mobile, locale continuity, Controls, sidebar, onboarding, and accessibility. Lint, typecheck, 370 unit tests, 45 focused E2E tests, and production build passed. Physical head movement was not verifiable without live face input.
+* **file changed**:
+  - `.agents/debug-henix.md`
+  - `logs/log-henix.md`
+  - `src/app/workspace.css`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/lib/client/actions/aksa-action-dispatcher.ts`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/pointer-mapping.ts`
+  - `src/lib/client/vision/rest-lock.ts`
+  - `src/lib/client/vision/target-assist.ts`
+  - `src/lib/contracts/voice-intent.ts`
+  - `src/lib/voice/intent-router.ts`
+  - `tests/e2e/a11y.spec.ts`
+  - `tests/unit/aksa-action-dispatcher.test.ts`
+  - `tests/unit/composer-ui.test.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/pointer-mapping.test.ts`
+  - `tests/unit/rest-lock.test.ts`
+  - `tests/unit/target-assist.test.ts`
+  - `tests/unit/voice-intent-router.test.ts`
