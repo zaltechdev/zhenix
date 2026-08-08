@@ -24,6 +24,10 @@ import {
 import { getEligibleTargetCandidates } from "./target-resolver";
 import { TargetAssistController } from "./target-assist";
 import { RestLockController } from "./rest-lock";
+import {
+  FreshFrameClock,
+  TrackingReacquisitionController
+} from "./tracking-stability";
 import { DwellController, DwellProgress } from "./dwell-controller";
 import { GestureDetector, GestureStatus } from "./gesture-detector";
 import {
@@ -115,8 +119,6 @@ const DEFAULT_CALIBRATION: CalibrationState = {
   attemptId: 0
 };
 
-const STABLE_REACQUISITION_FRAMES_REQUIRED = 5;
-
 export function HeadControlProvider({
   children,
   userId = null,
@@ -160,8 +162,11 @@ export function HeadControlProvider({
   const calibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
   const currentPosRef = useRef<Vector2D>(pointerPosition);
-  const reacquisitionCountRef = useRef<number>(0);
-  const lastFrameTimeRef = useRef<number>(0);
+  const reacquisitionReadyRef = useRef(false);
+  const frameClockRef = useRef<FreshFrameClock>(new FreshFrameClock());
+  const reacquisitionRef = useRef<TrackingReacquisitionController>(
+    new TrackingReacquisitionController()
+  );
   const poseInputRef = useRef<PoseInputStabilizer>(new PoseInputStabilizer());
   const restLockRef = useRef<RestLockController>(new RestLockController());
   const targetAssistRef = useRef<TargetAssistController>(new TargetAssistController());
@@ -443,8 +448,9 @@ export function HeadControlProvider({
   }, [clearCalibrationTimeout, resetInteractionState, restoreCalibrationRange]);
 
   const prepareForSafeReacquisition = useCallback(() => {
-    reacquisitionCountRef.current = 0;
-    lastFrameTimeRef.current = 0;
+    reacquisitionReadyRef.current = false;
+    reacquisitionRef.current.reset();
+    frameClockRef.current.reset();
     resetInteractionState(true);
     activeModalRef.current = null;
     if (calibrationEngineRef.current.getState().status === "capturing") {
@@ -461,12 +467,16 @@ export function HeadControlProvider({
     (data: VisionFrameData) => {
       const currentProfile = profileRef.current;
       const now = data.timestampMs;
-      const dt = lastFrameTimeRef.current > 0 ? now - lastFrameTimeRef.current : 16.6;
-      lastFrameTimeRef.current = now;
+      const frameTime = frameClockRef.current.process(now);
+      if (!frameTime.accepted) {
+        return;
+      }
+      const dt = frameTime.deltaTimeMs;
 
       // 1. Tracking loss clears every inherited interaction and calibration sample.
       if (!data.faceDetected || data.lifecycleState === "tracking_lost") {
-        reacquisitionCountRef.current = 0;
+        reacquisitionReadyRef.current = false;
+        reacquisitionRef.current.reset();
         resetInteractionState(false);
         setLifecycleState("tracking_lost");
         setErrorCategory("tracking_lost");
@@ -480,46 +490,31 @@ export function HeadControlProvider({
         return;
       }
 
+      // 2. Startup and reacquisition establish a fresh neutral from stable raw poses.
+      if (!reacquisitionReadyRef.current) {
+        const reacquisition = reacquisitionRef.current.process(data.pose);
+        setLifecycleState("initializing");
+        setActiveTarget(null);
+        setDwellProgress(DEFAULT_DWELL);
+        setGestureStatus(DEFAULT_GESTURE);
+
+        if (reacquisition.baseline) {
+          reacquisitionReadyRef.current = true;
+          setNeutralBaselineState(reacquisition.baseline);
+          engineRef.current?.setNeutralBaseline(reacquisition.baseline);
+          resetInteractionState(true);
+          if (dwellRef.current) dwellRef.current.requireFreshCycle();
+          if (gestureRef.current) gestureRef.current.disarmUntilRelease();
+        }
+        return;
+      }
+
       const stabilizedPose = poseInputRef.current.process(
         data.poseDelta,
         currentProfile.deadZone,
         currentProfile.smoothing,
         dt
       );
-
-      // 2. Reacquisition needs consecutive frames, then one separate interaction frame.
-      if (reacquisitionCountRef.current < STABLE_REACQUISITION_FRAMES_REQUIRED) {
-        reacquisitionCountRef.current += 1;
-        setLifecycleState("initializing");
-        setActiveTarget(null);
-        setDwellProgress(DEFAULT_DWELL);
-        setGestureStatus(DEFAULT_GESTURE);
-
-        if (reacquisitionCountRef.current === STABLE_REACQUISITION_FRAMES_REQUIRED) {
-          const screenDelta = mapCameraPoseToScreenDelta(
-            stabilizedPose.yaw,
-            stabilizedPose.pitch,
-            currentProfile.pointerSensitivity,
-            0,
-            window.innerWidth,
-            window.innerHeight,
-            calibrationRangeRef.current
-          );
-          const reacquiredPosition = clampCoordinates(
-            {
-              x: window.innerWidth / 2 + screenDelta.x,
-              y: window.innerHeight / 2 + screenDelta.y
-            },
-            window.innerWidth,
-            window.innerHeight
-          );
-          currentPosRef.current = reacquiredPosition;
-          setPointerPosition(reacquiredPosition);
-          if (dwellRef.current) dwellRef.current.requireFreshCycle();
-          if (gestureRef.current) gestureRef.current.disarmUntilRelease();
-        }
-        return;
-      }
 
       setLifecycleState("active");
       setErrorCategory(null);
@@ -688,7 +683,7 @@ export function HeadControlProvider({
         engineRef.current = engineFactory({
           onFrame: handleFrame,
           onStateChange: (state, failure) => {
-            if (state === "active" && reacquisitionCountRef.current < STABLE_REACQUISITION_FRAMES_REQUIRED) {
+            if (state === "active" && !reacquisitionReadyRef.current) {
               setLifecycleState("initializing");
             } else {
               setLifecycleState(state);
@@ -865,14 +860,14 @@ export function HeadControlProvider({
       setCalibrationState(calibrationEngineRef.current.getState());
     }
     resetInteractionState(false);
-    lastFrameTimeRef.current = 0;
     setLifecycleState("paused");
   }, [clearCalibrationTimeout, resetInteractionState, restoreCalibrationRange]);
 
   const resumeControl = useCallback(() => {
-    reacquisitionCountRef.current = 0;
+    reacquisitionReadyRef.current = false;
+    reacquisitionRef.current.reset();
+    frameClockRef.current.reset();
     resetInteractionState(true);
-    lastFrameTimeRef.current = 0;
     if (engineRef.current) {
       engineRef.current.resume();
     }
@@ -885,8 +880,9 @@ export function HeadControlProvider({
     }
     if (dwellRef.current) dwellRef.current.cancel();
     if (gestureRef.current) gestureRef.current.reset();
-    reacquisitionCountRef.current = 0;
-    lastFrameTimeRef.current = 0;
+    reacquisitionReadyRef.current = false;
+    reacquisitionRef.current.reset();
+    frameClockRef.current.reset();
     resetInteractionState(true);
     activeModalRef.current = null;
     clearCalibrationTimeout();

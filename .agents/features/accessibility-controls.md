@@ -94,7 +94,7 @@ Give a user who cannot operate a mouse a reliable way to point and select anywhe
 
 ### Runtime ownership
 
-Onboarding and Workspace mount separate route-scoped head-control providers. Leaving onboarding stops its camera stream, closes its model, and discards its runtime neutral baseline. Workspace does not claim that onboarding camera or calibration state persisted. The Workspace header provides explicit Start head control and Calibrate head control actions. Its provider remains mounted across Workspace child routes.
+The root application layout owns one head-control provider. Route transitions, Workspace child navigation, and locale refreshes reuse that runtime instead of opening another camera or model. Explicit disable, runtime failure, or root unmount releases the owned stream and model. The Workspace header provides Start head control and Calibrate head control actions, and guided calibration consumes frames from that shared engine.
 
 The authenticated server profile supplied by `readWorkspaceContext` is authoritative. A user-scoped IndexedDB profile is read only when no server profile was supplied. Changing users immediately resets the active scope before that user's cache can resolve.
 
@@ -104,7 +104,7 @@ The current MVP runs Face Landmarker inference on the browser main thread with a
 
 A confirmation dialog opens with inherited dwell cleared and the gesture detector disarmed. A held gesture cannot approve it. The signal must first fall below its configured threshold, then a fresh gesture may select. Dwell starts from idle and completes a new stabilization and dwell cycle. Head control remains available inside the dialog after those re-arm conditions are met.
 
-Tracking loss, pause, restart, and camera recovery use the same boundary reset. They clear the active target, dwell state, gesture state, smoothing history, and partial calibration samples. Five consecutive detected-face frames establish stable reacquisition, and interaction starts on a later frame. The held signal present during recovery is never treated as fresh.
+Tracking loss, pause, restart, and camera recovery use the same boundary reset. They clear the active target, dwell state, gesture state, smoothing history, and partial calibration samples. Five stable raw-pose frames establish a fresh session neutral baseline, and interaction starts on a later frame. Duplicate, stale, and invalid frame timestamps are discarded before pointer state. The held signal present during recovery is never treated as fresh.
 
 ## UI States
 

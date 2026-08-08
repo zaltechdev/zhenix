@@ -6,6 +6,7 @@
 import { FilesetResolver, FaceLandmarker, FaceLandmarkerResult } from "@mediapipe/tasks-vision";
 import { HeadPose, extractPoseFromMatrix, extractPoseFromLandmarks, computePoseDelta, NeutralBaseline } from "./head-pose";
 import { BlendshapeCategory } from "./gesture-detector";
+import { runWithMediaPipeConsoleRouting } from "./mediapipe-console";
 
 export type VisionLifecycleState =
   | "idle"
@@ -107,28 +108,30 @@ export class VisionEngine {
     this.updateState("initializing");
 
     try {
-      const fileset = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
-      );
+      this.landmarker = await runWithMediaPipeConsoleRouting(async () => {
+        const fileset = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+        );
 
-      const commonOptions = {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
-        },
-        runningMode: "VIDEO" as const,
-        numFaces: 1,
-        outputFacialTransformationMatrixes: true,
-        outputFaceBlendshapes: true
-      };
+        const commonOptions = {
+          baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+          },
+          runningMode: "VIDEO" as const,
+          numFaces: 1,
+          outputFacialTransformationMatrixes: true,
+          outputFaceBlendshapes: true
+        };
 
-      try {
-        this.landmarker = await FaceLandmarker.createFromOptions(fileset, {
-          ...commonOptions,
-          baseOptions: { ...commonOptions.baseOptions, delegate: "GPU" }
-        });
-      } catch {
-        this.landmarker = await FaceLandmarker.createFromOptions(fileset, commonOptions);
-      }
+        try {
+          return await FaceLandmarker.createFromOptions(fileset, {
+            ...commonOptions,
+            baseOptions: { ...commonOptions.baseOptions, delegate: "GPU" }
+          });
+        } catch {
+          return FaceLandmarker.createFromOptions(fileset, commonOptions);
+        }
+      });
 
       this.updateState("idle");
       return true;
