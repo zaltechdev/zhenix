@@ -583,3 +583,24 @@ DO NOT START PHASE III.
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 09:59:59
+* **Model used**: GPT-5.6
+* **Human Prompt**: `dont mirror the chip. stop goofing`
+* **TLDR AI agents done**: Scoped the camera mirror transform to the video alone so the readiness chip remains readable.
+* **file changed**:
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 10:01:57
+* **Model used**: GPT-5.6
+* **Human Prompt**: `instead of stuck in center, keep the camera control on`
+* **TLDR AI agents done**: Kept a separate camera-processing video mounted across onboarding phases while retaining an optional mirrored preview.
+* **file changed**:
+  - `src/app/workspace.css`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`

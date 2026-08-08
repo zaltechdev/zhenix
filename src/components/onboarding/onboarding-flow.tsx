@@ -119,7 +119,8 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   );
 
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const controlVideoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
   const voiceRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraAttemptRef = useRef(0);
@@ -166,6 +167,17 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     };
   }, []);
 
+  useEffect(() => {
+    const preview = previewVideoRef.current;
+    const stream = streamRef.current;
+    if (!preview || !stream) return;
+
+    preview.srcObject = stream;
+    void preview.play().catch(() => {
+      // Muted preview playback can be blocked without affecting control tracking.
+    });
+  }, [cameraOutcome, currentPhase]);
+
   const requestCamera = useCallback(async () => {
     if (!window.isSecureContext) {
       setCameraOutcome("insecure");
@@ -198,7 +210,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
         return;
       }
       streamRef.current = stream;
-      const videoElement = videoRef.current;
+      const videoElement = controlVideoRef.current;
       if (!videoElement) {
         stream.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -340,8 +352,11 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     cameraAttemptRef.current += 1;
     headControl.disableControl();
     streamRef.current = null;
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    if (controlVideoRef.current) {
+      controlVideoRef.current.srcObject = null;
+    }
+    if (previewVideoRef.current) {
+      previewVideoRef.current.srcObject = null;
     }
     setCameraOutcome("idle");
     setCameraFailure(null);
@@ -598,16 +613,16 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
               {substepIndex === 2 || substepIndex === 3 ? (
                 <div className="aksa-onboarding-panel">
                   <div
-                    className="aksa-camera-preview-container aksa-camera-preview--mirrored"
+                    className="aksa-camera-preview-container"
                     hidden={effectiveCameraOutcome !== "active"}
                   >
                     <video
                       aria-label={m.onboarding_camera_preview_label({}, options)}
                       autoPlay
-                      className="aksa-camera-preview"
+                      className="aksa-camera-preview aksa-camera-preview--mirrored"
                       muted
                       playsInline
-                      ref={videoRef}
+                      ref={previewVideoRef}
                     />
                     {effectiveCameraOutcome === "active" ? (
                       <div className="aksa-camera-preview__status">
@@ -1138,6 +1153,15 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
           ) : null}
         </main>
       </div>
+      <video
+        aria-hidden="true"
+        autoPlay
+        className="aksa-camera-control-video"
+        muted
+        playsInline
+        ref={controlVideoRef}
+        tabIndex={-1}
+      />
       <AccessibilityWidget locale={locale} />
     </div>
   );

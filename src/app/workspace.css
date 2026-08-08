@@ -2738,6 +2738,17 @@
   transform: scaleX(-1);
 }
 
+/* Persistent processing surface: keeps tracking live when the visual preview unmounts. */
+.aksa-camera-control-video {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  left: -1px;
+  top: -1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .aksa-onboarding-panel {
   display: flex;
   flex-direction: column;

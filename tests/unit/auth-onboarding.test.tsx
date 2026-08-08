@@ -213,6 +213,18 @@ describe("onboarding", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the camera processing video mounted after changing onboarding phase", () => {
+    const rendered = render(<OnboardingFlow locale="en" />);
+    const controlVideo = rendered.container.querySelector("video.aksa-camera-control-video");
+
+    fireEvent.click(document.querySelectorAll<HTMLButtonElement>(".aksa-onboarding-rail__button")[2]);
+
+    expect(controlVideo).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: m.onboarding_voice_explanation_title({}, { locale: "en" }) })
+    ).toBeInTheDocument();
+  });
+
   it("does not create text selection when programmatically focusing headings on phase transition", () => {
     render(<OnboardingFlow locale="en" />);
     advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
@@ -238,7 +250,7 @@ describe("onboarding", () => {
     const rendered = render(<OnboardingFlow locale="en" />);
     advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
 
-    expect(rendered.container.querySelector(".aksa-camera-preview--mirrored video.aksa-camera-preview")).not.toBeNull();
+    expect(rendered.container.querySelector("video.aksa-camera-preview--mirrored")).not.toBeNull();
     expect(mapCameraPoseToScreenDelta(-8, 0, 50, 0, 1280, 720).x).toBeGreaterThan(0);
     expect(mapCameraPoseToScreenDelta(8, 0, 50, 0, 1280, 720).x).toBeLessThan(0);
   });
