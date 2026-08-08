@@ -9,6 +9,7 @@ import {
   Mail,
   Presentation,
   Settings,
+  SlidersHorizontal,
   Table2,
   UserRound,
   type LucideIcon
@@ -33,6 +34,7 @@ export type WorkspaceRoute =
   | "/workspace/history"
   | "/workspace/activity"
   | "/workspace/accessibility"
+  | "/workspace/controls"
   | "/workspace/settings"
   | "/workspace/account";
 
@@ -112,6 +114,7 @@ export function secondaryNavigationItems(locale: Locale): NavigationItem[] {
       label: m.nav_accessibility({}, options),
       icon: Accessibility
     },
+    { href: "/workspace/controls", label: m.nav_controls({}, options), icon: SlidersHorizontal },
     { href: "/workspace/settings", label: m.nav_settings({}, options), icon: Settings },
     { href: "/workspace/account", label: m.nav_account({}, options), icon: UserRound }
   ];

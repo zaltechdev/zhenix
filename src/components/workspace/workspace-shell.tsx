@@ -15,6 +15,7 @@ import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
 import { WorkspaceActionProvider, useAksaActions } from "@/components/workspace/aksa-action-context";
 import { WorkspaceCalibrationExperience } from "@/components/workspace/calibration-experience";
 import { HeadControlRuntimeBoundary } from "@/lib/client/vision/head-control-context";
+import { VoiceControlProvider } from "@/components/workspace/voice-control-context";
 
 export function WorkspaceShell({
   locale,
@@ -33,15 +34,17 @@ export function WorkspaceShell({
 
   return (
     <HeadControlRuntimeBoundary initialProfile={initialProfile} userId={userId}>
-      <WorkspaceActionProvider>
-        <WorkspaceShellContent
-          connection={connection}
-          locale={locale}
-          session={session}
-        >
-          {children}
-        </WorkspaceShellContent>
-      </WorkspaceActionProvider>
+      <VoiceControlProvider userId={userId}>
+        <WorkspaceActionProvider>
+          <WorkspaceShellContent
+            connection={connection}
+            locale={locale}
+            session={session}
+          >
+            {children}
+          </WorkspaceShellContent>
+        </WorkspaceActionProvider>
+      </VoiceControlProvider>
     </HeadControlRuntimeBoundary>
   );
 }
@@ -197,6 +200,9 @@ function WorkspaceShellContent({
 
           {shouldRenderBottomComposer ? (
             <footer className="aksa-composer-footer">
+              <p className="aksa-ai-disclaimer" role="note">
+                {m.workspace_ai_disclaimer({}, options)}
+              </p>
               <CommandComposer locale={locale} />
             </footer>
           ) : null}

@@ -18,6 +18,7 @@ const workspaceRoutes = [
   "/workspace/history",
   "/workspace/activity",
   "/workspace/accessibility",
+  "/workspace/controls",
   "/workspace/settings",
   "/workspace/account"
 ] as const;
@@ -76,15 +77,13 @@ test.describe("primary path", () => {
     ).toBeVisible();
   });
 
-  test("calibration remains unavailable until real head tracking is active", async ({ page }) => {
+  test("onboarding asks for the camera before exposing calibration", async ({ page }) => {
     await page.goto("/onboarding");
 
     await page.getByRole("button", { name: "Continue", exact: true }).click();
 
-    await expect(page.getByText("Start head tracking before calibration.")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Calibrate head control", exact: true })
-    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Allow camera", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Calibrate head control", exact: true })).toHaveCount(0);
     await expect(page.locator(".aksa-pointer-overlay")).toHaveCount(0);
   });
 
@@ -122,7 +121,8 @@ test.describe("primary path", () => {
 
       await expect(page.getByRole("heading", { level: 1, name: "Control Aksa with head movement" })).toBeVisible();
       await expect(page.locator(".aksa-onboarding-calibration-card")).toHaveCount(0);
-      await expect(page.locator(".aksa-onboarding-calibration-waiting")).toBeVisible();
+      await expect(page.locator(".aksa-onboarding-calibration-waiting")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Allow camera", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Skip head control", exact: true })).toHaveCount(1);
       expect(await hasHorizontalOverflow(page)).toBe(false);
     }
@@ -358,7 +358,8 @@ test.describe("command composer", () => {
 
 test.describe("dark-mode control readouts", () => {
   test("keeps percentage and reduced-motion readouts opaque and distinct", async ({ page }) => {
-    await page.goto("/workspace/accessibility");
+    await page.goto("/workspace/controls");
+    await page.locator('input[name="head-preset"][value="custom"]').check();
     const styles = await page.evaluate(() => {
       document.documentElement.dataset.theme = "dark";
       const percentage = document.querySelector(".aksa-output");
@@ -380,6 +381,25 @@ test.describe("dark-mode control readouts", () => {
     expect(styles.percentage?.color).not.toBe(styles.percentage?.background);
     expect(styles.reduced?.background).not.toBe("rgba(0, 0, 0, 0)");
     expect(styles.reduced?.color).not.toBe(styles.reduced?.background);
+  });
+});
+
+test.describe("Phase II controls", () => {
+  test("separates standard accessibility from head and voice controls", async ({ page }) => {
+    await page.goto("/workspace/accessibility");
+    await expect(page.getByLabel("Reduce motion")).toBeVisible();
+    await expect(page.getByLabel("Pointer reach")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Head control" })).toHaveCount(0);
+
+    await page.goto("/workspace/controls");
+    await expect(page.getByRole("heading", { level: 1, name: "Controls" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Head control" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Voice control" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: /Auto/ })).toBeChecked();
+    await expect(page.getByLabel("Pointer reach")).toHaveCount(0);
+
+    await page.locator('input[name="head-preset"][value="custom"]').check();
+    await expect(page.getByLabel("Pointer reach")).toBeVisible();
   });
 });
 
@@ -422,6 +442,10 @@ test.describe("mobile layout", () => {
 
     await page.goto("/workspace/settings");
     await expect(page.getByRole("heading", { level: 1, name: "Pengaturan" })).toBeVisible();
+    expect(await hasHorizontalOverflow(page)).toBe(false);
+
+    await page.goto("/workspace/controls");
+    await expect(page.getByRole("heading", { level: 1, name: "Kontrol" })).toBeVisible();
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 });

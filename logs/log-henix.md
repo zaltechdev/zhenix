@@ -812,3 +812,46 @@ DO NOT START PHASE III.
   - `tests/unit/tracking-stability.test.ts`
   - `tests/unit/voice-intent-router.test.ts`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 15:13:08
+* **Model used**: GPT-5
+* **Human Prompt**: `Implement Phase II Controls IA from phase2_controls_ia.md, then log a TLDR because the Markdown prompt is long.`
+* **TLDR AI agents done**: Added dedicated Controls navigation and page, moved head-control tuning from Accessibility, added dynamic Auto, Standard, Low light, and Custom presets, wired real head on/off and calibration, added persistent voice language and mode settings that govern the real composer, added a microphone command test, localized EN/ID copy, and verified lint, typecheck, unit tests, focused Controls/Accessibility E2E, and production build.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/app/workspace/accessibility/page.tsx`
+  - `src/app/workspace/controls/page.tsx`
+  - `src/components/workspace/aksa-action-context.tsx`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/components/workspace/controls-settings.tsx`
+  - `src/components/workspace/navigation-items.ts`
+  - `src/components/workspace/voice-control-context.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `tests/e2e/a11y.spec.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/controls-settings.test.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 15:32:40
+* **Model used**: GPT-5
+* **Human Prompt**: `Implement the intended prompt of phase III, check attached prompt, log TLDR prompt because MD is very long.`
+* **TLDR AI agents done**: Rebuilt the sidebar into a compact accessible rail, removed duplicate header destinations, clarified Send, Dictate, and Live Voice states, condensed camera and voice onboarding without changing real pipelines, added concise EN/ID privacy and AI-disclaimer copy, and verified localization, lint, typecheck, 362 unit tests, focused accessibility/sidebar/composer/onboarding/locale E2E, and production build.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/components/workspace/workspace-header.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `src/components/workspace/workspace-sidebar.tsx`
+  - `tests/e2e/landing.spec.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/composer-ui.test.tsx`
+  - `tests/unit/workspace-shell.test.tsx`

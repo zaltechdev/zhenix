@@ -16,6 +16,11 @@ import { useCommandContext } from "@/components/workspace/command-context";
 import { useOptionalAksaActions } from "@/components/workspace/aksa-action-context";
 import { StatusChip } from "@/components/workspace/status-chip";
 import {
+  defaultVoiceControlSettings,
+  recognitionLocale,
+  useOptionalVoiceControls
+} from "@/components/workspace/voice-control-context";
+import {
   createRecognition,
   finalTranscriptAlternativesFromEvent,
   isSpeechRecognitionSupported,
@@ -80,10 +85,8 @@ function isAssertiveState(state: ReturnType<typeof displayedTaskState>): boolean
   return state === "waiting_for_confirmation" || state === "failed";
 }
 
-function shouldOfferVoiceControl(
-  state: ReturnType<typeof useCommandContext>["state"]
-): boolean {
-  return state.voice !== "unsupported";
+function shouldOfferVoiceControl(state: ReturnType<typeof useCommandContext>["state"], enabled: boolean): boolean {
+  return enabled && state.voice !== "unsupported";
 }
 
 function canSubmit(state: ReturnType<typeof useCommandContext>["state"]): boolean {
@@ -107,6 +110,8 @@ export function CommandComposer({
 }) {
   const { state, dispatch } = useCommandContext();
   const aksaActions = useOptionalAksaActions();
+  const voiceControls = useOptionalVoiceControls();
+  const voiceSettings = voiceControls?.settings ?? defaultVoiceControlSettings;
   const inputId = useId();
   const hintId = useId();
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -131,13 +136,17 @@ export function CommandComposer({
     };
   }, []);
 
+  useEffect(() => {
+    if (!voiceSettings.enabled) recognitionRef.current?.abort();
+  }, [voiceSettings.enabled]);
+
   const announcement = announcementCopy(state.announcement, locale);
 
   const executeVoiceIntent = useCallback(
     async (transcript: string, alternatives: readonly string[] = []) => {
       if (!aksaActions) return;
 
-      const commandLocale = locale === "id" ? "id" : "en";
+      const commandLocale = recognitionLocale(voiceSettings, locale);
       for (const candidate of [transcript, ...alternatives]) {
         const deterministic = matchAksaIntent(candidate, commandLocale);
         if (deterministic !== null) {
@@ -167,13 +176,13 @@ export function CommandComposer({
         source: resolution.source === "semantic" ? "semantic" : "deterministic"
       });
     },
-    [aksaActions, dispatch, locale]
+    [aksaActions, dispatch, locale, voiceSettings]
   );
 
   const startListening = useCallback((mode: "dictation" | "command") => {
     if (recognitionRef.current !== null) return;
 
-    const recognition = createRecognition(locale === "id" ? "id" : "en");
+    const recognition = createRecognition(recognitionLocale(voiceSettings, locale));
     if (recognition === null) {
       dispatch({ type: "voice_capability", supported: false });
       return;
@@ -232,7 +241,7 @@ export function CommandComposer({
       }
       dispatch({ type: "voice_failed" });
     }
-  }, [aksaActions, dispatch, executeVoiceIntent, locale]);
+  }, [aksaActions, dispatch, executeVoiceIntent, locale, voiceSettings]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -290,7 +299,7 @@ export function CommandComposer({
   const listening = state.status === "listening" || state.status === "transcribing";
   const listeningMode = recognitionMode;
   const submitting = state.status === "submitting";
-  const offerVoice = shouldOfferVoiceControl(state);
+  const offerVoice = shouldOfferVoiceControl(state, voiceSettings.enabled);
   const hasContent =
     state.text !== "" ||
     state.understanding !== null ||
@@ -396,7 +405,7 @@ export function CommandComposer({
 
         {offerVoice ? (
           <>
-            <button
+            {voiceSettings.mode !== "commands" ? <button
               aria-pressed={listeningMode === "dictation"}
               className="aksa-button aksa-button--secondary"
               disabled={listening && listeningMode !== "dictation"}
@@ -415,8 +424,8 @@ export function CommandComposer({
                   ? m.composer_stop_dictation({}, options)
                   : m.composer_dictate_action({}, options)}
               </span>
-            </button>
-            <button
+            </button> : null}
+            {voiceSettings.mode !== "dictation" ? <button
               aria-pressed={listeningMode === "command"}
               className="aksa-button aksa-button--secondary"
               disabled={listening && listeningMode !== "command"}
@@ -435,7 +444,7 @@ export function CommandComposer({
                   ? m.composer_stop_voice_commands({}, options)
                   : m.composer_live_voice_action({}, options)}
               </span>
-            </button>
+            </button> : null}
           </>
         ) : null}
 
@@ -461,6 +470,14 @@ export function CommandComposer({
           </button>
         ) : null}
       </div>
+
+      {listening && listeningMode ? (
+        <p aria-live="polite" className="aksa-composer__voice-state" role="status">
+          {listeningMode === "dictation"
+            ? m.composer_dictation_listening({}, options)
+            : m.composer_live_voice_listening({}, options)}
+        </p>
+      ) : null}
 
       {state.understanding !== null ? (
         <div className="aksa-composer__understanding">

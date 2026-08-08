@@ -316,18 +316,21 @@ describe("onboarding", () => {
     expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps camera setup and one skip action available", () => {
+  it("keeps camera setup concise with one skip action", () => {
     render(<OnboardingFlow locale="en" />);
     fireEvent.click(document.querySelectorAll<HTMLButtonElement>(".aksa-onboarding-rail__button")[1]);
 
     const panel = document.querySelector(".aksa-onboarding-panel--head-control");
     expect(panel).not.toBeNull();
-    expect(panel).toHaveTextContent(m.onboarding_calibration_tracking_required({}, { locale: "en" }));
-    expect(panel).toHaveTextContent(m.onboarding_head_setup_detail({}, { locale: "en" }));
+    expect(panel).not.toHaveTextContent(m.onboarding_calibration_tracking_required({}, { locale: "en" }));
+    expect(panel).not.toHaveTextContent(m.onboarding_head_setup_detail({}, { locale: "en" }));
     expect(screen.getByRole("button", { name: m.onboarding_allow_camera({}, { locale: "en" }) })).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: m.onboarding_skip_head({}, { locale: "en" }) })
     ).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: m.onboarding_calibration_start({}, { locale: "en" }) })
+    ).not.toBeInTheDocument();
   });
 
   it("reports a refused camera with single primary recovery and no duplicate fallback controls", async () => {
@@ -519,6 +522,9 @@ describe("onboarding", () => {
     expect(includeSources).toHaveAttribute("aria-checked", "false");
     fireEvent.click(includeSources);
     expect(includeSources).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByText(m.onboarding_voice_demo_primary_command({}, { locale: "en" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.onboarding_voice_demo_local({}, { locale: "en" }))).not.toBeInTheDocument();
+    expect(screen.queryByText(m.onboarding_voice_demo_secondary_command({}, { locale: "en" }))).not.toBeInTheDocument();
     expect(screen.queryByText(m.onboarding_voice_task_success({}, { locale: "en" }))).not.toBeInTheDocument();
   });
 

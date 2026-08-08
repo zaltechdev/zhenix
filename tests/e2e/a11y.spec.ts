@@ -16,6 +16,7 @@ const routes = [
   "/workspace/history",
   "/workspace/activity",
   "/workspace/accessibility",
+  "/workspace/controls",
   "/workspace/settings",
   "/workspace/account"
 ] as const;

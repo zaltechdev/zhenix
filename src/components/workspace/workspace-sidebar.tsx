@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PanelLeftClose } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import {
@@ -103,55 +103,54 @@ export function WorkspaceSidebar({
 
   return (
     <div className="aksa-nav__inner">
-      <Link className="aksa-nav__brand" href="/workspace" onClick={onNavigate}>
-        {isCollapsed ? (
-          <Image
-            alt={m.workspace_nav_home_label({}, options)}
-            className="aksa-nav__brand-icon"
-            height={32}
-            priority
-            src={AksaIcon}
-            width={32}
-          />
+      <div className="aksa-nav__brand-row">
+        {isCollapsed && showCollapseControl ? (
+          <button
+            aria-controls="workspace-desktop-sidebar"
+            aria-expanded="false"
+            aria-label={m.workspace_sidebar_expand({}, options)}
+            className="aksa-nav__brand aksa-nav__brand--expand"
+            onClick={() => actions?.executeAksaIntent("SIDEBAR_EXPAND")}
+            type="button"
+          >
+            <Image
+              alt=""
+              aria-hidden="true"
+              className="aksa-nav__brand-icon"
+              height={32}
+              priority
+              src={AksaIcon}
+              width={32}
+            />
+            <span className="sr-only">{m.workspace_sidebar_expand({}, options)}</span>
+          </button>
         ) : (
-          <Image
-            alt={m.workspace_nav_home_label({}, options)}
-            className="aksa-nav__brand-wordmark"
-            height={28}
-            priority
-            src={DefaultLogo}
-            width={88}
-          />
+          <Link className="aksa-nav__brand" href="/workspace" onClick={onNavigate}>
+            <Image
+              alt={m.workspace_nav_home_label({}, options)}
+              className="aksa-nav__brand-wordmark"
+              height={28}
+              priority
+              src={DefaultLogo}
+              width={88}
+            />
+          </Link>
         )}
-      </Link>
 
-      {showCollapseControl ? (
-        <button
-          aria-controls="workspace-desktop-sidebar"
-          aria-expanded={!isCollapsed}
-          aria-label={
-            isCollapsed
-              ? m.workspace_sidebar_expand({}, options)
-              : m.workspace_sidebar_collapse({}, options)
-          }
-          className="aksa-nav__collapse"
-          onClick={() =>
-            actions?.executeAksaIntent(isCollapsed ? "SIDEBAR_EXPAND" : "SIDEBAR_COLLAPSE")
-          }
-          type="button"
-        >
-          {isCollapsed ? (
-            <ChevronRight aria-hidden="true" className="aksa-icon" />
-          ) : (
-            <ChevronLeft aria-hidden="true" className="aksa-icon" />
-          )}
-          <span className="sr-only">
-            {isCollapsed
-              ? m.workspace_sidebar_expand({}, options)
-              : m.workspace_sidebar_collapse({}, options)}
-          </span>
-        </button>
-      ) : null}
+        {showCollapseControl && !isCollapsed ? (
+          <button
+            aria-controls="workspace-desktop-sidebar"
+            aria-expanded="true"
+            aria-label={m.workspace_sidebar_collapse({}, options)}
+            className="aksa-nav__collapse"
+            onClick={() => actions?.executeAksaIntent("SIDEBAR_COLLAPSE")}
+            type="button"
+          >
+            <PanelLeftClose aria-hidden="true" className="aksa-icon" />
+            <span className="sr-only">{m.workspace_sidebar_collapse({}, options)}</span>
+          </button>
+        ) : null}
+      </div>
 
       {groups.map((group) => (
         <NavigationList

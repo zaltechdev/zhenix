@@ -57,6 +57,14 @@
   padding: var(--space-5) var(--space-4);
 }
 
+.aksa-nav__brand-row {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .aksa-nav__brand {
   display: inline-flex;
   min-height: 44px;
@@ -75,12 +83,24 @@
   height: 32px !important;
 }
 
+.aksa-nav__brand--expand {
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.aksa-nav__brand--expand:hover {
+  background: var(--color-aksa-paper);
+}
+
 .aksa-nav__collapse {
   display: inline-flex;
-  width: 100%;
+  width: 44px;
   min-height: 44px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
+  flex: 0 0 auto;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
@@ -275,6 +295,16 @@
   border-top: 1px solid var(--color-aksa-line);
   background: var(--color-aksa-paper);
   padding: var(--space-3) var(--space-4);
+}
+
+.aksa-ai-disclaimer {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto var(--space-2);
+  color: var(--color-aksa-muted);
+  font-size: 0.75rem;
+  line-height: var(--line-height-body);
+  text-align: center;
 }
 
 .aksa-composer-footer .aksa-composer {
@@ -817,6 +847,67 @@
   accent-color: var(--color-aksa-teal);
 }
 
+.aksa-switch {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-aksa-ink);
+  cursor: pointer;
+}
+
+.aksa-switch__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.aksa-switch__track {
+  display: inline-flex;
+  width: 46px;
+  height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid var(--color-aksa-line);
+  border-radius: var(--radius-round);
+  background: var(--color-aksa-paper);
+  padding: 3px;
+  transition: background-color var(--duration-fast) var(--ease-calm), border-color var(--duration-fast) var(--ease-calm);
+}
+
+.aksa-switch__thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-round);
+  background: var(--color-aksa-muted);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-fast) var(--ease-calm), background-color var(--duration-fast) var(--ease-calm);
+}
+
+.aksa-switch__input:checked + .aksa-switch__track {
+  border-color: var(--color-aksa-teal);
+  background: var(--color-aksa-teal);
+}
+
+.aksa-switch__input:checked + .aksa-switch__track .aksa-switch__thumb {
+  transform: translateX(20px);
+  background: #ffffff;
+}
+
+.aksa-switch__input:focus-visible + .aksa-switch__track {
+  outline: 2px solid var(--color-aksa-teal);
+  outline-offset: 3px;
+}
+
+.aksa-switch__label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
 .aksa-range {
   width: 100%;
   min-height: 44px;
@@ -900,12 +991,29 @@
   background: var(--color-aksa-cloud);
 }
 
-.aksa-composer__status,
-.aksa-composer__controls {
+.aksa-composer__status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+.aksa-composer__controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.aksa-composer__controls .aksa-button {
+  min-height: 44px;
+  min-width: 0;
+  justify-content: center;
+}
+
+.aksa-composer__voice-state {
+  margin: 0;
+  color: var(--color-aksa-muted);
+  font-size: 0.8125rem;
 }
 
 .aksa-composer__field {
@@ -1105,6 +1213,84 @@
   margin: 0;
   color: var(--color-aksa-muted);
   font-size: 0.8125rem;
+}
+
+.aksa-controls--dedicated {
+  gap: var(--space-5);
+}
+
+.aksa-controls__status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-aksa-line);
+  padding-bottom: var(--space-4);
+}
+
+.aksa-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-3);
+}
+
+.aksa-choice {
+  display: flex;
+  min-height: 92px;
+  align-items: flex-start;
+  gap: var(--space-3);
+  border: 1px solid var(--color-aksa-line);
+  border-radius: var(--radius-md);
+  background: var(--color-aksa-cloud);
+  padding: var(--space-3);
+  color: var(--color-aksa-ink);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-calm), box-shadow var(--duration-fast) var(--ease-calm), background-color var(--duration-fast) var(--ease-calm);
+}
+
+.aksa-choice:hover {
+  border-color: var(--color-aksa-teal);
+}
+
+.aksa-choice:has(input:checked) {
+  border-color: var(--color-aksa-teal);
+  background: var(--color-aksa-teal-soft);
+  box-shadow: 0 0 0 1px var(--color-aksa-teal);
+}
+
+.aksa-choice:has(input:checked) small {
+  color: var(--color-aksa-ink);
+}
+
+.aksa-choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-aksa-teal);
+  outline-offset: 2px;
+}
+
+.aksa-choice input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--color-aksa-teal);
+}
+
+.aksa-choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aksa-choice strong {
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.aksa-choice small {
+  color: var(--color-aksa-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
 }
 
 .aksa-document__meta,
@@ -2012,10 +2198,6 @@
     display: none;
   }
 
-  .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__collapse {
-    justify-content: center;
-  }
-
   .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__link:hover::after,
   .aksa-shell[data-sidebar-collapsed="true"] .aksa-nav__link:focus-visible::after {
     position: absolute;
@@ -2800,23 +2982,6 @@
   justify-content: flex-end;
 }
 
-.aksa-onboarding-calibration-waiting {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  border: 1px solid var(--color-aksa-line);
-  border-radius: var(--radius-md);
-  background: var(--color-aksa-cloud);
-}
-
-.aksa-onboarding-calibration-waiting p {
-  margin: 0;
-  color: var(--color-aksa-muted);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
 .aksa-camera-preview-container {
   position: relative;
   width: 100%;
@@ -2847,16 +3012,18 @@
 /* Calibration guidance belongs to the camera surface, keeping the flow compact. */
 .aksa-camera-preview__calibration {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  top: var(--space-3);
+  right: var(--space-3);
+  left: 8.5rem;
   z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: var(--space-3);
-  padding: 3.75rem var(--space-4) var(--space-3);
-  background: linear-gradient(180deg, transparent 0%, rgba(2, 16, 23, 0.18) 12%, rgba(2, 16, 23, 0.9) 100%);
+  border: 1px solid var(--color-aksa-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-aksa-charcoal);
+  padding: var(--space-2) var(--space-3);
   color: var(--color-aksa-paper);
 }
 
@@ -2898,7 +3065,10 @@
 }
 
 .aksa-camera-preview__progress {
-  grid-column: 1 / -1;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
   width: 100%;
   height: 4px;
   overflow: hidden;
@@ -3122,46 +3292,6 @@
   margin-bottom: var(--space-3);
 }
 
-.aksa-onboarding-pointer-feel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-aksa-line);
-}
-
-.aksa-onboarding-pointer-feel__header h2 {
-  margin: 0;
-  color: var(--color-aksa-ink);
-  font-size: 1rem;
-  line-height: 1.3;
-}
-
-.aksa-onboarding-pointer-feel__header p {
-  margin: var(--space-1) 0 0;
-  color: var(--color-aksa-muted);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-.aksa-onboarding-pointer-feel .aksa-controls {
-  gap: var(--space-4);
-}
-
-.aksa-onboarding-pointer-feel .aksa-controls__group {
-  gap: var(--space-2);
-}
-
-.aksa-onboarding-pointer-feel .aksa-controls__grid {
-  gap: var(--space-2) var(--space-3);
-}
-
-.aksa-onboarding-pointer-feel .aksa-controls__footer-row {
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-}
-
 .aksa-onboarding-preview-header {
   display: flex;
   flex-wrap: wrap;
@@ -3215,17 +3345,15 @@
 .aksa-onboarding-voice-demo {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   width: min(100%, 560px);
-  padding: var(--space-5);
+  padding: var(--space-4);
   border: 1px solid var(--color-aksa-line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-aksa-cloud);
-  box-shadow: var(--shadow-aksa-raised);
 }
 
-.aksa-onboarding-voice-demo__header,
-.aksa-onboarding-voice-demo__color {
+.aksa-onboarding-voice-demo__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3276,26 +3404,6 @@
   background: var(--color-aksa-teal);
 }
 
-.aksa-onboarding-voice-demo__color-value {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-weight: 600;
-}
-
-.aksa-onboarding-voice-demo__color-value::before {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 1px solid rgb(15 23 42 / 24%);
-  border-radius: var(--radius-round);
-  content: "";
-}
-
-.aksa-onboarding-voice-demo__color-value.is-blue::before { background: #3b82f6; }
-.aksa-onboarding-voice-demo__color-value.is-yellow::before { background: #facc15; }
-.aksa-onboarding-voice-demo__color-value.is-red::before { background: #ef4444; }
-
 .aksa-onboarding-voice-demo__commands {
   display: grid;
   gap: var(--space-2);
@@ -3306,16 +3414,29 @@
   margin: 0;
 }
 
-.aksa-onboarding-voice-demo__commands code {
+.aksa-onboarding-voice-demo__command {
+  margin: 0;
   display: block;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-aksa-line);
   border-radius: var(--radius-md);
   background: var(--color-aksa-paper);
   color: var(--color-aksa-ink);
-  font-family: var(--font-inter), sans-serif;
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .aksa-composer__controls {
+    grid-template-columns: 1fr;
+  }
+
+  .aksa-camera-preview__calibration {
+    top: auto;
+    right: var(--space-2);
+    bottom: var(--space-3);
+    left: var(--space-2);
+  }
 }
 
 .aksa-onboarding-voice-task__recovery,

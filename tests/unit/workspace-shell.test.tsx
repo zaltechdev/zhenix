@@ -139,6 +139,13 @@ describe("workspace shell", () => {
     expect(
       screen.getAllByRole("link", { name: m.nav_account({}, { locale: "en" }) }).length
     ).toBeGreaterThan(0);
+    expect(screen.getByText(m.workspace_ai_disclaimer({}, { locale: "en" }))).toBeInTheDocument();
+    expect(
+      document.querySelector(".aksa-header")?.querySelector('a[href="/workspace/account"]')
+    ).toBeNull();
+    expect(
+      document.querySelector(".aksa-header")?.querySelector('a[href="/workspace/accessibility"]')
+    ).toBeNull();
   });
 
   it("renders Indonesian navigation labels", () => {
@@ -160,6 +167,8 @@ describe("workspace shell", () => {
       name: m.workspace_sidebar_collapse({}, { locale: "en" })
     });
     expect(collapse).toHaveAttribute("aria-expanded", "true");
+    expect(collapse.querySelector("svg")).not.toBeNull();
+    expect(document.querySelector(".aksa-nav__inner > .aksa-nav__collapse")).toBeNull();
 
     fireEvent.click(collapse);
 
@@ -167,6 +176,7 @@ describe("workspace shell", () => {
       name: m.workspace_sidebar_expand({}, { locale: "en" })
     });
     expect(expand).toHaveAttribute("aria-expanded", "false");
+    expect(expand).toHaveClass("aksa-nav__brand--expand");
     expect(shell).toHaveAttribute("data-sidebar-collapsed", "true");
     expect(
       screen.getByRole("link", { name: m.nav_files({}, { locale: "en" }) })

@@ -54,7 +54,7 @@ test("switches to Indonesian hero content", async ({ page }) => {
 
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Sampaikan tugasnya.");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Aksa menangani langkahnya.");
-  await expect(page.getByText("Ruang kerja AI hands-free untuk").first()).toBeVisible();
+  await expect(page.getByText("Ruang kerja AI bebas genggaman untuk").first()).toBeVisible();
 });
 
 test("hero layout order matches expectations", async ({ page }) => {

@@ -89,7 +89,7 @@ export function WorkspaceActionProvider({ children }: { children: ReactNode }) {
   const executeAksaIntent = useCallback(
     (intent: AksaIntent) =>
       dispatchAksaIntent(intent, {
-        navigate: (route) => router.push(route),
+        navigate: (route) => router.push(route as never),
         pauseHeadControl,
         resumeHeadControl: resumeControl,
         openHeadCalibration,

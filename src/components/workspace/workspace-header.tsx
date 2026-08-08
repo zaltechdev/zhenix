@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Accessibility,
   Camera,
   Menu,
   Pause,
   Play,
   RefreshCw,
-  Sparkles,
-  UserRound
+  Sparkles
 } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
@@ -201,14 +199,6 @@ export function WorkspaceHeader({
         )}
 
         <ThemeToggle locale={locale} />
-        <Link className="aksa-icon-button" href="/workspace/accessibility">
-          <Accessibility aria-hidden="true" className="aksa-icon" />
-          <span className="sr-only">{m.nav_accessibility({}, options)}</span>
-        </Link>
-        <Link className="aksa-icon-button" href="/workspace/account">
-          <UserRound aria-hidden="true" className="aksa-icon" />
-          <span className="sr-only">{m.nav_account({}, options)}</span>
-        </Link>
       </div>
     </header>
   );

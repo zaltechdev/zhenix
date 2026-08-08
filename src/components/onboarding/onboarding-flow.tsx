@@ -39,7 +39,6 @@ import {
   useOnboardingStep
 } from "@/lib/client/state/onboarding-step-store";
 import { PENDING_COMMAND_STORAGE_KEY } from "@/lib/client/state/pending-command";
-import { AccessibilityControls } from "@/components/workspace/accessibility-controls";
 import { StatusChip } from "@/components/workspace/status-chip";
 import { AccessibilityWidget } from "@/components/shared/accessibility-widget";
 
@@ -812,13 +811,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
                 {effectiveCameraOutcome === "idle" ? (
                   <>
-                    <div className="aksa-onboarding-calibration-waiting" role="status">
-                      <StatusChip
-                        tone="pending"
-                        value={m.onboarding_calibration_tracking_required({}, options)}
-                      />
-                      <p>{m.onboarding_head_setup_detail({}, options)}</p>
-                    </div>
                     <div className="aksa-onboarding__controls">
                       <button
                         className="aksa-button aksa-button--primary"
@@ -839,17 +831,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     <div className="aksa-onboarding-privacy-notice">
                       <Shield aria-hidden="true" className="aksa-icon" size={14} />
                       <span>{m.onboarding_head_privacy_note({}, options)}</span>
-                    </div>
-                    <div className="aksa-onboarding-head-actions">
-                      <button
-                        className="aksa-button aksa-button--primary"
-                        disabled
-                        onClick={handleStartCalibration}
-                        type="button"
-                      >
-                        <Sparkles aria-hidden="true" className="aksa-icon" size={16} />
-                        <span>{m.onboarding_calibration_start({}, options)}</span>
-                      </button>
                     </div>
                   </>
                 ) : null}
@@ -922,20 +903,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                   </div>
                 ) : null}
               </div>
-
-              {/* Pointer Feel appears only after the camera calibration is complete. */}
-              {calibrationStatus === "completed" ? (
-                <section
-                  aria-labelledby="onboarding-pointer-feel-title"
-                  className="aksa-onboarding-pointer-feel"
-                >
-                  <div className="aksa-onboarding-pointer-feel__header">
-                    <h2 id="onboarding-pointer-feel-title">{m.onboarding_tuning_title({}, options)}</h2>
-                    <p>{m.onboarding_tuning_body({}, options)}</p>
-                  </div>
-                  <AccessibilityControls initialProfile={headControl.profile} locale={locale} />
-                </section>
-              ) : null}
 
               {/* Phase 2 Footer */}
               <div className="aksa-onboarding-footer">
@@ -1020,10 +987,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     </>
                   )}
 
-                  {microphoneOutcome === "granted" ? (
-                    <StatusChip tone="ready" value={m.onboarding_microphone_granted({}, options)} />
-                  ) : null}
-
                   {microphoneOutcome === "denied" ? (
                     <div className="aksa-state-panel" data-tone="attention" role="status">
                       <StatusChip tone="attention" value={m.onboarding_microphone_denied({}, options)} />
@@ -1078,7 +1041,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                       <h2 className="aksa-onboarding-voice-demo__title">
                         {m.onboarding_voice_demo_project({}, options)}
                       </h2>
-                      <span className="aksa-hint">{m.onboarding_voice_demo_local({}, options)}</span>
                     </div>
                     <div className="aksa-onboarding-voice-demo__tasks">
                       <div
@@ -1102,21 +1064,12 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                         <span>{m.onboarding_voice_demo_add_summary({}, options)}</span>
                       </div>
                     </div>
-                    <div className="aksa-onboarding-voice-demo__color">
-                      <span>{m.onboarding_voice_demo_highlight({}, options)}</span>
-                      <span className={`aksa-onboarding-voice-demo__color-value is-${voiceDemoState.highlightColor}`}>
-                        {voiceDemoState.highlightColor === "yellow"
-                          ? m.onboarding_voice_demo_color_yellow({}, options)
-                          : voiceDemoState.highlightColor === "red"
-                            ? m.onboarding_voice_demo_color_red({}, options)
-                            : m.onboarding_voice_demo_color_blue({}, options)}
-                      </span>
-                    </div>
                   </div>
                   <div className="aksa-onboarding-voice-demo__commands">
                     <p className="aksa-hint">{m.onboarding_voice_demo_primary_label({}, options)}</p>
-                    <code>{m.onboarding_voice_demo_primary_command({}, options)}</code>
-                    <p className="aksa-hint">{m.onboarding_voice_demo_secondary_command({}, options)}</p>
+                    <p className="aksa-onboarding-voice-demo__command">
+                      {m.onboarding_voice_demo_primary_command({}, options)}
+                    </p>
                   </div>
                   {voiceSupported === false ? (
                     <StatusChip tone="attention" value={m.onboarding_microphone_unsupported({}, options)} />
@@ -1177,7 +1130,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     {voiceTaskStatus === "complete" ? (
                       <div className="aksa-onboarding-voice-task__success">
                         <p>{m.onboarding_voice_task_success({}, options)}</p>
-                        <p>{m.onboarding_voice_task_ready({}, options)}</p>
                       </div>
                     ) : null}
                   </div>

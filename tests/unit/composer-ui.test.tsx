@@ -296,6 +296,36 @@ describe("command composer", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("announces dictation and Live Voice as separate listening modes", async () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+    renderOfflineComposer();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_dictate_action({}, { locale: "en" })
+      })
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      m.composer_dictation_listening({}, { locale: "en" })
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: m.composer_stop_dictation({}, { locale: "en" })
+      })
+    );
+    RecognitionMock.latest?.onend?.();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_live_voice_action({}, { locale: "en" })
+      })
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      m.composer_live_voice_listening({}, { locale: "en" })
+    );
+  });
+
   it("executes one final command once across duplicate recognition callbacks", async () => {
     vi.stubGlobal("SpeechRecognition", RecognitionMock);
     renderOfflineComposer();
