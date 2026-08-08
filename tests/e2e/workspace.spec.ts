@@ -80,7 +80,6 @@ test.describe("primary path", () => {
     await page.goto("/onboarding");
 
     await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect(page.getByText("Start head tracking before calibration.")).toBeVisible();
     await expect(
@@ -121,9 +120,9 @@ test.describe("primary path", () => {
         )
       ).resolves.toBe(true);
 
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-      await expect(page.getByRole("heading", { level: 1, name: "Head pointer" })).toBeVisible();
-      await expect(page.locator(".aksa-onboarding-calibration-card")).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Control Aksa with head movement" })).toBeVisible();
+      await expect(page.locator(".aksa-onboarding-calibration-card")).toHaveCount(0);
+      await expect(page.locator(".aksa-onboarding-calibration-waiting")).toBeVisible();
       await expect(page.getByRole("button", { name: "Skip head control", exact: true })).toHaveCount(1);
       expect(await hasHorizontalOverflow(page)).toBe(false);
     }

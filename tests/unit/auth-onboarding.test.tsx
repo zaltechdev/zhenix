@@ -160,6 +160,33 @@ describe("onboarding", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps the four sidebar labels stable in English and Indonesian", () => {
+    const expectedEnglish = [
+      m.onboarding_phase_welcome({}, { locale: "en" }),
+      `${m.onboarding_phase_head_control({}, { locale: "en" })} · ${m.onboarding_phase_optional({}, { locale: "en" })}`,
+      `${m.onboarding_phase_voice({}, { locale: "en" })} · ${m.onboarding_phase_optional({}, { locale: "en" })}`,
+      m.onboarding_phase_first_task({}, { locale: "en" })
+    ];
+    const expectedIndonesian = [
+      m.onboarding_phase_welcome({}, { locale: "id" }),
+      `${m.onboarding_phase_head_control({}, { locale: "id" })} · ${m.onboarding_phase_optional({}, { locale: "id" })}`,
+      `${m.onboarding_phase_voice({}, { locale: "id" })} · ${m.onboarding_phase_optional({}, { locale: "id" })}`,
+      m.onboarding_phase_first_task({}, { locale: "id" })
+    ];
+
+    const labels = () =>
+      Array.from(document.querySelectorAll<HTMLElement>(".aksa-onboarding-rail__label")).map((label) =>
+        label.textContent?.replace(/\s+/g, " ").trim()
+      );
+
+    render(<OnboardingFlow locale="en" />);
+    expect(labels()).toEqual(expectedEnglish);
+    cleanup();
+    render(<OnboardingFlow locale="id" />);
+    expect(labels()).toEqual(expectedIndonesian);
+    expect(document.body.textContent).not.toMatch(/Part [12] of 2|Bagian [12] dari 2/);
+  });
+
   it("lets every sidebar phase navigate directly without locking future steps", () => {
     render(<OnboardingFlow locale="en" />);
 
@@ -176,7 +203,7 @@ describe("onboarding", () => {
     expect(phaseButtons[3]).toHaveAttribute("aria-current", "step");
   });
 
-  it("opens Head Control at Part 1 even after another phase was visited", () => {
+  it("opens Head Control directly without visible Part labels", () => {
     window.sessionStorage.setItem("aksa-onboarding-step", "6");
     render(<OnboardingFlow locale="en" />);
 
@@ -185,6 +212,8 @@ describe("onboarding", () => {
     expect(
       screen.getByRole("heading", { name: m.onboarding_head_explanation_title({}, { locale: "en" }) })
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Part [12] of 2/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Bagian [12] dari 2/)).not.toBeInTheDocument();
   });
 
   it("skips onboarding phases for input methods deselected on welcome", () => {
@@ -255,17 +284,47 @@ describe("onboarding", () => {
     expect(mapCameraPoseToScreenDelta(8, 0, 50, 0, 1280, 720).x).toBeLessThan(0);
   });
 
-  it("groups calibration in one panel and keeps a single skip action in the footer", () => {
+  it("places live calibration guidance inside the active camera preview", async () => {
+    const stop = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop } as unknown as MediaStreamTrack]
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn().mockResolvedValue(stream);
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia }
+    });
+    const engineFactory: HeadControlEngineFactory = () => ({
+      initialize: vi.fn().mockResolvedValue(true),
+      start: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      disable: vi.fn(),
+      setNeutralBaseline: vi.fn()
+    });
+
+    const rendered = render(<OnboardingFlow engineFactory={engineFactory} locale="en" />);
+    advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
+    fireEvent.click(screen.getByRole("button", { name: m.onboarding_allow_camera({}, { locale: "en" }) }));
+
+    await waitFor(() => {
+      expect(rendered.container.querySelector(".aksa-camera-preview__calibration")).not.toBeNull();
+    });
+    const preview = rendered.container.querySelector(".aksa-camera-preview-container");
+    expect(preview?.querySelector(".aksa-camera-preview__calibration")).not.toBeNull();
+    expect(rendered.container.querySelector(".aksa-onboarding-calibration-card")).toBeNull();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps camera setup and one skip action available", () => {
     render(<OnboardingFlow locale="en" />);
     fireEvent.click(document.querySelectorAll<HTMLButtonElement>(".aksa-onboarding-rail__button")[1]);
 
-    const card = document.querySelector(".aksa-onboarding-calibration-card");
-    expect(card).not.toBeNull();
-    expect(card).toHaveTextContent(m.onboarding_calibration_tracking_required({}, { locale: "en" }));
-    expect(card).toHaveTextContent(m.onboarding_head_setup_detail({}, { locale: "en" }));
-    expect(card?.querySelector("button")).toBe(
-      screen.getByRole("button", { name: m.a11y_start_head_control({}, { locale: "en" }) })
-    );
+    const panel = document.querySelector(".aksa-onboarding-panel--head-control");
+    expect(panel).not.toBeNull();
+    expect(panel).toHaveTextContent(m.onboarding_calibration_tracking_required({}, { locale: "en" }));
+    expect(panel).toHaveTextContent(m.onboarding_head_setup_detail({}, { locale: "en" }));
+    expect(screen.getByRole("button", { name: m.onboarding_allow_camera({}, { locale: "en" }) })).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: m.onboarding_skip_head({}, { locale: "en" }) })
     ).toHaveLength(1);
@@ -447,25 +506,20 @@ describe("onboarding", () => {
     expect(screen.queryByLabelText(m.onboarding_voice_transcript_label({}, { locale: "en" }))).toBeNull();
   });
 
-  it("completes the local voice task only when option one is selected", () => {
+  it("shows the Aksa demo without manual success controls", () => {
     render(<OnboardingFlow locale="en" />);
 
     advanceTo(m.onboarding_voice_task_title({}, { locale: "en" }));
-    fireEvent.click(screen.getByRole("button", { name: m.onboarding_continue({}, { locale: "en" }) }));
+    fireEvent.click(screen.getByRole("button", { name: m.onboarding_continue_text({}, { locale: "en" }) }));
 
-    fireEvent.click(
-      screen.getByRole("button", { name: m.onboarding_voice_task_option_one({}, { locale: "en" }) })
-    );
-    expect(
-      screen.getByText(m.onboarding_voice_task_success({}, { locale: "en" }))
-    ).toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: m.onboarding_voice_task_option_two({}, { locale: "en" }) })
-    );
-    expect(
-      screen.queryByText(m.onboarding_voice_task_success({}, { locale: "en" }))
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: m.onboarding_voice_demo_project({}, { locale: "en" }) })).toBeInTheDocument();
+    const includeSources = screen.getByRole("checkbox", {
+      name: m.onboarding_voice_demo_include_sources({}, { locale: "en" })
+    });
+    expect(includeSources).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(includeSources);
+    expect(includeSources).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByText(m.onboarding_voice_task_success({}, { locale: "en" }))).not.toBeInTheDocument();
   });
 
   it("keeps the workspace reachable via Finish later action", () => {

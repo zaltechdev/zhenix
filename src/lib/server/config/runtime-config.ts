@@ -72,6 +72,18 @@ export function googleAiStudioStatus(): ConfigurationStatus {
   return statusFor(["GOOGLE_AI_API_KEY", "GOOGLE_AI_MODEL"]);
 }
 
+export const ONBOARDING_GEMINI_MODEL = "gemini-3.1-flash-lite";
+
+export function googleAiStudioClassifierConfig(): { apiKey: string; model: string } | null {
+  const apiKey = readSecret("GOOGLE_AI_API_KEY");
+  if (apiKey === null) return null;
+
+  return {
+    apiKey,
+    model: readSecret("GOOGLE_AI_MODEL") ?? ONBOARDING_GEMINI_MODEL
+  };
+}
+
 export function primaryProviderStatus(): ConfigurationStatus {
   const googleAi = googleAiStudioStatus();
   if (googleAi.configured) {

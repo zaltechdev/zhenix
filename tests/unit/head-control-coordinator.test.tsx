@@ -1,7 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, renderHook, act, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import {
   HeadControlProvider,
+  HeadControlRuntimeBoundary,
   useHeadControl,
   type HeadControlEngineFactory
 } from "@/lib/client/vision/head-control-context";
@@ -984,6 +986,43 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
 
     rendered.unmount();
     expect(document.body.contains(processingVideo)).toBe(false);
+  });
+
+  it("keeps one runtime alive while onboarding and workspace surfaces change", async () => {
+    const engine = createControllableEngine();
+    const { stream } = createMockStream();
+    const preview = document.createElement("video");
+    const runtimeRef: { current: ReturnType<typeof useHeadControl> | null } = { current: null };
+
+    function RouteSurface({ route }: { route: "onboarding" | "workspace" }) {
+      const currentRuntime = useHeadControl();
+      useEffect(() => {
+        runtimeRef.current = currentRuntime;
+      }, [currentRuntime]);
+      return <output data-route={route}>{route}</output>;
+    }
+
+    const renderRoute = (route: "onboarding" | "workspace") => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={SETTINGS_OFF} userId="test-user">
+        <HeadControlRuntimeBoundary userId={null}>
+          <RouteSurface route={route} />
+        </HeadControlRuntimeBoundary>
+      </HeadControlProvider>
+    );
+
+    const rendered = render(renderRoute("onboarding"));
+    await act(async () => {
+      expect(runtimeRef.current).not.toBeNull();
+      expect(await runtimeRef.current!.startCamera(preview, stream)).toBe(true);
+    });
+    const processingVideo = document.body.querySelector("video");
+    expect(processingVideo).not.toBeNull();
+    expect(engine.factory).toHaveBeenCalledTimes(1);
+
+    rendered.rerender(renderRoute("workspace"));
+    expect(document.querySelector('[data-route="workspace"]')).not.toBeNull();
+    expect(document.body.querySelector("video")).toBe(processingVideo);
+    expect(engine.factory).toHaveBeenCalledTimes(1);
   });
 
   it("stops the acquired stream when video attachment throws", async () => {

@@ -48,6 +48,21 @@ describe("CalibrationEngine", () => {
     expect(engine.getState()).toMatchObject({ direction: "left", step: 2, samplesCount: 0 });
   });
 
+  it("recovers from a one-frame spike and accepts the next stable window", () => {
+    const engine = new CalibrationEngine(3);
+    const attemptId = engine.start();
+
+    engine.addSample({ yaw: 0, pitch: 0, roll: 0 }, 1, attemptId);
+    engine.addSample({ yaw: 20, pitch: 0, roll: 0 }, 2, attemptId);
+    expect(engine.getState().samplesCount).toBe(1);
+
+    engine.addSample({ yaw: 0, pitch: 0, roll: 0 }, 3, attemptId);
+    engine.addSample({ yaw: 0, pitch: 0, roll: 0 }, 4, attemptId);
+    engine.addSample({ yaw: 0, pitch: 0, roll: 0 }, 5, attemptId);
+
+    expect(engine.getState()).toMatchObject({ direction: "left", step: 2, samplesCount: 0 });
+  });
+
   it("keeps no raw samples after completion or a later failed attempt", () => {
     const engine = new CalibrationEngine(1);
     const successfulAttempt = engine.start();

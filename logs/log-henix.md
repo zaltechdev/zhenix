@@ -1,4 +1,14 @@
-﻿﻿---
+### Timestamp: [2026-08-07 21:59:55]
+* **Model used**: Gemini 3.6 Flash (High)
+* **Human Prompt**: `Fix and refine the landing-page navbar scroll behavior based on the attached reference video. Make the morph animation subtle/slower, remove the flashes morph, add frosh blur.`
+* **TLDR AI agents done**: Refined landing page navbar scroll morphing behavior. Single persistent component morphs smoothly between full-width integrated landing top state (scrollY < 16px) and a centered sticky floating rounded rectangle (scrollY > 56px, max-width 840px, radius lg, elevation shadow, translucent frosted glass backdrop filter). Implemented scroll state hysteresis to eliminate flicker. Removed full-width backdrop blur in unscrolled state and declared explicit GPU layer isolation (`will-change`) to eliminate white composite flashes during morphing. Tuned transition easing to a gentle 400ms `cubic-bezier(0.16, 1, 0.3, 1)`. Updated `.agents/design.md` sections 4 and 10.1 to document the navbar-only frosted glass exception. Verified zero CLS, clean i18n compile, clean typecheck, and clean ESLint.
+* **file changed**:
+  - `.agents/design.md`
+  - `src/components/landing/landing-navigation.tsx`
+  - `src/app/globals.css`
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: [2026-08-06 23:09:12]
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `use smooth transition or animated progress, not sudden jump, remvoe the notice`
@@ -501,6 +511,62 @@ DO NOT START PHASE III.
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `tests/unit/vision-engine.test.ts`
+---
+
+### Timestamp: 2026-08-07 22:52:19
+* **Model used**: GPT-5 (High)
+* **Human Prompt**: `Fix only the floating navbar frosted-glass effect. Preserve navbar layout, scroll behavior, sizing, and animation; use a semi-transparent dark design surface with backdrop-filter and -webkit-backdrop-filter; keep foreground controls sharp; inspect compositing if needed; verify visually in the browser.`
+* **TLDR AI agents done**: Reordered backdrop-filter declarations so Chromium receives the unprefixed blur, matched the design blur and dark surface tokens, verified sharp foreground and visible diffusion in light and dark browser states, and passed lint plus typecheck.
+* **file changed**:
+  - `src/app/globals.css`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 08:37:36
+* **Model used**: GPT-5 (High)
+* **Human Prompt**: `The current morph is better, but there is still a BAD intermediate frame where the navbar suddenly becomes a harsh full-width dark rectangle before reaching the floating glass state. Remove that intermediate state completely. Requirements: ONE navbar element only. ONE continuous animation timeline from top state to floating state. Tie animation progress directly to scroll progress. If scrolling stops at 40%, the navbar stays exactly 40% morphed. Interpolate width, top offset, border-radius, padding, border, shadow, and glass opacity continuously. Frosted glass layer stays mounted the whole time. Never switch through a full-width opaque rectangle. No .scrolled geometry toggle. No display, position, background or width value suddenly changing at a threshold. No spring, bounce, overshoot, or snap. The current version clearly shows the bug: wide frosted navbar to sudden harsh black rectangle to floating navbar. Delete that middle visual state entirely. Final motion should simply feel like the wide navbar is physically shrinking inward, rounding, and lifting away from the page in one uninterrupted motion. Do not modify the existing frost appearance.`
+* **TLDR AI agents done**: Added a later continuous surface/filter ramp so intermediate frames remain subtle, verified dark/light midpoint and endpoint visuals, exact stopped midpoint persistence, one navbar node, no scroll class, and lint.
+* **file changed**:
+  - `src/components/landing/landing-navigation.tsx`
+  - `src/app/globals.css`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 08:15:55
+* **Model used**: GPT-5 (High)
+* **Human Prompt**: `Make the continuous navbar morph a bit slower and smoother.`
+* **TLDR AI agents done**: Added gentle non-bouncy exponential progress smoothing so the navbar follows scroll more softly, settles at the exact stopped progress, preserves continuous geometry and frost, and passed browser visual checks plus lint.
+* **file changed**:
+  - `src/components/landing/landing-navigation.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 08:12:10
+* **Model used**: GPT-5 (High)
+* **Human Prompt**: `Remove the binary isScrolled navbar geometry. Drive one persistent navbar continuously from normalized scroll progress 0 to 1 across scrollY 0 to 80, interpolating width, offset, radius, padding, shadow, border, glass opacity, and near-constant height. Keep the frost effect and verify halfway stopping plus repeated slow scrolling.`
+* **TLDR AI agents done**: Removed the binary scroll class and state, added requestAnimationFrame-driven normalized progress, continuously interpolated all navbar geometry and visual opacity values, made the top offset visible without transforms, and verified halfway persistence, repeated reversals, one DOM node, browser frames, and lint.
+* **file changed**:
+  - `src/components/landing/landing-navigation.tsx`
+  - `src/app/globals.css`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-07 23:14:09
+* **Model used**: GPT-5 (High)
+* **Human Prompt**: `The navbar still flashes when morphing; make the morph smooth but slower.`
+* **TLDR AI agents done**: Stabilized the navbar's layout slot, made background and border interpolation explicit, kept the existing frosted-glass filter unchanged, slowed the morph to 420ms, and verified forward and reverse browser transitions visually.
+* **file changed**:
+  - `src/app/globals.css`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-07 23:04:16
+* **Model used**: GPT-5 (High)
+* **Human Prompt**: `Refine only the navbar morph. Keep the existing frosted-glass effect unchanged; widen the desktop floating navbar, preserve comfortable padding and height, remove flash or snap, use one persistent navbar with a 260ms cubic-bezier(0.22, 1, 0.36, 1) transition, and test slow scrolling in both directions.`
+* **TLDR AI agents done**: Widened the scrolled navbar to 920px, increased horizontal padding to 28px, kept 64px scrolled height, added explicit transitions for all morph properties, removed redundant filter priority changes, and verified smooth forward and reverse interpolation in browser frames.
+* **file changed**:
+  - `src/app/globals.css`
+  - `logs/log-henix.md`
 
 ---
 ### Timestamp: 2026-08-07 23:23:36
@@ -513,6 +579,15 @@ DO NOT START PHASE III.
   - `src/lib/client/vision/pointer-mapping.ts`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `tests/unit/pointer-mapping.test.ts`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 08:00:12
+* **Model used**: GPT-5 (High)
+* **Human Prompt**: `The navbar morph still looks quirky. Keep the glass effect unchanged and fix only the continuous morph with explicit numeric dimensions, 300ms easing, near-constant height, and repeated slow threshold testing.`
+* **TLDR AI agents done**: Replaced auto-to-fixed sizing with explicit wide and floating widths, matched shadow-list interpolation, preserved the existing frost filter, reduced height change, restored an integrated zero-radius top endpoint, and verified repeated forward/reverse morph frames with one navbar node.
+* **file changed**:
+  - `src/app/globals.css`
   - `logs/log-henix.md`
 
 ---
@@ -612,5 +687,66 @@ DO NOT START PHASE III.
 * **TLDR AI agents done**: Moved camera processing ownership into the app-level head-control provider so visual previews and route changes cannot detach active tracking.
 * **file changed**:
   - `src/lib/client/vision/head-control-context.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 11:02:00
+* **Model used**: GPT-5.6
+* **Human Prompt**: `Read attached terra3.md and work.`
+* **TLDR AI agents done**: Replaced split onboarding calibration with guided directional calibration, applied session-only asymmetric ranges to pointer mapping, and added a localized deterministic English/Indonesian voice practice task with read-only recognition feedback.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/lib/client/voice/onboarding-voice-task.ts`
+  - `src/lib/client/vision/calibration.ts`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/pointer-mapping.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/calibration.test.ts`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/onboarding-voice-task.test.ts`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 12:25:13
+* **Model used**: GPT-5
+* **Human Prompt**: `Files mentioned: C:/Users/henix/Downloads/voice_improve (1).md. Request: execute the prompt in md.`
+* **TLDR AI agents done**: Replaced generic voice options with localized Aksa project demo, hybrid intent routing, Gemini fallback, strict validation, server rate limiting, timeout recovery, and focused tests.
+* **file changed**:
+  - `.env.example`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/app/api/onboarding/voice/route.ts`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/lib/client/voice/onboarding-voice-task.ts`
+  - `src/lib/contracts/onboarding-voice.ts`
+  - `src/lib/server/config/runtime-config.ts`
+  - `src/lib/server/onboarding/voice-classifier.ts`
+  - `src/lib/server/onboarding/voice-rate-limit.ts`
+  - `src/lib/voice/onboarding-intent.ts`
+  - `tests/e2e/onboarding-voice.spec.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/onboarding-voice-task.test.ts`
+  - `tests/unit/onboarding-voice-classifier.test.ts`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 12:27:50
+* **Model used**: GPT-5
+* **Human Prompt**: `Files mentioned: C:/Users/henix/Downloads/continuestalled.md. Request: execute the prompt in md.`
+* **TLDR AI agents done**: Resumed Phase II head control recovery with embedded calibration guidance, resilient samples, localized labels, compact pointer feel, route continuity coverage, and focused verification.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/lib/client/vision/calibration.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/calibration.test.ts`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `logs/log-henix.md`

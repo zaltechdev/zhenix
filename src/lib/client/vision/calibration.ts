@@ -107,7 +107,13 @@ export class CalibrationEngine {
 
     this.lastTimestampMs = timestampMs;
     this.samples.push({ ...pose });
-    if (this.samples.length < this.requiredSamples || !this.isStable()) return this.getState();
+    if (!this.isStable()) {
+      // A one-frame spike must not poison the fresh stable window or keep the
+      // attempt waiting on an impossible average until the timeout fires.
+      this.samples = [this.samples[this.samples.length - 1]];
+      return this.getState();
+    }
+    if (this.samples.length < this.requiredSamples) return this.getState();
 
     const average = averagePose(this.samples);
     if (!this.acceptCurrentDirection(average)) {
@@ -147,7 +153,8 @@ export class CalibrationEngine {
     if (![pose.yaw, pose.pitch, pose.roll].every(Number.isFinite)) return false;
     return (
       Math.abs(pose.yaw) <= CALIBRATION_CONFIG.maxAngleDegrees &&
-      Math.abs(pose.pitch) <= CALIBRATION_CONFIG.maxAngleDegrees
+      Math.abs(pose.pitch) <= CALIBRATION_CONFIG.maxAngleDegrees &&
+      Math.abs(pose.roll) <= CALIBRATION_CONFIG.maxAngleDegrees
     );
   }
 
@@ -156,7 +163,8 @@ export class CalibrationEngine {
     return this.samples.every(
       (sample) =>
         Math.abs(sample.yaw - first.yaw) <= CALIBRATION_CONFIG.stableWindowDegrees &&
-        Math.abs(sample.pitch - first.pitch) <= CALIBRATION_CONFIG.stableWindowDegrees
+        Math.abs(sample.pitch - first.pitch) <= CALIBRATION_CONFIG.stableWindowDegrees &&
+        Math.abs(sample.roll - first.roll) <= CALIBRATION_CONFIG.stableWindowDegrees
     );
   }
 
