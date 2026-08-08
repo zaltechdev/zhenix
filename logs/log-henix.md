@@ -881,3 +881,18 @@ DO NOT START PHASE III.
   - `tests/unit/rest-lock.test.ts`
   - `tests/unit/target-assist.test.ts`
   - `tests/unit/voice-intent-router.test.ts`
+
+---
+### Timestamp: 2026-08-08 23:11:12
+* **Model used**: GPT-5 Codex
+* **Human Prompt**: `Resume the CURRENT dirty worktree after the interrupted Opus 4.6 Head Control hard-fix pass. Do NOT reset, replan, or rewrite the architecture. Preserve the existing relative-velocity controller, calibrated per-axis dead zones, rebuilt calibration, disabled Target Assist default, and all valid Opus changes. Your job only: 1. Inspect git status/diff and the 7 changed Head Control files. 2. Fix compile/type/runtime/test issues caused by this pass. 3. Do not touch unrelated files/features. 4. Run focused Head Control tests first. 5. Then run ONCE: bun run i18n:compile; bun run typecheck; bun run lint; bun run test; bun run build. 6. Do not weaken tests. 7. Commit atomically and push dev if green. 8. Never claim physical success from automated tests. Final response under 15 lines: changed files; focused test result; full gates; commit SHA; remote SHA; HARDWARE VERIFICATION REQUIRED. Then STOP.`
+* **TLDR AI agents done**: Preserved relative-velocity Head Control, calibrated per-axis dead zones, rebuilt calibration, and disabled Target Assist. Fixed topmost direct-hit targeting, partial calibration cleanup, asymmetric limited-movement calibration compatibility, weak trajectory assertions, and static issues. Verified 86 focused Head Control tests, 383 full tests, localization, typecheck, lint, and production build. Physical camera behavior remains unverified.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `src/lib/client/vision/calibration.ts`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/pointer-mapping.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/calibration.test.ts`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/pointer-mapping.test.ts`

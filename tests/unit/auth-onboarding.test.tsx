@@ -6,7 +6,7 @@ import { createAksaError } from "@/lib/contracts/errors";
 import { AuthForm } from "@/components/auth/auth-form";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import type { HeadControlEngineFactory } from "@/lib/client/vision/head-control-context";
-import { mapCameraPoseToScreenDelta } from "@/lib/client/vision/pointer-mapping";
+import { CAMERA_YAW_TO_SCREEN_DIRECTION } from "@/lib/client/vision/pointer-mapping";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/onboarding",
@@ -280,8 +280,9 @@ describe("onboarding", () => {
     advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
 
     expect(rendered.container.querySelector("video.aksa-camera-preview--mirrored")).not.toBeNull();
-    expect(mapCameraPoseToScreenDelta(-8, 0, 50, 0, 1280, 720).x).toBeGreaterThan(0);
-    expect(mapCameraPoseToScreenDelta(8, 0, 50, 0, 1280, 720).x).toBeLessThan(0);
+    // Camera yaw negative = physical right turn = positive screen X direction
+    expect(-8 * CAMERA_YAW_TO_SCREEN_DIRECTION).toBeGreaterThan(0);
+    expect(8 * CAMERA_YAW_TO_SCREEN_DIRECTION).toBeLessThan(0);
   });
 
   it("places live calibration guidance inside the active camera preview", async () => {

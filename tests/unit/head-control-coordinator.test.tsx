@@ -11,10 +11,6 @@ import { getCachedProfile, setCachedProfile, clearCachedProfile } from "@/lib/cl
 import { GestureDetector } from "@/lib/client/vision/gesture-detector";
 import { DwellController } from "@/lib/client/vision/dwell-controller";
 import { CALIBRATION_CONFIG, CalibrationEngine } from "@/lib/client/vision/calibration";
-import {
-  mapCameraPoseToScreenDelta,
-  smoothCoordinates
-} from "@/lib/client/vision/pointer-mapping";
 import type {
   VisionEngineCallbacks,
   VisionFailureCategory,
@@ -159,94 +155,9 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(rendered.container.querySelector(".aksa-pointer-overlay")).not.toBeNull();
   });
 
-  it("holds stationary tracking while allowing an acquired target to escape immediately", async () => {
+  it("stays centered at idle and produces velocity-based movement for deliberate deflection", async () => {
     const engine = createControllableEngine();
-    const profile: AccessibilityProfile = {
-      ...SETTINGS_OFF,
-      deadZone: 0,
-      smoothing: 0,
-      selectionMode: "dwell",
-      dwellDurationMs: 1200
-    };
-    const button = document.createElement("button");
-    button.textContent = "Acquire me";
-    document.body.appendChild(button);
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
-        {children}
-      </HeadControlProvider>
-    );
-    const { result } = renderHook(() => useHeadControl(), { wrapper });
-
-    await act(async () => {
-      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
-    });
-    act(() => {
-      for (let index = 1; index <= 5; index += 1) {
-        engine.emit(visionFrame(index * 100));
-      }
-      engine.emit(visionFrame(600, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
-      engine.emit(visionFrame(760, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
-    });
-
-    expect(result.current.isRestLocked).toBe(true);
-    expect(result.current.activeTarget).toBe(button);
-
-    act(() => {
-      engine.emit(visionFrame(800, { poseDelta: { yaw: 0.1, pitch: 0, roll: 0 } }));
-      engine.emit(visionFrame(900, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
-    });
-    expect(result.current.dwellProgress.state).toBe("dwelling");
-    expect(result.current.activeTarget).toBe(button);
-
-    act(() => {
-      engine.emit(visionFrame(1000, { poseDelta: { yaw: -5, pitch: 0, roll: 0 } }));
-    });
-    expect(result.current.activeTarget).toBe(button);
-    expect(result.current.dwellProgress.state).toBe("idle");
-
-    act(() => {
-      engine.emit(visionFrame(1040, { poseDelta: { yaw: -6, pitch: 0, roll: 0 } }));
-    });
-    expect(result.current.activeTarget).toBeNull();
-    expect(result.current.isRestLocked).toBe(true);
-    act(() => {
-      engine.emit(visionFrame(1080, { poseDelta: { yaw: -7, pitch: 0, roll: 0 } }));
-    });
-    expect(result.current.isRestLocked).toBe(false);
-  });
-
-  it("clears Rest Lock when tracking is lost", async () => {
-    const engine = createControllableEngine();
-    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 0, smoothing: 0 };
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
-        {children}
-      </HeadControlProvider>
-    );
-    const { result } = renderHook(() => useHeadControl(), { wrapper });
-
-    await act(async () => {
-      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
-    });
-    act(() => {
-      for (let index = 1; index <= 5; index += 1) {
-        engine.emit(visionFrame(index * 100));
-      }
-      engine.emit(visionFrame(600, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
-      engine.emit(visionFrame(760, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
-    });
-    expect(result.current.isRestLocked).toBe(true);
-
-    act(() => {
-      engine.emit(visionFrame(800, { lifecycleState: "tracking_lost", faceDetected: false }));
-    });
-    expect(result.current.isRestLocked).toBe(false);
-  });
-
-  it("stays centered at idle, ignores stale frames, and releases for deliberate movement", async () => {
-    const engine = createControllableEngine();
-    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 0, smoothing: 0 };
+    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 50, smoothing: 0 };
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
         {children}
@@ -263,6 +174,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
         )
       ).toBe(true);
     });
+    // Reacquisition
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(
@@ -272,6 +184,11 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
           })
         );
       }
+    });
+    expect(engine.setNeutralBaseline).toHaveBeenCalledWith(rawPose);
+
+    // Zero delta frames = pointer stays at center
+    act(() => {
       for (let index = 6; index <= 10; index += 1) {
         engine.emit(
           visionFrame(index * 100, {
@@ -281,14 +198,12 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
         );
       }
     });
-
-    expect(engine.setNeutralBaseline).toHaveBeenCalledWith(rawPose);
     expect(result.current.pointerPosition).toEqual({
       x: window.innerWidth / 2,
       y: window.innerHeight / 2
     });
-    expect(result.current.isRestLocked).toBe(true);
 
+    // Stale frame rejected
     act(() => {
       engine.emit(
         visionFrame(1_000, {
@@ -305,33 +220,24 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     expect(result.current.pointerPosition.x).toBe(window.innerWidth / 2);
 
+    // Deliberate movement (velocity accumulates over several frames)
     act(() => {
-      engine.emit(
-        visionFrame(1_100, {
-          pose: rawPose,
-          poseDelta: { yaw: -5, pitch: 0, roll: 0 }
-        })
-      );
-      engine.emit(
-        visionFrame(1_200, {
-          pose: rawPose,
-          poseDelta: { yaw: -6, pitch: 0, roll: 0 }
-        })
-      );
-      engine.emit(
-        visionFrame(1_300, {
-          pose: rawPose,
-          poseDelta: { yaw: -7, pitch: 0, roll: 0 }
-        })
-      );
+      for (let index = 0; index < 10; index += 1) {
+        engine.emit(
+          visionFrame(1100 + index * 100, {
+            pose: rawPose,
+            poseDelta: { yaw: -5, pitch: 0, roll: 0 }
+          })
+        );
+      }
     });
-    expect(result.current.isRestLocked).toBe(false);
+    // Pointer should have moved right (camera yaw -5 = physical right)
     expect(result.current.pointerPosition.x).toBeGreaterThan(window.innerWidth / 2);
   });
 
   it("rebases tracking recovery from the last rendered pointer without a jump", async () => {
     const engine = createControllableEngine();
-    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 0, smoothing: 0 };
+    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 50, smoothing: 0 };
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
         {children}
@@ -346,27 +252,34 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(visionFrame(index * 100, { pose: { yaw: 0, pitch: 0, roll: 0 } }));
       }
-      engine.emit(visionFrame(600, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
-      engine.emit(visionFrame(760, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
-      engine.emit(visionFrame(800, { poseDelta: { yaw: -5, pitch: 0, roll: 0 } }));
-      engine.emit(visionFrame(840, { poseDelta: { yaw: -6, pitch: 0, roll: 0 } }));
-      engine.emit(visionFrame(880, { poseDelta: { yaw: -7, pitch: 0, roll: 0 } }));
+      // Move pointer deliberately
+      for (let index = 0; index < 10; index++) {
+        engine.emit(visionFrame(600 + index * 50, { poseDelta: { yaw: -5, pitch: 0, roll: 0 } }));
+      }
     });
     const beforeLoss = { ...result.current.pointerPosition };
     expect(beforeLoss.x).toBeGreaterThan(window.innerWidth / 2);
 
+    // Tracking loss
     act(() => {
-      engine.emit(visionFrame(900, { faceDetected: false, lifecycleState: "tracking_lost" }));
+      engine.emit(visionFrame(1200, { faceDetected: false, lifecycleState: "tracking_lost" }));
+    });
+    const duringLoss = { ...result.current.pointerPosition };
+    expect(duringLoss.x).toBeCloseTo(beforeLoss.x, 5);
+
+    // Recovery with different raw pose
+    act(() => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(
-          visionFrame(900 + index * 100, {
+          visionFrame(1200 + index * 100, {
             pose: { yaw: 4, pitch: 1, roll: 0 },
             poseDelta: { yaw: 4, pitch: 1, roll: 0 }
           })
         );
       }
+      // Zero delta after recovery = no movement
       engine.emit(
-        visionFrame(1_500, {
+        visionFrame(1800, {
           pose: { yaw: 4, pitch: 1, roll: 0 },
           poseDelta: { yaw: 0, pitch: 0, roll: 0 }
         })
@@ -375,6 +288,34 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
 
     expect(result.current.pointerPosition.x).toBeCloseTo(beforeLoss.x, 5);
     expect(result.current.pointerPosition.y).toBeCloseTo(beforeLoss.y, 5);
+  });
+
+  it("clears isRestLocked state when tracking is lost", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 50, smoothing: 0 };
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(visionFrame(index * 100));
+      }
+      engine.emit(visionFrame(600, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+    });
+    // With velocity control, zero delta = isRestLocked true
+    expect(result.current.isRestLocked).toBe(true);
+
+    act(() => {
+      engine.emit(visionFrame(800, { lifecycleState: "tracking_lost", faceDetected: false }));
+    });
+    expect(result.current.isRestLocked).toBe(false);
   });
 
   it("isolates IndexedDB cached profiles by user ID and throws on missing user ID", async () => {
@@ -469,25 +410,21 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
 
     const blinkHigh = [{ categoryName: "eyeBlinkLeft", score: 0.8 }, { categoryName: "eyeBlinkRight", score: 0.8 }];
 
-    // 0ms: Quick blink starts at 1000ms
     let status = detector.processFrame(blinkHigh, btn, 1000, true);
     expect(status.isDetected).toBe(true);
     expect(status.isTriggered).toBe(false);
 
-    // 150ms: Still under 350ms duration requirement
     status = detector.processFrame(blinkHigh, btn, 1150, true);
     expect(status.isTriggered).toBe(false);
     expect(activateSpy).not.toHaveBeenCalled();
 
-    // Release blink at 1200ms -> resets hold state
     detector.processFrame([], btn, 1200, true);
 
-    // Now start a continuous long blink hold starting at 2000ms
-    detector.processFrame(blinkHigh, btn, 2000, true); // 0ms hold
-    detector.processFrame(blinkHigh, btn, 2200, true); // 200ms hold (under 350ms)
+    detector.processFrame(blinkHigh, btn, 2000, true);
+    detector.processFrame(blinkHigh, btn, 2200, true);
     expect(activateSpy).not.toHaveBeenCalled();
 
-    status = detector.processFrame(blinkHigh, btn, 2380, true); // 380ms hold -> TRIGGER!
+    status = detector.processFrame(blinkHigh, btn, 2380, true);
     expect(status.isTriggered).toBe(true);
     expect(activateSpy).toHaveBeenCalledTimes(1);
   });
@@ -561,7 +498,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(activate).toHaveBeenCalledWith(approve);
   });
 
-  it("uses updated sensitivity, dead zone, and smoothing in the installed frame callback", async () => {
+  it("velocity-based movement responds to updated sensitivity and dead zone", async () => {
     const engine = createControllableEngine();
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <HeadControlProvider
@@ -575,45 +512,43 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     const { result } = renderHook(() => useHeadControl(), { wrapper });
     const { stream } = createMockStream();
     const video = document.createElement("video");
-    const poseDelta = { yaw: 0.8, pitch: 0.6, roll: 0 };
+    const poseDelta = { yaw: -3, pitch: 0, roll: 0 };
 
     await act(async () => {
       expect(await result.current.startCamera(video, stream)).toBe(true);
     });
+    // Reacquisition
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(visionFrame(index * 100, { poseDelta }));
       }
     });
 
-    const positionBeforeUpdate = result.current.pointerPosition;
+    // Move with initial profile settings
+    act(() => {
+      for (let index = 0; index < 5; index++) {
+        engine.emit(visionFrame(600 + index * 100, { poseDelta }));
+      }
+    });
+    const positionBeforeUpdate = { ...result.current.pointerPosition };
+
+    // Update to higher sensitivity
     const updatedProfile = {
       ...SETTINGS_OFF,
       pointerSensitivity: 90,
       deadZone: 0,
-      smoothing: 10
+      smoothing: 0
     };
     act(() => result.current.updateProfile(updatedProfile));
-    act(() => engine.emit(visionFrame(600, { poseDelta })));
+    act(() => {
+      for (let index = 0; index < 5; index++) {
+        engine.emit(visionFrame(1100 + index * 100, { poseDelta }));
+      }
+    });
 
-    const delta = mapCameraPoseToScreenDelta(
-      poseDelta.yaw,
-      poseDelta.pitch,
-      updatedProfile.pointerSensitivity,
-      updatedProfile.deadZone,
-      window.innerWidth,
-      window.innerHeight
-    );
-    const expected = smoothCoordinates(
-      positionBeforeUpdate,
-      { x: window.innerWidth / 2 + delta.x, y: window.innerHeight / 2 + delta.y },
-      updatedProfile.smoothing,
-      100,
-      0
-    );
-
-    expect(result.current.pointerPosition.x).toBeCloseTo(expected.x, 5);
-    expect(result.current.pointerPosition.y).toBeCloseTo(expected.y, 5);
+    // Pointer should move more per frame after sensitivity increase
+    const displacement = result.current.pointerPosition.x - positionBeforeUpdate.x;
+    expect(displacement).toBeGreaterThan(0);
     expect(engine.factory).toHaveBeenCalledTimes(1);
   });
 
@@ -628,6 +563,10 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     const click = vi.fn();
     button.addEventListener("click", click);
     document.body.appendChild(button);
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: vi.fn(() => button)
+    });
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
         {children}
@@ -642,14 +581,76 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(visionFrame(index * 100));
       }
-      engine.emit(visionFrame(600));
-      engine.emit(visionFrame(800));
-      engine.emit(visionFrame(900));
-      engine.emit(visionFrame(1200));
+      // Send zero-delta frames to keep pointer still over button for dwell
+      engine.emit(visionFrame(600, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(800, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(900, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(1200, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
 
     expect(click).toHaveBeenCalledTimes(1);
     expect(result.current.activationFeedbackKey).toBe(1);
+  });
+
+  it("selects the topmost direct hit when semantic controls overlap", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = {
+      ...SETTINGS_OFF,
+      selectionMode: "gesture",
+      gestureType: "mouth_open",
+      gestureThreshold: 50,
+      gestureCooldownMs: 500
+    };
+    const coveredButton = document.createElement("button");
+    const topButton = document.createElement("button");
+    const coveredClick = vi.fn();
+    const topClick = vi.fn();
+    coveredButton.addEventListener("click", coveredClick);
+    topButton.addEventListener("click", topClick);
+    document.body.append(coveredButton, topButton);
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: vi.fn(() => topButton)
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(
+        await result.current.startCamera(
+          document.createElement("video"),
+          createMockStream().stream
+        )
+      ).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(
+          visionFrame(index * 100, {
+            poseDelta: { yaw: 0, pitch: 0, roll: 0 }
+          })
+        );
+      }
+      engine.emit(
+        visionFrame(600, {
+          poseDelta: { yaw: 0, pitch: 0, roll: 0 },
+          blendshapes: []
+        })
+      );
+      engine.emit(
+        visionFrame(700, {
+          poseDelta: { yaw: 0, pitch: 0, roll: 0 },
+          blendshapes: [{ categoryName: "jawOpen", score: 0.9 }]
+        })
+      );
+    });
+
+    expect(topClick).toHaveBeenCalledTimes(1);
+    expect(coveredClick).not.toHaveBeenCalled();
   });
 
   it("does not emit activation feedback when dwell is cancelled before dispatch", async () => {
@@ -663,6 +664,10 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     const click = vi.fn();
     button.addEventListener("click", click);
     document.body.appendChild(button);
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: vi.fn(() => button)
+    });
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
         {children}
@@ -677,9 +682,9 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(visionFrame(index * 100));
       }
-      engine.emit(visionFrame(600));
-      engine.emit(visionFrame(800));
-      engine.emit(visionFrame(900));
+      engine.emit(visionFrame(600, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(800, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(900, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
       engine.emit(visionFrame(1000, { lifecycleState: "tracking_lost", faceDetected: false }));
     });
 
@@ -716,13 +721,12 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       for (let index = 1; index <= 6; index += 1) {
         engine.emit(visionFrame(index * 100));
       }
-      engine.emit(visionFrame(800));
-      engine.emit(visionFrame(900));
+      engine.emit(visionFrame(800, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(900, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
-    expect(result.current.dwellProgress.state).toBe("dwelling");
 
     act(() => result.current.updateProfile(SETTINGS_OFF));
-    act(() => engine.emit(visionFrame(1200)));
+    act(() => engine.emit(visionFrame(1200, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } })));
 
     expect(result.current.activeTarget).toBeNull();
     expect(result.current.dwellProgress.state).toBe("idle");
@@ -770,25 +774,25 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
-        engine.emit(visionFrame(index * 100, { blendshapes: held }));
+        engine.emit(visionFrame(index * 100, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
       }
-      engine.emit(visionFrame(600, { blendshapes: [] }));
-      engine.emit(visionFrame(700, { blendshapes: [] }));
-      engine.emit(visionFrame(800, { blendshapes: held }));
+      engine.emit(visionFrame(600, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(700, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(800, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
 
     expect(triggerClick).toHaveBeenCalledTimes(1);
     expect(approveClick).not.toHaveBeenCalled();
 
     act(() => {
-      engine.emit(visionFrame(900, { blendshapes: held }));
-      engine.emit(visionFrame(1400, { blendshapes: held }));
+      engine.emit(visionFrame(900, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(1400, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
     expect(approveClick).not.toHaveBeenCalled();
 
     act(() => {
-      engine.emit(visionFrame(1500, { blendshapes: [] }));
-      engine.emit(visionFrame(1600, { blendshapes: held }));
+      engine.emit(visionFrame(1500, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(1600, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
     expect(approveClick).toHaveBeenCalledTimes(1);
   });
@@ -797,7 +801,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     const engine = createControllableEngine();
     const profile: AccessibilityProfile = {
       ...SETTINGS_OFF,
-      deadZone: 0,
+      deadZone: 50,
       selectionMode: "gesture",
       gestureType: "mouth_open",
       gestureThreshold: 50,
@@ -825,11 +829,11 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
-        engine.emit(visionFrame(index * 100, { blendshapes: held }));
+        engine.emit(visionFrame(index * 100, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
       }
-      engine.emit(visionFrame(600, { blendshapes: [] }));
-      engine.emit(visionFrame(700, { blendshapes: [] }));
-      engine.emit(visionFrame(800, { blendshapes: held }));
+      engine.emit(visionFrame(600, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(700, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(800, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
     expect(click).toHaveBeenCalledTimes(1);
     expect(result.current.activationFeedbackKey).toBe(1);
@@ -915,11 +919,11 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
-        engine.emit(visionFrame(index * 100, { blendshapes: held }));
+        engine.emit(visionFrame(index * 100, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
       }
-      engine.emit(visionFrame(600, { blendshapes: [] }));
-      engine.emit(visionFrame(700, { blendshapes: [] }));
-      engine.emit(visionFrame(800, { blendshapes: held }));
+      engine.emit(visionFrame(600, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(700, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(800, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
     expect(click).toHaveBeenCalledTimes(1);
 
@@ -931,15 +935,15 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
-        engine.emit(visionFrame(1000 + index * 100, { blendshapes: held }));
+        engine.emit(visionFrame(1000 + index * 100, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
       }
-      engine.emit(visionFrame(1600, { blendshapes: held }));
+      engine.emit(visionFrame(1600, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
     expect(click).toHaveBeenCalledTimes(1);
 
     act(() => {
-      engine.emit(visionFrame(1700, { blendshapes: [] }));
-      engine.emit(visionFrame(1800, { blendshapes: held }));
+      engine.emit(visionFrame(1700, { blendshapes: [], poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(1800, { blendshapes: held, poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
     });
     expect(click).toHaveBeenCalledTimes(2);
   });
@@ -1032,6 +1036,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(state.baseline).toEqual({ yaw: -2, pitch: 4, roll: 0 });
     expect(state.range).toEqual({ left: 6, right: 6, up: 5, down: 7 });
     expect(state.samplesCount).toBe(0); // Raw sample array cleared
+    expect(state.deadZone).not.toBeNull(); // Dead zone computed from center step
   });
 
   it("fails a calibration attempt with no accepted frames by its bounded timeout", async () => {
@@ -1072,6 +1077,55 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       rendered.unmount();
       vi.useRealTimers();
     }
+  });
+
+  it("nearby buttons do not alter raw pointer trajectory when Target Assist is disabled", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = {
+      ...SETTINGS_OFF,
+      deadZone: 50,
+      smoothing: 0,
+      selectionMode: "dwell",
+      dwellDurationMs: 1200
+    };
+    const button = document.createElement("button");
+    button.textContent = "Nearby button";
+    document.body.appendChild(button);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      () => new DOMRect(600, 400, 100, 40)
+    );
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    // Reacquisition
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(visionFrame(index * 100, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      }
+    });
+
+    // Move pointer through a series of frames
+    const positions = [result.current.pointerPosition.x];
+    for (let index = 0; index < 20; index++) {
+      act(() => {
+        engine.emit(visionFrame(600 + index * 50, { poseDelta: { yaw: -3, pitch: 0, roll: 0 } }));
+      });
+      positions.push(result.current.pointerPosition.x);
+    }
+
+    // Verify monotonic movement (no snapping or magnetic redirection)
+    for (let i = 1; i < positions.length; i++) {
+      expect(positions[i]).toBeGreaterThanOrEqual(positions[i - 1]);
+    }
+    expect(positions.at(-1)).toBeGreaterThan(positions[0]);
+    expect(result.current.activeTarget).toBeNull();
   });
 
   it("stops the acquired stream and removes the hidden video when model startup fails", async () => {

@@ -1,8 +1,8 @@
 import type { DirectionalCalibrationRange } from "./calibration";
 
 /**
- * Pointer mapping engine converting head pose deltas into smooth, bounded screen coordinates.
- * Pure math functions designed for high precision, zero neck strain, and temporal stability.
+ * Velocity-based pointer mapping engine. Head pose deflection controls pointer
+ * VELOCITY, not absolute screen position. Pure math, refresh-rate independent.
  */
 
 export interface MappingConfig {
@@ -48,8 +48,22 @@ const MAX_YAW_FRAME_CHANGE_DEGREES = 8;
 const MAX_PITCH_FRAME_CHANGE_DEGREES = 6;
 const SPIKE_CONFIRM_TOLERANCE_DEGREES = 4;
 const POINTER_EDGE_INSET_PX = 16;
-const CALIBRATION_NEUTRAL_ENVELOPE_DEGREES = 0.35;
-const MINIMUM_CALIBRATION_RANGE_DEGREES = 4;
+
+/** Minimum calibrated dead zone per axis in degrees. */
+export const MIN_DEAD_ZONE_DEGREES = 0.3;
+/** Maximum calibrated dead zone per axis in degrees. */
+export const MAX_DEAD_ZONE_DEGREES = 3.0;
+/** Default dead zone when no calibration exists. */
+export const DEFAULT_DEAD_ZONE_DEGREES = 0.8;
+
+/** Minimum maximum speed (sensitivity = 0). */
+const MIN_MAX_SPEED_PX_PER_SEC = 300;
+/** Maximum maximum speed (sensitivity = 100). */
+const MAX_MAX_SPEED_PX_PER_SEC = 2400;
+/** Default comfortable range when uncalibrated. */
+const DEFAULT_COMFORTABLE_RANGE_DEGREES = 10;
+/** Gentle acceleration curve exponent near dead-zone boundary. */
+const ACCELERATION_EXPONENT = 1.8;
 
 function normalizeSetting(value: number): number {
   return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
@@ -63,18 +77,6 @@ function clampAxis(value: number, maximum: number): number {
   return Math.max(-maximum, Math.min(maximum, value));
 }
 
-function deadZoneThreshold(deadZoneSetting: number): number {
-  return (normalizeSetting(deadZoneSetting) / 100) * 4.0;
-}
-
-function softLimit(value: number, limit: number): number {
-  if (limit <= 0) {
-    return 0;
-  }
-
-  return Math.tanh(value / limit) * limit;
-}
-
 /**
  * Bound source pose deltas to a comfortable range before they can affect the pointer.
  */
@@ -85,17 +87,51 @@ export function clampPoseDelta(input: PoseDelta): PoseDelta {
   };
 }
 
-class DeadZoneHysteresis {
+/** Per-axis calibrated dead zone thresholds in degrees. */
+export interface CalibratedDeadZone {
+  yawEnter: number;
+  yawExit: number;
+  pitchEnter: number;
+  pitchExit: number;
+}
+
+/** Build a default dead zone when no calibration data exists. */
+export function defaultDeadZone(): CalibratedDeadZone {
+  return {
+    yawEnter: DEFAULT_DEAD_ZONE_DEGREES,
+    yawExit: DEFAULT_DEAD_ZONE_DEGREES * 0.6,
+    pitchEnter: DEFAULT_DEAD_ZONE_DEGREES,
+    pitchExit: DEFAULT_DEAD_ZONE_DEGREES * 0.6
+  };
+}
+
+/**
+ * Scale a calibrated dead zone by a user preference slider (0-100).
+ * 50 = use calibrated zone as-is. 0 = no dead zone. 100 = 2x calibrated zone.
+ */
+export function scaleDeadZone(
+  calibrated: CalibratedDeadZone,
+  deadZoneSetting: number
+): CalibratedDeadZone {
+  const normalized = normalizeSetting(deadZoneSetting);
+  const multiplier = normalized / 50; // 0 -> 0x, 50 -> 1x, 100 -> 2x
+  return {
+    yawEnter: calibrated.yawEnter * multiplier,
+    yawExit: calibrated.yawExit * multiplier,
+    pitchEnter: calibrated.pitchEnter * multiplier,
+    pitchExit: calibrated.pitchExit * multiplier
+  };
+}
+
+class AxisDeadZoneHysteresis {
   private isEngaged = false;
 
-  public apply(value: number, deadZoneSetting: number): number {
-    const enterThreshold = deadZoneThreshold(deadZoneSetting);
-    if (enterThreshold === 0) {
+  public apply(value: number, enterThreshold: number, exitThreshold: number): number {
+    if (enterThreshold <= 0) {
       this.isEngaged = false;
       return value;
     }
 
-    const releaseThreshold = enterThreshold * 0.75;
     const magnitude = Math.abs(value);
 
     if (!this.isEngaged) {
@@ -103,12 +139,14 @@ class DeadZoneHysteresis {
         return 0;
       }
       this.isEngaged = true;
-    } else if (magnitude < releaseThreshold) {
+    } else if (magnitude < exitThreshold) {
       this.isEngaged = false;
       return 0;
     }
 
-    return Math.sign(value) * ((magnitude - releaseThreshold) / (1 + releaseThreshold));
+    // Smooth ramp from dead-zone boundary: subtract exit threshold, normalize
+    const effective = magnitude - exitThreshold;
+    return Math.sign(value) * effective;
   }
 
   public reset(): void {
@@ -123,12 +161,9 @@ export class PoseInputStabilizer {
   private lastAccepted: PoseDelta | null = null;
   private pendingSpike: PoseDelta | null = null;
   private filteredPose: PoseDelta | null = null;
-  private readonly yawDeadZone = new DeadZoneHysteresis();
-  private readonly pitchDeadZone = new DeadZoneHysteresis();
 
   public process(
     input: PoseDelta,
-    deadZoneSetting: number,
     smoothingSetting = 0,
     deltaTimeMs = 16.6
   ): StabilizedPoseInput {
@@ -142,8 +177,8 @@ export class PoseInputStabilizer {
     );
 
     return {
-      yaw: this.yawDeadZone.apply(filtered.pose.yaw, deadZoneSetting),
-      pitch: this.pitchDeadZone.apply(filtered.pose.pitch, deadZoneSetting),
+      yaw: filtered.pose.yaw,
+      pitch: filtered.pose.pitch,
       spikeRejected: accepted.spikeRejected,
       motionDegrees: accepted.motionDegrees,
       motionResponse: filtered.motionResponse
@@ -154,8 +189,6 @@ export class PoseInputStabilizer {
     this.lastAccepted = null;
     this.pendingSpike = null;
     this.filteredPose = null;
-    this.yawDeadZone.reset();
-    this.pitchDeadZone.reset();
   }
 
   private acceptOrHold(next: PoseDelta): {
@@ -264,111 +297,100 @@ export class PoseInputStabilizer {
 }
 
 /**
- * Apply dead zone threshold to normalized input angle.
- * Converts input within dead zone to zero, smoothly scaling values beyond.
+ * Velocity-based head control engine. Head pose deflection beyond a calibrated
+ * dead zone produces pointer VELOCITY proportional to deflection magnitude.
+ * Velocity is integrated using real frame delta time for refresh-rate independence.
+ *
+ * Conceptual pipeline:
+ *   pose delta (from neutral)
+ *   -> camera yaw inversion
+ *   -> per-axis dead zone with hysteresis
+ *   -> normalize within calibrated comfortable range
+ *   -> bounded monotonic velocity curve
+ *   -> integrate velocity * dt
+ *   -> pointer position delta
  */
-export function applyDeadZone(value: number, deadZoneSetting: number): number {
-  // Convert 0..100 dead zone setting to degrees (0.0° to 4.0°)
-  const threshold = deadZoneThreshold(deadZoneSetting);
-  if (Math.abs(value) <= threshold) {
-    return 0;
+export class VelocityController {
+  private readonly yawDeadZone = new AxisDeadZoneHysteresis();
+  private readonly pitchDeadZone = new AxisDeadZoneHysteresis();
+
+  /**
+   * Process a stabilized pose delta into a pointer position delta.
+   *
+   * @param poseDelta - Stabilized yaw/pitch delta from neutral (camera-space)
+   * @param deadZone - Per-axis calibrated dead zone (already scaled by user preference)
+   * @param range - Calibrated comfortable directional ranges (null = use defaults)
+   * @param sensitivitySetting - 0-100 user preference controlling max speed
+   * @param deltaTimeSec - Frame delta time in seconds
+   * @returns Position delta to add to current pointer position
+   */
+  public process(
+    poseDelta: PoseDelta,
+    deadZone: CalibratedDeadZone,
+    range: DirectionalCalibrationRange | null,
+    sensitivitySetting: number,
+    deltaTimeSec: number
+  ): Vector2D {
+    // Invert camera yaw for screen direction
+    const screenYaw = poseDelta.yaw * CAMERA_YAW_TO_SCREEN_DIRECTION;
+    const screenPitch = poseDelta.pitch;
+
+    // Per-axis dead zone with hysteresis
+    const activeYaw = this.yawDeadZone.apply(screenYaw, deadZone.yawEnter, deadZone.yawExit);
+    const activePitch = this.pitchDeadZone.apply(screenPitch, deadZone.pitchEnter, deadZone.pitchExit);
+
+    if (activeYaw === 0 && activePitch === 0) {
+      return { x: 0, y: 0 };
+    }
+
+    // Directional comfortable ranges (degrees beyond dead zone boundary)
+    const rangeLeft = Math.max(
+      (range?.left ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.yawExit,
+      1
+    );
+    const rangeRight = Math.max(
+      (range?.right ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.yawExit,
+      1
+    );
+    const rangeUp = Math.max(
+      (range?.up ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.pitchExit,
+      1
+    );
+    const rangeDown = Math.max(
+      (range?.down ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.pitchExit,
+      1
+    );
+
+    // Normalize to 0..1 within comfortable range, clamp at 1
+    const normalizedYaw = activeYaw >= 0
+      ? Math.min(activeYaw / rangeRight, 1)
+      : -Math.min(Math.abs(activeYaw) / rangeLeft, 1);
+    const normalizedPitch = activePitch >= 0
+      ? Math.min(activePitch / rangeDown, 1)
+      : -Math.min(Math.abs(activePitch) / rangeUp, 1);
+
+    // Bounded monotonic velocity curve with gentle acceleration near boundary
+    const velocityYaw = Math.sign(normalizedYaw)
+      * Math.pow(Math.abs(normalizedYaw), ACCELERATION_EXPONENT);
+    const velocityPitch = Math.sign(normalizedPitch)
+      * Math.pow(Math.abs(normalizedPitch), ACCELERATION_EXPONENT);
+
+    // Max speed from sensitivity setting
+    const maxSpeed = MIN_MAX_SPEED_PX_PER_SEC
+      + (normalizeSetting(sensitivitySetting) / 100)
+        * (MAX_MAX_SPEED_PX_PER_SEC - MIN_MAX_SPEED_PX_PER_SEC);
+
+    // Integrate velocity over time
+    return {
+      x: velocityYaw * maxSpeed * deltaTimeSec,
+      y: velocityPitch * maxSpeed * deltaTimeSec
+    };
   }
-  const sign = Math.sign(value);
-  const adjusted = (Math.abs(value) - threshold) / (1 + threshold);
-  return sign * adjusted;
-}
 
-/**
- * Map head rotation angles (yaw & pitch in degrees) to normalized screen velocity / offset delta.
- * Uses sensitivity scaling and controlled gain curve.
- */
-export function mapPoseToScreenDelta(
-  yawDelta: number,
-  pitchDelta: number,
-  sensitivitySetting: number,
-  deadZoneSetting: number,
-  viewportWidth = 1920,
-  viewportHeight = 1080
-): Vector2D {
-  const boundedInput = clampPoseDelta({ yaw: yawDelta, pitch: pitchDelta });
-
-  const cleanYaw = applyDeadZone(boundedInput.yaw, deadZoneSetting);
-  const cleanPitch = applyDeadZone(boundedInput.pitch, deadZoneSetting);
-
-  if (cleanYaw === 0 && cleanPitch === 0) {
-    return { x: 0, y: 0 };
+  public reset(): void {
+    this.yawDeadZone.reset();
+    this.pitchDeadZone.reset();
   }
-
-  // Sensitivity scaling: Map 0..100 sensitivity to gain multiplier (0.5 to 4.0)
-  // Higher sensitivity requires less rotation to cover the screen.
-  const gain = 0.5 + (normalizeSetting(sensitivitySetting) / 100) * 3.5;
-
-  // Controlled non-linear gain curve (power 1.3) to enable precise micro-adjustments
-  // near center while making screen corners easily reachable.
-  const yawSign = Math.sign(cleanYaw);
-  const pitchSign = Math.sign(cleanPitch);
-
-  const curvedYaw = yawSign * Math.pow(Math.abs(cleanYaw), 1.3);
-  const curvedPitch = pitchSign * Math.pow(Math.abs(cleanPitch), 1.3);
-
-  // Degrees to viewport ratio mapping factor
-  // Base: ~15 degrees yaw / pitch covers screen half-width / half-height at default gain 2.0
-  const normX = curvedYaw * gain * 35;
-  const normY = curvedPitch * gain * 35;
-
-  // Saturation retains comfortable high-sensitivity reach without allowing a bad frame to slam an edge.
-  const horizontalLimit = Math.max(0, viewportWidth / 2 - POINTER_EDGE_INSET_PX);
-  const verticalLimit = Math.max(0, viewportHeight / 2 - POINTER_EDGE_INSET_PX);
-
-  return {
-    x: softLimit(normX, horizontalLimit),
-    y: softLimit(normY, verticalLimit)
-  };
-}
-
-/**
- * Convert MediaPipe camera-space pose into Aksa pointer motion.
- * Preview mirroring never affects these control coordinates.
- */
-export function mapCameraPoseToScreenDelta(
-  cameraYawDelta: number,
-  cameraPitchDelta: number,
-  sensitivitySetting: number,
-  deadZoneSetting: number,
-  viewportWidth = 1920,
-  viewportHeight = 1080,
-  calibrationRange?: DirectionalCalibrationRange | null
-): Vector2D {
-  const applyCalibrationEnvelope = (value: number): number => {
-    const magnitude = Math.abs(value);
-    if (magnitude <= CALIBRATION_NEUTRAL_ENVELOPE_DEGREES) return 0;
-    return Math.sign(value) * (magnitude - CALIBRATION_NEUTRAL_ENVELOPE_DEGREES);
-  };
-  const stableYaw = calibrationRange
-    ? applyCalibrationEnvelope(cameraYawDelta)
-    : cameraYawDelta;
-  const stablePitch = calibrationRange
-    ? applyCalibrationEnvelope(cameraPitchDelta)
-    : cameraPitchDelta;
-  const calibratedYaw = calibrationRange
-    ? stableYaw >= 0
-      ? (stableYaw / Math.max(calibrationRange.left, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 12
-      : (stableYaw / Math.max(calibrationRange.right, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 12
-    : stableYaw;
-  const calibratedPitch = calibrationRange
-    ? stablePitch >= 0
-      ? (stablePitch / Math.max(calibrationRange.up, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 10
-      : (stablePitch / Math.max(calibrationRange.down, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 10
-    : stablePitch;
-
-  return mapPoseToScreenDelta(
-    calibratedYaw * CAMERA_YAW_TO_SCREEN_DIRECTION,
-    calibratedPitch,
-    sensitivitySetting,
-    deadZoneSetting,
-    viewportWidth,
-    viewportHeight
-  );
 }
 
 /**
@@ -413,7 +435,7 @@ export function clampCoordinates(
   viewportHeight: number
 ): Vector2D {
   return {
-    x: Math.max(0, Math.min(viewportWidth, pos.x)),
-    y: Math.max(0, Math.min(viewportHeight, pos.y))
+    x: Math.max(POINTER_EDGE_INSET_PX, Math.min(viewportWidth - POINTER_EDGE_INSET_PX, pos.x)),
+    y: Math.max(POINTER_EDGE_INSET_PX, Math.min(viewportHeight - POINTER_EDGE_INSET_PX, pos.y))
   };
 }

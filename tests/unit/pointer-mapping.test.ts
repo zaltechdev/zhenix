@@ -1,115 +1,206 @@
 import { describe, expect, it } from "vitest";
 import {
-  applyDeadZone,
-  mapPoseToScreenDelta,
   smoothCoordinates,
   clampCoordinates,
   clampPoseDelta,
-  mapCameraPoseToScreenDelta,
   MAX_PITCH_DELTA_DEGREES,
   MAX_YAW_DELTA_DEGREES,
-  PoseInputStabilizer
+  PoseInputStabilizer,
+  VelocityController,
+  defaultDeadZone,
+  scaleDeadZone,
+  type CalibratedDeadZone
 } from "@/lib/client/vision/pointer-mapping";
+import type { DirectionalCalibrationRange } from "@/lib/client/vision/calibration";
 
-describe("Pointer Mapping Math", () => {
-  it("rejects small movement within dead zone", () => {
-    // 20% dead zone threshold (~0.8 degrees)
-    const smallYaw = 0.4;
-    const adjusted = applyDeadZone(smallYaw, 20);
-    expect(adjusted).toBe(0);
-  });
+const DEFAULT_DZ = defaultDeadZone();
 
-  it("passes movements beyond dead zone", () => {
-    const largeYaw = 5.0;
-    const adjusted = applyDeadZone(largeYaw, 20);
-    expect(adjusted).toBeGreaterThan(0);
-  });
+function processSeconds(
+  controller: VelocityController,
+  yaw: number,
+  pitch: number,
+  deadZone: CalibratedDeadZone,
+  range: DirectionalCalibrationRange | null,
+  sensitivity: number,
+  durationSec: number,
+  fps = 60
+): { x: number; y: number } {
+  const frames = Math.round(durationSec * fps);
+  const dt = durationSec / frames;
+  let totalX = 0;
+  let totalY = 0;
+  for (let i = 0; i < frames; i++) {
+    const delta = controller.process({ yaw, pitch }, deadZone, range, sensitivity, dt);
+    totalX += delta.x;
+    totalY += delta.y;
+  }
+  return { x: totalX, y: totalY };
+}
 
-  it("increases reach when sensitivity is high", () => {
-    const lowSensDelta = mapPoseToScreenDelta(10, 5, 10, 0);
-    const highSensDelta = mapPoseToScreenDelta(10, 5, 90, 0);
-
-    expect(Math.abs(highSensDelta.x)).toBeGreaterThan(Math.abs(lowSensDelta.x));
-    expect(Math.abs(highSensDelta.y)).toBeGreaterThan(Math.abs(lowSensDelta.y));
-  });
-
-  it("maps MediaPipe camera yaw to physical screen direction at the pointer boundary", () => {
-    // MediaPipe camera-space yaw is negative for a physical right turn.
-    const physicalRight = mapCameraPoseToScreenDelta(-8, 0, 50, 0, 1280, 720);
-    const physicalLeft = mapCameraPoseToScreenDelta(8, 0, 50, 0, 1280, 720);
-
-    expect(physicalRight.x).toBeGreaterThan(0);
-    expect(physicalLeft.x).toBeLessThan(0);
-  });
-
-  it("keeps calibrated neutral noise still and floors unsafe calibration gain", () => {
-    const tinyRange = { left: 1.5, right: 1.5, up: 1.5, down: 1.5 };
-    const safeRange = { left: 4, right: 4, up: 4, down: 4 };
-
-    expect(mapCameraPoseToScreenDelta(0.3, -0.3, 50, 0, 1280, 720, tinyRange)).toEqual({
-      x: 0,
-      y: 0
-    });
-    expect(mapCameraPoseToScreenDelta(1, -1, 50, 0, 1280, 720, tinyRange)).toEqual(
-      mapCameraPoseToScreenDelta(1, -1, 50, 0, 1280, 720, safeRange)
-    );
-  });
-
-  it("reaches every screen region without hard-clamping into an edge", () => {
-    const width = 1280;
-    const height = 720;
-    const topRight = mapPoseToScreenDelta(20, -10, 75, 0, width, height);
-    const topLeft = mapPoseToScreenDelta(-20, -10, 75, 0, width, height);
-    const bottomRight = mapPoseToScreenDelta(20, 10, 75, 0, width, height);
-    const bottomLeft = mapPoseToScreenDelta(-20, 10, 75, 0, width, height);
-
-    expect(topRight).toMatchObject({ x: expect.any(Number), y: expect.any(Number) });
-    expect(topRight.x).toBeGreaterThan(width / 4);
-    expect(topRight.y).toBeLessThan(-height / 4);
-    expect(topLeft.x).toBeLessThan(-width / 4);
-    expect(topLeft.y).toBeLessThan(-height / 4);
-    expect(bottomRight.x).toBeGreaterThan(width / 4);
-    expect(bottomRight.y).toBeGreaterThan(height / 4);
-    expect(bottomLeft.x).toBeLessThan(-width / 4);
-    expect(bottomLeft.y).toBeGreaterThan(height / 4);
-    for (const point of [topRight, topLeft, bottomRight, bottomLeft]) {
-      expect(Math.abs(point.x)).toBeLessThan(width / 2);
-      expect(Math.abs(point.y)).toBeLessThan(height / 2);
+describe("Velocity Controller", () => {
+  it("produces zero displacement for stationary noise within dead zone", () => {
+    const controller = new VelocityController();
+    const noiseValues = [0.1, -0.15, 0.2, -0.1, 0.05, -0.2, 0.15, -0.05, 0.1, -0.1];
+    let totalX = 0;
+    let totalY = 0;
+    for (const noise of noiseValues) {
+      const delta = controller.process(
+        { yaw: noise, pitch: -noise * 0.8 },
+        DEFAULT_DZ,
+        null,
+        50,
+        1 / 60
+      );
+      totalX += delta.x;
+      totalY += delta.y;
     }
+    expect(Math.abs(totalX)).toBeLessThan(0.01);
+    expect(Math.abs(totalY)).toBeLessThan(0.01);
   });
 
-  it("clamps implausible pose input before it can reach the pointer mapper", () => {
-    expect(clampPoseDelta({ yaw: 90, pitch: -90 })).toEqual({
-      yaw: MAX_YAW_DELTA_DEGREES,
-      pitch: -MAX_PITCH_DELTA_DEGREES
-    });
-
-    expect(mapPoseToScreenDelta(90, 90, 90, 0, 1280, 720)).toEqual(
-      mapPoseToScreenDelta(MAX_YAW_DELTA_DEGREES, MAX_PITCH_DELTA_DEGREES, 90, 0, 1280, 720)
-    );
+  it("produces slow monotonic movement for slight intentional deflection", () => {
+    const controller = new VelocityController();
+    // Camera yaw -2 = physical right (inverted at boundary)
+    const result = processSeconds(controller, -2, 0, DEFAULT_DZ, null, 50, 1);
+    expect(result.x).toBeGreaterThan(10);
+    expect(result.x).toBeLessThan(800);
   });
 
+  it("produces faster movement for larger deflection", () => {
+    const controllerSlow = new VelocityController();
+    const controllerFast = new VelocityController();
+    const slow = processSeconds(controllerSlow, -2, 0, DEFAULT_DZ, null, 50, 1);
+    const fast = processSeconds(controllerFast, -8, 0, DEFAULT_DZ, null, 50, 1);
+    expect(fast.x).toBeGreaterThan(slow.x * 2);
+  });
+
+  it("caps speed at configured maximum", () => {
+    const controller = new VelocityController();
+    // Extreme deflection at max sensitivity
+    const delta = controller.process({ yaw: -20, pitch: 0 }, DEFAULT_DZ, null, 100, 1 / 60);
+    // Max speed at sensitivity 100 = 2400 px/sec, per frame at 60fps = 40px max
+    expect(Math.abs(delta.x)).toBeLessThanOrEqual(41);
+  });
+
+  it("returns velocity to zero when pose returns to neutral", () => {
+    const controller = new VelocityController();
+    // Move right
+    controller.process({ yaw: -5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    controller.process({ yaw: -5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    // Return to neutral
+    const atRest = controller.process({ yaw: 0, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    expect(atRest.x).toBe(0);
+    expect(atRest.y).toBe(0);
+  });
+
+  it("maintains dead-zone hysteresis without start/stop chatter", () => {
+    const controller = new VelocityController();
+    // Start below enter threshold
+    const d1 = controller.process({ yaw: -0.5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    expect(d1.x).toBe(0);
+
+    // Cross enter threshold
+    const d2 = controller.process({ yaw: -1.5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    expect(d2.x).toBeGreaterThan(0); // moving right
+
+    // Drop below enter but above exit threshold
+    const d3 = controller.process({ yaw: -0.7, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    expect(d3.x).toBeGreaterThan(0); // still engaged due to hysteresis
+
+    // Drop below exit threshold
+    const d4 = controller.process({ yaw: -0.3, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    expect(d4.x).toBe(0); // disengaged
+  });
+
+  it("handles asymmetric calibration ranges", () => {
+    const controller = new VelocityController();
+    const asymmetricRange: DirectionalCalibrationRange = {
+      left: 15, right: 5, up: 10, down: 10
+    };
+    // Same deflection magnitude in both directions
+    const left = processSeconds(controller, 5, 0, DEFAULT_DZ, asymmetricRange, 50, 1);
+    controller.reset();
+    const right = processSeconds(controller, -5, 0, DEFAULT_DZ, asymmetricRange, 50, 1);
+    // Both directions produce meaningful movement
+    expect(Math.abs(left.x)).toBeGreaterThan(10);
+    expect(Math.abs(right.x)).toBeGreaterThan(10);
+  });
+
+  it("produces same displacement at different frame rates for the same wall time", () => {
+    const controller30 = new VelocityController();
+    const controller60 = new VelocityController();
+    const result30 = processSeconds(controller30, -5, 0, DEFAULT_DZ, null, 50, 2, 30);
+    const result60 = processSeconds(controller60, -5, 0, DEFAULT_DZ, null, 50, 2, 60);
+    // Should be within 5% of each other
+    expect(Math.abs(result30.x - result60.x) / Math.max(result60.x, 1)).toBeLessThan(0.05);
+  });
+
+  it("inverts camera yaw correctly for screen direction", () => {
+    const controller = new VelocityController();
+    // Camera yaw negative = physical right turn = positive screen X
+    const right = controller.process({ yaw: -5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    controller.reset();
+    const left = controller.process({ yaw: 5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    expect(right.x).toBeGreaterThan(0);
+    expect(left.x).toBeLessThan(0);
+  });
+
+  it("higher sensitivity produces more displacement", () => {
+    const controllerLow = new VelocityController();
+    const controllerHigh = new VelocityController();
+    const low = processSeconds(controllerLow, -5, 0, DEFAULT_DZ, null, 20, 1);
+    const high = processSeconds(controllerHigh, -5, 0, DEFAULT_DZ, null, 80, 1);
+    expect(high.x).toBeGreaterThan(low.x * 1.5);
+  });
+});
+
+describe("Dead Zone Scaling", () => {
+  it("multiplies calibrated zone by user preference", () => {
+    const base: CalibratedDeadZone = {
+      yawEnter: 1.0, yawExit: 0.6, pitchEnter: 0.8, pitchExit: 0.5
+    };
+    const scaled = scaleDeadZone(base, 100); // 2x
+    expect(scaled.yawEnter).toBeCloseTo(2.0);
+    expect(scaled.yawExit).toBeCloseTo(1.2);
+  });
+
+  it("eliminates dead zone at setting 0", () => {
+    const base = defaultDeadZone();
+    const scaled = scaleDeadZone(base, 0);
+    expect(scaled.yawEnter).toBe(0);
+    expect(scaled.pitchEnter).toBe(0);
+  });
+
+  it("preserves calibrated zone at setting 50", () => {
+    const base: CalibratedDeadZone = {
+      yawEnter: 1.0, yawExit: 0.6, pitchEnter: 0.8, pitchExit: 0.5
+    };
+    const scaled = scaleDeadZone(base, 50);
+    expect(scaled.yawEnter).toBeCloseTo(1.0);
+  });
+});
+
+describe("Pose Input Stabilizer", () => {
   it("rejects a single-frame pose spike and resumes from the accepted pose", () => {
     const stabilizer = new PoseInputStabilizer();
-    stabilizer.process({ yaw: 0, pitch: 0 }, 0);
+    stabilizer.process({ yaw: 0, pitch: 0 });
 
-    const rejected = stabilizer.process({ yaw: 80, pitch: -80 }, 0);
-    const recovered = stabilizer.process({ yaw: 0, pitch: 0 }, 0);
+    const rejected = stabilizer.process({ yaw: 80, pitch: -80 });
+    const recovered = stabilizer.process({ yaw: 0, pitch: 0 });
 
     expect(rejected).toMatchObject({ yaw: 0, pitch: 0, spikeRejected: true });
     expect(recovered).toMatchObject({ yaw: 0, pitch: 0, spikeRejected: false });
   });
 
-  it("holds a dead zone through stationary jitter until the lower release threshold", () => {
-    const stabilizer = new PoseInputStabilizer();
-    const deadZone = 50;
-
-    expect(stabilizer.process({ yaw: 0.8, pitch: -0.8 }, deadZone).yaw).toBe(0);
-    expect(stabilizer.process({ yaw: 2.2, pitch: 0 }, deadZone).yaw).toBeGreaterThan(0);
-    expect(stabilizer.process({ yaw: 1.7, pitch: 0 }, deadZone).yaw).toBeGreaterThan(0);
-    expect(stabilizer.process({ yaw: 1.4, pitch: 0 }, deadZone).yaw).toBe(0);
+  it("clamps implausible pose input before it can reach the mapper", () => {
+    expect(clampPoseDelta({ yaw: 90, pitch: -90 })).toEqual({
+      yaw: MAX_YAW_DELTA_DEGREES,
+      pitch: -MAX_PITCH_DELTA_DEGREES
+    });
   });
+});
 
+describe("Smoothing and Clamping", () => {
   it("smooths coordinates without latency divergence", () => {
     const current = { x: 100, y: 100 };
     const target = { x: 200, y: 200 };
@@ -152,10 +243,10 @@ describe("Pointer Mapping Math", () => {
     expect(deliberateStep.x - stationaryPosition.x).toBeGreaterThan(150);
   });
 
-  it("clamps coordinates strictly inside viewport", () => {
+  it("clamps coordinates strictly inside viewport with edge inset", () => {
     const overflowPos = { x: 2000, y: -500 };
     const clamped = clampCoordinates(overflowPos, 1920, 1080);
 
-    expect(clamped).toEqual({ x: 1920, y: 0 });
+    expect(clamped).toEqual({ x: 1904, y: 16 });
   });
 });

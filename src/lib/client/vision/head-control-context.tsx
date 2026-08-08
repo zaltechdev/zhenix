@@ -15,13 +15,15 @@ import {
 } from "@/lib/contracts/auth";
 import { NeutralBaseline } from "./head-pose";
 import {
-  mapCameraPoseToScreenDelta,
-  smoothCoordinates,
+  VelocityController,
   clampCoordinates,
   PoseInputStabilizer,
-  Vector2D
+  Vector2D,
+  defaultDeadZone,
+  scaleDeadZone,
+  type CalibratedDeadZone
 } from "./pointer-mapping";
-import { getEligibleTargetCandidates } from "./target-resolver";
+import { resolveTargetAtPoint } from "./target-resolver";
 import { TargetAssistController } from "./target-assist";
 import { RestLockController } from "./rest-lock";
 import {
@@ -41,7 +43,8 @@ import {
 import {
   CALIBRATION_CONFIG,
   CalibrationEngine,
-  CalibrationState
+  CalibrationState,
+  type DirectionalCalibrationRange
 } from "./calibration";
 import { AksaPointer } from "@/components/workspace/aksa-pointer";
 import { getCachedProfile, setCachedProfile } from "./profile-cache";
@@ -113,6 +116,7 @@ const DEFAULT_CALIBRATION: CalibrationState = {
   samplesCount: 0,
   baseline: null,
   range: null,
+  deadZone: null,
   direction: "center",
   step: 1,
   errorMessage: null,
@@ -156,20 +160,23 @@ export function HeadControlProvider({
   const dwellRef = useRef<DwellController | null>(null);
   const gestureRef = useRef<GestureDetector | null>(null);
   const calibrationEngineRef = useRef<CalibrationEngine>(new CalibrationEngine());
-  const calibrationRangeRef = useRef<CalibrationState["range"]>(null);
-  const calibrationFallbackRangeRef = useRef<CalibrationState["range"]>(null);
+  const calibrationRangeRef = useRef<DirectionalCalibrationRange | null>(null);
+  const calibrationDeadZoneRef = useRef<CalibratedDeadZone | null>(null);
+  const calibrationFallbackRangeRef = useRef<DirectionalCalibrationRange | null>(null);
+  const calibrationFallbackDeadZoneRef = useRef<CalibratedDeadZone | null>(null);
   const calibrationAttemptRef = useRef(0);
   const calibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
   const currentPosRef = useRef<Vector2D>(pointerPosition);
   const renderedPosRef = useRef<Vector2D>(pointerPosition);
-  const pointerOriginRef = useRef<Vector2D>(pointerPosition);
   const reacquisitionReadyRef = useRef(false);
   const frameClockRef = useRef<FreshFrameClock>(new FreshFrameClock());
   const reacquisitionRef = useRef<TrackingReacquisitionController>(
     new TrackingReacquisitionController()
   );
   const poseInputRef = useRef<PoseInputStabilizer>(new PoseInputStabilizer());
+  const velocityRef = useRef<VelocityController>(new VelocityController());
+  // Rest Lock and Target Assist are retained but bypassed in normal movement
   const restLockRef = useRef<RestLockController>(new RestLockController());
   const targetAssistRef = useRef<TargetAssistController>(new TargetAssistController());
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -181,6 +188,7 @@ export function HeadControlProvider({
 
   const resetInteractionState = useCallback((resetPointer: boolean) => {
     poseInputRef.current.reset();
+    velocityRef.current.reset();
     restLockRef.current.reset();
     setIsRestLocked(false);
     targetAssistRef.current.clear();
@@ -194,7 +202,6 @@ export function HeadControlProvider({
       const centered = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       currentPosRef.current = centered;
       renderedPosRef.current = centered;
-      pointerOriginRef.current = centered;
       setPointerPosition(centered);
     }
   }, []);
@@ -405,8 +412,10 @@ export function HeadControlProvider({
   }, []);
 
   const restoreCalibrationRange = useCallback(() => {
-    const fallback = calibrationFallbackRangeRef.current;
-    calibrationRangeRef.current = fallback ? { ...fallback } : null;
+    const fallbackRange = calibrationFallbackRangeRef.current;
+    calibrationRangeRef.current = fallbackRange ? { ...fallbackRange } : null;
+    const fallbackDeadZone = calibrationFallbackDeadZoneRef.current;
+    calibrationDeadZoneRef.current = fallbackDeadZone ? { ...fallbackDeadZone } : null;
   }, []);
 
   const scheduleCalibrationTimeout = useCallback(
@@ -434,8 +443,11 @@ export function HeadControlProvider({
     clearCalibrationTimeout();
     const attemptId = calibrationEngineRef.current.start();
     const appliedRange = calibrationRangeRef.current;
+    const appliedDeadZone = calibrationDeadZoneRef.current;
     calibrationFallbackRangeRef.current = appliedRange ? { ...appliedRange } : null;
+    calibrationFallbackDeadZoneRef.current = appliedDeadZone ? { ...appliedDeadZone } : null;
     calibrationRangeRef.current = null;
+    calibrationDeadZoneRef.current = null;
     calibrationAttemptRef.current = attemptId;
     scheduleCalibrationTimeout(attemptId);
     resetInteractionState(true);
@@ -482,8 +494,8 @@ export function HeadControlProvider({
         reacquisitionReadyRef.current = false;
         reacquisitionRef.current.reset();
         resetInteractionState(false);
+        // Freeze pointer at last rendered position, velocity becomes zero
         currentPosRef.current = { ...renderedPosRef.current };
-        pointerOriginRef.current = { ...renderedPosRef.current };
         setLifecycleState("tracking_lost");
         setErrorCategory("tracking_lost");
         if (calibrationEngineRef.current.getState().status === "capturing") {
@@ -508,8 +520,8 @@ export function HeadControlProvider({
           reacquisitionReadyRef.current = true;
           setNeutralBaselineState(reacquisition.baseline);
           engineRef.current?.setNeutralBaseline(reacquisition.baseline);
+          // Preserve current screen pointer position, restart from velocity zero
           currentPosRef.current = { ...renderedPosRef.current };
-          pointerOriginRef.current = { ...renderedPosRef.current };
           resetInteractionState(false);
           if (dwellRef.current) dwellRef.current.requireFreshCycle();
           if (gestureRef.current) gestureRef.current.disarmUntilRelease();
@@ -517,9 +529,9 @@ export function HeadControlProvider({
         return;
       }
 
+      // Stabilize pose input (spike rejection, temporal filtering)
       const stabilizedPose = poseInputRef.current.process(
         data.poseDelta,
-        currentProfile.deadZone,
         currentProfile.smoothing,
         dt
       );
@@ -538,15 +550,19 @@ export function HeadControlProvider({
           calibrationAttemptRef.current
         );
         setCalibrationState(state);
-        calibrationRangeRef.current = state.range;
         if (state.status === "completed" && state.baseline) {
           clearCalibrationTimeout();
-          calibrationFallbackRangeRef.current = state.range ? { ...state.range } : null;
+          // Install both range and dead zone from calibration
           calibrationRangeRef.current = state.range;
+          calibrationDeadZoneRef.current = state.deadZone;
+          calibrationFallbackRangeRef.current = state.range ? { ...state.range } : null;
+          calibrationFallbackDeadZoneRef.current = state.deadZone ? { ...state.deadZone } : null;
           setNeutralBaseline(state.baseline);
           resetInteractionState(true);
         } else if (state.status === "failed") {
           clearCalibrationTimeout();
+          // Restore previous calibration on failure
+          restoreCalibrationRange();
         } else if (state.step !== previousStep) {
           scheduleCalibrationTimeout(calibrationAttemptRef.current);
         }
@@ -558,38 +574,32 @@ export function HeadControlProvider({
         return;
       }
 
-      // 4. Map Head Pose to Screen Coordinates using CURRENT profileRef.current
-      const screenDelta = mapCameraPoseToScreenDelta(
-        stabilizedPose.yaw,
-        stabilizedPose.pitch,
+      // 4. VELOCITY-BASED pointer movement
+      // Get effective dead zone: calibrated (scaled by user pref) or default
+      const baseDeadZone = calibrationDeadZoneRef.current ?? defaultDeadZone();
+      const effectiveDeadZone = scaleDeadZone(baseDeadZone, currentProfile.deadZone);
+
+      const deltaTimeSec = dt / 1000;
+      const velocityDelta = velocityRef.current.process(
+        { yaw: stabilizedPose.yaw, pitch: stabilizedPose.pitch },
+        effectiveDeadZone,
+        calibrationRangeRef.current,
         currentProfile.pointerSensitivity,
-        0,
-        window.innerWidth,
-        window.innerHeight,
-        calibrationRangeRef.current
+        deltaTimeSec
       );
 
-      const targetPos: Vector2D = {
-        x: pointerOriginRef.current.x + screenDelta.x,
-        y: pointerOriginRef.current.y + screenDelta.y
+      // Integrate: add velocity delta to current position
+      const newPos: Vector2D = {
+        x: currentPosRef.current.x + velocityDelta.x,
+        y: currentPosRef.current.y + velocityDelta.y
       };
 
-      const smoothedPos = smoothCoordinates(
-        currentPosRef.current,
-        targetPos,
-        currentProfile.smoothing,
-        dt,
-        stabilizedPose.motionResponse
-      );
-      const clampedPos = clampCoordinates(smoothedPos, window.innerWidth, window.innerHeight);
+      const clampedPos = clampCoordinates(newPos, window.innerWidth, window.innerHeight);
+      currentPosRef.current = clampedPos;
 
-      const restLock = restLockRef.current.process(
-        clampedPos,
-        now,
-        stabilizedPose.motionDegrees
-      );
-      currentPosRef.current = restLock.position;
-      setIsRestLocked(restLock.isLocked);
+      // Rest Lock and Target Assist are BYPASSED for this corrective pass.
+      // The velocity controller + calibrated dead zones handle rest naturally.
+      setIsRestLocked(velocityDelta.x === 0 && velocityDelta.y === 0);
 
       // 5. Confirmation Lockout & Re-Arm Guard
       const currentModal =
@@ -617,29 +627,21 @@ export function HeadControlProvider({
             document.querySelector('[data-aksa-calibration-guard="true"]')
         );
 
-      const targetAssist = isControlActive
-        ? targetAssistRef.current.process(
-            targetAssistRef.current.isLocked ? clampedPos : restLock.position,
-            getEligibleTargetCandidates(
-              targetAssistRef.current.isLocked ? clampedPos : restLock.position,
-              currentModal
-            ),
-            now
-          )
+      // Target Assist remains disabled. Resolve only the topmost direct DOM hit.
+      const directTarget = isControlActive
+        ? resolveTargetAtPoint(clampedPos.x, clampedPos.y)
         : null;
-      if (!targetAssist) {
-        targetAssistRef.current.clear();
-      }
+      const eligibleTarget =
+        directTarget?.isEligible &&
+        directTarget.element &&
+        (!currentModal || currentModal.contains(directTarget.element))
+          ? directTarget.element
+          : null;
+      const eligibleBounds = eligibleTarget ? directTarget?.bounds ?? null : null;
 
-      const assistedPosition = targetAssist?.position ?? restLock.position;
-      const visualTarget = targetAssist?.activeTarget ?? null;
-      const eligibleTarget = targetAssist?.selectionSuppressed
-        ? null
-        : visualTarget;
-      const eligibleBounds = targetAssist?.activeTargetBounds ?? null;
-      renderedPosRef.current = assistedPosition;
-      setPointerPosition(assistedPosition);
-      setActiveTarget(visualTarget);
+      renderedPosRef.current = clampedPos;
+      setPointerPosition(clampedPos);
+      setActiveTarget(eligibleTarget);
 
       // Process Dwell
       if (
@@ -648,7 +650,7 @@ export function HeadControlProvider({
         (currentProfile.selectionMode === "dwell" || currentProfile.selectionMode === "both")
       ) {
         const dProgress = dwellRef.current.processFrame(
-          assistedPosition,
+          clampedPos,
           eligibleTarget,
           eligibleBounds,
           now,
@@ -905,7 +907,9 @@ export function HeadControlProvider({
     calibrationAttemptRef.current += 1;
     calibrationEngineRef.current.cancel();
     calibrationFallbackRangeRef.current = null;
+    calibrationFallbackDeadZoneRef.current = null;
     calibrationRangeRef.current = null;
+    calibrationDeadZoneRef.current = null;
     setCalibrationState(calibrationEngineRef.current.getState());
     activeStreamRef.current = null;
     setActiveStream(null);
