@@ -10,7 +10,7 @@ import { GestureDetector } from "@/lib/client/vision/gesture-detector";
 import { DwellController } from "@/lib/client/vision/dwell-controller";
 import { CalibrationEngine } from "@/lib/client/vision/calibration";
 import {
-  mapPoseToScreenDelta,
+  mapCameraPoseToScreenDelta,
   smoothCoordinates
 } from "@/lib/client/vision/pointer-mapping";
 import type {
@@ -121,6 +121,9 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       configurable: true,
       value: vi.fn(() => null)
     });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      () => new DOMRect(300, 200, 500, 500)
+    );
     await clearCachedProfile("user-a");
     await clearCachedProfile("user-b");
     await clearCachedProfile("server-user");
@@ -373,7 +376,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     act(() => result.current.updateProfile(updatedProfile));
     act(() => engine.emit(visionFrame(600, { poseDelta })));
 
-    const delta = mapPoseToScreenDelta(
+    const delta = mapCameraPoseToScreenDelta(
       poseDelta.yaw,
       poseDelta.pitch,
       updatedProfile.pointerSensitivity,
@@ -437,14 +440,15 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
         engine.emit(visionFrame(index * 100, { blendshapes: held }));
       }
       engine.emit(visionFrame(600, { blendshapes: [] }));
-      engine.emit(visionFrame(700, { blendshapes: held }));
+      engine.emit(visionFrame(700, { blendshapes: [] }));
+      engine.emit(visionFrame(800, { blendshapes: held }));
     });
 
     expect(triggerClick).toHaveBeenCalledTimes(1);
     expect(approveClick).not.toHaveBeenCalled();
 
     act(() => {
-      engine.emit(visionFrame(800, { blendshapes: held }));
+      engine.emit(visionFrame(900, { blendshapes: held }));
       engine.emit(visionFrame(1400, { blendshapes: held }));
     });
     expect(approveClick).not.toHaveBeenCalled();
@@ -491,13 +495,14 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
         engine.emit(visionFrame(index * 100, { blendshapes: held }));
       }
       engine.emit(visionFrame(600, { blendshapes: [] }));
-      engine.emit(visionFrame(700, { blendshapes: held }));
+      engine.emit(visionFrame(700, { blendshapes: [] }));
+      engine.emit(visionFrame(800, { blendshapes: held }));
     });
     expect(click).toHaveBeenCalledTimes(1);
 
     act(() => {
       engine.emit(
-        visionFrame(800, {
+        visionFrame(900, {
           lifecycleState: "tracking_lost",
           faceDetected: false,
           blendshapes: held
@@ -513,11 +518,11 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(
-          visionFrame(800 + index * 100, { poseDelta: recoveryDelta, blendshapes: held })
+          visionFrame(900 + index * 100, { poseDelta: recoveryDelta, blendshapes: held })
         );
       }
     });
-    const recoveryMapped = mapPoseToScreenDelta(
+    const recoveryMapped = mapCameraPoseToScreenDelta(
       recoveryDelta.yaw,
       recoveryDelta.pitch,
       profile.pointerSensitivity,
@@ -530,11 +535,11 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(result.current.activeTarget).toBeNull();
     expect(click).toHaveBeenCalledTimes(1);
 
-    act(() => engine.emit(visionFrame(1400, { blendshapes: held })));
+    act(() => engine.emit(visionFrame(1500, { blendshapes: held })));
     expect(click).toHaveBeenCalledTimes(1);
     act(() => {
-      engine.emit(visionFrame(1500, { blendshapes: [] }));
-      engine.emit(visionFrame(1600, { blendshapes: held }));
+      engine.emit(visionFrame(1600, { blendshapes: [] }));
+      engine.emit(visionFrame(1700, { blendshapes: held }));
     });
     expect(click).toHaveBeenCalledTimes(2);
   });
@@ -574,7 +579,8 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
         engine.emit(visionFrame(index * 100, { blendshapes: held }));
       }
       engine.emit(visionFrame(600, { blendshapes: [] }));
-      engine.emit(visionFrame(700, { blendshapes: held }));
+      engine.emit(visionFrame(700, { blendshapes: [] }));
+      engine.emit(visionFrame(800, { blendshapes: held }));
     });
     expect(click).toHaveBeenCalledTimes(1);
 

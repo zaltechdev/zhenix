@@ -21,6 +21,7 @@ Give a user who cannot operate a mouse a reliable way to point and select anywhe
 ## Scope
 
 - Head-pose pointer with sensitivity, dead zone, and smoothing.
+- Internal semantic Target Assist for eligible controls, with no additional user-facing tuning panel.
 - Dwell selection with configurable duration and immediate cancel on leaving a target.
 - One configurable facial gesture for selection, with a threshold and a cooldown.
 - Pause and resume from a single always-reachable control.
@@ -51,6 +52,16 @@ Give a user who cannot operate a mouse a reliable way to point and select anywhe
 | 4 | Holds on a target | Starts dwell only when the target is eligible and the pointer is stable |
 | 5 | Holds until complete | Activates the target, then enters cooldown |
 | 6 | Moves away early | Cancels dwell immediately with no activation |
+
+### Target Assist
+
+- Target Assist considers only visible, enabled semantic controls: buttons, linked anchors, inputs, textareas, selects, checkboxes, radios, switches, supported interactive roles, and explicit Aksa interactive markers.
+- It measures pointer distance to each control rectangle, not its centre. Generic containers, body text, disabled controls, hidden controls, and inert content are never candidates.
+- Outside the internal assist radius, the pointer follows filtered head movement normally. Inside it, a restrained magnetic approach helps finish the final pixels without teleporting the cursor.
+- A clearly nearest candidate must remain stable briefly before lock. While locked, minor pose noise does not release the target and dwell or gesture uses that target.
+- The release radius is larger than the acquisition radius. A larger raw-pointer displacement, high pointer velocity, invalid target, or leaving the release radius clears the lock and cancels dwell immediately.
+- Similar adjacent candidates remain unlocked until movement makes one clearly nearest. A valid current lock remains preferred over a new nearby candidate.
+- Assist configuration is internal and centralized in the client controller. It is not exposed as engineering controls in accessibility settings.
 
 ### Gesture selection
 

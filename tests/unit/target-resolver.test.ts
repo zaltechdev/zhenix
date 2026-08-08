@@ -1,5 +1,16 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { isEligibleTarget } from "@/lib/client/vision/target-resolver";
+import {
+  findNearestEligibleTarget,
+  getEligibleTargetCandidates,
+  isEligibleTarget
+} from "@/lib/client/vision/target-resolver";
+
+function setBounds(element: HTMLElement, left: number, top: number, width: number, height: number) {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => new DOMRect(left, top, width, height)
+  });
+}
 
 describe("Target Resolver Engine", () => {
   beforeEach(() => {
@@ -54,5 +65,36 @@ describe("Target Resolver Engine", () => {
     document.body.appendChild(p);
 
     expect(isEligibleTarget(p)).toBe(false);
+  });
+
+  it("rejects generic tabindex containers", () => {
+    const container = document.createElement("div");
+    container.tabIndex = 0;
+    document.body.appendChild(container);
+
+    expect(isEligibleTarget(container)).toBe(false);
+  });
+
+  it("finds the nearest visible eligible target by rectangle distance", () => {
+    const far = document.createElement("button");
+    const near = document.createElement("a");
+    near.href = "/workspace";
+    setBounds(far, 300, 100, 44, 44);
+    setBounds(near, 100, 100, 160, 44);
+    document.body.append(far, near);
+
+    expect(findNearestEligibleTarget({ x: 90, y: 120 })?.element).toBe(near);
+  });
+
+  it("never returns disabled or hidden controls as target candidates", () => {
+    const disabled = document.createElement("button");
+    disabled.disabled = true;
+    const hidden = document.createElement("button");
+    hidden.hidden = true;
+    setBounds(disabled, 100, 100, 44, 44);
+    setBounds(hidden, 160, 100, 44, 44);
+    document.body.append(disabled, hidden);
+
+    expect(getEligibleTargetCandidates({ x: 120, y: 120 })).toEqual([]);
   });
 });
