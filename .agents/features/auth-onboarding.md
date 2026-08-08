@@ -22,6 +22,7 @@ Get a new user from the landing page to a workspace where head control and voice
 - Sign in, sign out, session persistence.
 - One workspace created automatically on first sign in.
 - Onboarding: purpose explanation, camera consent, pointer test, calibration, microphone consent, voice test, first guided command.
+- Visible camera preview is mirrored for familiar self-alignment only. MediaPipe input, pose mapping, and calibration coordinates remain unmirrored.
 - Separate camera and microphone consent, each recorded.
 - Accessibility profile persistence and reset.
 - Resume onboarding after abandonment.
@@ -53,6 +54,8 @@ Get a new user from the landing page to a workspace where head control and voice
 | 12 | Reads the guided prompt to say `Open Google Docs` | Accepts voice or typed entry, then routes into the workspace |
 
 Onboarding progress is saved after each completed step. Leaving and returning resumes at the last incomplete step.
+
+The Head pointer calibration step keeps status, helper text, progress, and the calibration action in one panel. Skip remains a single footer navigation action so camera or calibration failure never traps the user.
 
 ## UI States
 

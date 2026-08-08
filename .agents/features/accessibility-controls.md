@@ -63,6 +63,12 @@ Give a user who cannot operate a mouse a reliable way to point and select anywhe
 - Similar adjacent candidates remain unlocked until movement makes one clearly nearest. A valid current lock remains preferred over a new nearby candidate.
 - Assist configuration is internal and centralized in the client controller. It is not exposed as engineering controls in accessibility settings.
 
+### Rest Lock
+
+- After pose filtering and mapping, Rest Lock freezes a rendered pointer that remains inside a small stability envelope for a short interval.
+- Its release boundary is larger than its acquisition envelope. A sustained, directional movement releases promptly, while one isolated frame does not.
+- Rest Lock clears on tracking loss, pause, restart, calibration, and disable. An already acquired Target Assist target continues to receive the unheld pointer input so its intentional escape logic remains authoritative.
+
 ### Pointer feedback
 
 - The runtime pointer uses the supplied Aksa SVG asset, remains compact, and never participates in hit testing.

@@ -23,6 +23,7 @@ import {
 } from "./pointer-mapping";
 import { getEligibleTargetCandidates } from "./target-resolver";
 import { TargetAssistController } from "./target-assist";
+import { RestLockController } from "./rest-lock";
 import { DwellController, DwellProgress } from "./dwell-controller";
 import { GestureDetector, GestureStatus } from "./gesture-detector";
 import {
@@ -46,6 +47,7 @@ export interface HeadControlContextValue {
   dwellProgress: DwellProgress;
   gestureStatus: GestureStatus;
   activationFeedbackKey: number;
+  isRestLocked: boolean;
   profile: AccessibilityProfile;
   neutralBaseline: NeutralBaseline | null;
   calibrationState: CalibrationState;
@@ -137,6 +139,7 @@ export function HeadControlProvider({
   const [dwellProgress, setDwellProgress] = useState<DwellProgress>(DEFAULT_DWELL);
   const [gestureStatus, setGestureStatus] = useState<GestureStatus>(DEFAULT_GESTURE);
   const [activationFeedbackKey, setActivationFeedbackKey] = useState(0);
+  const [isRestLocked, setIsRestLocked] = useState(false);
   const [neutralBaseline, setNeutralBaselineState] = useState<NeutralBaseline | null>(null);
   const [calibrationState, setCalibrationState] = useState<CalibrationState>(DEFAULT_CALIBRATION);
 
@@ -150,6 +153,7 @@ export function HeadControlProvider({
   const reacquisitionCountRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
   const poseInputRef = useRef<PoseInputStabilizer>(new PoseInputStabilizer());
+  const restLockRef = useRef<RestLockController>(new RestLockController());
   const targetAssistRef = useRef<TargetAssistController>(new TargetAssistController());
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeModalRef = useRef<Element | null>(null);
@@ -287,6 +291,8 @@ export function HeadControlProvider({
   const setNeutralBaseline = useCallback((baseline: NeutralBaseline) => {
     setNeutralBaselineState(baseline);
     poseInputRef.current.reset();
+    restLockRef.current.reset();
+    setIsRestLocked(false);
     targetAssistRef.current.clear();
     if (engineRef.current) {
       engineRef.current.setNeutralBaseline(baseline);
@@ -301,6 +307,8 @@ export function HeadControlProvider({
     calibrationEngineRef.current.start();
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
     if (gestureRef.current) gestureRef.current.disarmUntilRelease();
+    restLockRef.current.reset();
+    setIsRestLocked(false);
     targetAssistRef.current.clear();
     setActiveTarget(null);
     setDwellProgress(DEFAULT_DWELL);
@@ -317,6 +325,8 @@ export function HeadControlProvider({
     reacquisitionCountRef.current = 0;
     lastFrameTimeRef.current = 0;
     poseInputRef.current.reset();
+    restLockRef.current.reset();
+    setIsRestLocked(false);
     targetAssistRef.current.clear();
     activeModalRef.current = null;
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
@@ -342,6 +352,8 @@ export function HeadControlProvider({
       if (!data.faceDetected || data.lifecycleState === "tracking_lost") {
         reacquisitionCountRef.current = 0;
         poseInputRef.current.reset();
+        restLockRef.current.reset();
+        setIsRestLocked(false);
         targetAssistRef.current.clear();
         setLifecycleState("tracking_lost");
         setErrorCategory("tracking_lost");
@@ -436,6 +448,8 @@ export function HeadControlProvider({
       const clampedPos = clampCoordinates(smoothedPos, window.innerWidth, window.innerHeight);
 
       currentPosRef.current = clampedPos;
+      const restLock = restLockRef.current.process(clampedPos, now);
+      setIsRestLocked(restLock.isLocked);
 
       // 5. Confirmation Lockout & Re-Arm Guard
       const currentModal =
@@ -460,8 +474,11 @@ export function HeadControlProvider({
 
       const targetAssist = isControlActive
         ? targetAssistRef.current.process(
-            clampedPos,
-            getEligibleTargetCandidates(clampedPos, currentModal),
+            targetAssistRef.current.isLocked ? clampedPos : restLock.position,
+            getEligibleTargetCandidates(
+              targetAssistRef.current.isLocked ? clampedPos : restLock.position,
+              currentModal
+            ),
             now
           )
         : null;
@@ -469,7 +486,7 @@ export function HeadControlProvider({
         targetAssistRef.current.clear();
       }
 
-      const assistedPosition = targetAssist?.position ?? clampedPos;
+      const assistedPosition = targetAssist?.position ?? restLock.position;
       const eligibleTarget = targetAssist?.activeTarget ?? null;
       const eligibleBounds = targetAssist?.activeTargetBounds ?? null;
       setPointerPosition(assistedPosition);
@@ -667,6 +684,8 @@ export function HeadControlProvider({
       engineRef.current.pause();
     }
     poseInputRef.current.reset();
+    restLockRef.current.reset();
+    setIsRestLocked(false);
     targetAssistRef.current.clear();
     lastFrameTimeRef.current = 0;
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
@@ -680,6 +699,8 @@ export function HeadControlProvider({
   const resumeControl = useCallback(() => {
     reacquisitionCountRef.current = 0;
     poseInputRef.current.reset();
+    restLockRef.current.reset();
+    setIsRestLocked(false);
     targetAssistRef.current.clear();
     lastFrameTimeRef.current = 0;
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
@@ -699,6 +720,8 @@ export function HeadControlProvider({
     reacquisitionCountRef.current = 0;
     lastFrameTimeRef.current = 0;
     poseInputRef.current.reset();
+    restLockRef.current.reset();
+    setIsRestLocked(false);
     targetAssistRef.current.clear();
     activeModalRef.current = null;
     calibrationEngineRef.current.cancel();
@@ -735,6 +758,7 @@ export function HeadControlProvider({
         dwellProgress,
         gestureStatus,
         activationFeedbackKey,
+        isRestLocked,
         profile,
         neutralBaseline,
         calibrationState,

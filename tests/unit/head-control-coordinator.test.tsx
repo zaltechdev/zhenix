@@ -157,6 +157,85 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(rendered.container.querySelector(".aksa-pointer-overlay")).not.toBeNull();
   });
 
+  it("holds stationary tracking while allowing an acquired target to escape immediately", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = {
+      ...SETTINGS_OFF,
+      deadZone: 0,
+      smoothing: 0,
+      selectionMode: "dwell",
+      dwellDurationMs: 1200
+    };
+    const button = document.createElement("button");
+    button.textContent = "Acquire me";
+    document.body.appendChild(button);
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(visionFrame(index * 100));
+      }
+      engine.emit(visionFrame(600));
+      engine.emit(visionFrame(760));
+    });
+
+    expect(result.current.isRestLocked).toBe(true);
+    expect(result.current.activeTarget).toBe(button);
+
+    act(() => {
+      engine.emit(visionFrame(800, { poseDelta: { yaw: 2.1, pitch: 3, roll: 0 } }));
+      engine.emit(visionFrame(900, { poseDelta: { yaw: 2, pitch: 3, roll: 0 } }));
+    });
+    expect(result.current.dwellProgress.state).toBe("dwelling");
+    expect(result.current.activeTarget).toBe(button);
+
+    act(() => {
+      engine.emit(visionFrame(1000, { poseDelta: { yaw: -5, pitch: 3, roll: 0 } }));
+    });
+    expect(result.current.activeTarget).toBeNull();
+
+    act(() => {
+      engine.emit(visionFrame(1040, { poseDelta: { yaw: -6, pitch: 3, roll: 0 } }));
+    });
+    expect(result.current.isRestLocked).toBe(false);
+  });
+
+  it("clears Rest Lock when tracking is lost", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 0, smoothing: 0 };
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(visionFrame(index * 100));
+      }
+      engine.emit(visionFrame(600));
+      engine.emit(visionFrame(760));
+    });
+    expect(result.current.isRestLocked).toBe(true);
+
+    act(() => {
+      engine.emit(visionFrame(800, { lifecycleState: "tracking_lost", faceDetected: false }));
+    });
+    expect(result.current.isRestLocked).toBe(false);
+  });
+
   it("isolates IndexedDB cached profiles by user ID and throws on missing user ID", async () => {
     const profileA = {
       pointerSensitivity: 80,
@@ -739,17 +818,17 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(engine.setNeutralBaseline).toHaveBeenCalledWith(pose);
   });
 
-  it("calibration consumes real supplied frame poses and discards raw samples after completion", () => {
+  it("calibration consumes unmirrored supplied frame poses and discards raw samples after completion", () => {
     const calEngine = new CalibrationEngine(5);
     calEngine.start();
 
     for (let i = 0; i < 5; i++) {
-      calEngine.addSample({ yaw: 2, pitch: 4, roll: 0 });
+      calEngine.addSample({ yaw: -2, pitch: 4, roll: 0 });
     }
 
     const state = calEngine.getState();
     expect(state.status).toBe("completed");
-    expect(state.baseline).toEqual({ yaw: 2, pitch: 4, roll: 0 });
+    expect(state.baseline).toEqual({ yaw: -2, pitch: 4, roll: 0 });
     expect(state.samplesCount).toBe(0); // Raw sample array cleared
   });
 

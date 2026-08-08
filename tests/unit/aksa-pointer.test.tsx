@@ -38,6 +38,14 @@ describe("AksaPointer", () => {
     expect(decodeURIComponent(logo?.getAttribute("src") ?? "")).toContain("Cursor-Highlight");
   });
 
+  it("keeps a non-interactive contrast silhouette behind the official cursor", () => {
+    const rendered = render(<AksaPointer {...pointerProps()} />);
+    const contrast = rendered.container.querySelector(".aksa-pointer-overlay__contrast");
+
+    expect(contrast).toHaveStyle({ pointerEvents: "none" });
+    expect(contrast?.querySelector("img")).not.toBeNull();
+  });
+
   it("shows controller dwell progress, including an empty ring at dwell start", () => {
     const rendered = render(
       <AksaPointer {...pointerProps()} dwellProgress={{ ...dwelling, progressRatio: 0 }} hasTarget />

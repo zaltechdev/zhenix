@@ -513,7 +513,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
           {/* Phase 2: Head Control */}
           {currentPhase === 2 ? (
-            <div className="aksa-onboarding-phase">
+            <div className="aksa-onboarding-phase aksa-onboarding-phase--head-control">
               <h1 className="aksa-onboarding__heading" data-onboarding-heading ref={headingRef} tabIndex={-1}>
                 {substepIndex === 2 || substepIndex === 3
                   ? m.onboarding_head_explanation_title({}, options)
@@ -532,7 +532,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
               {substepIndex === 2 || substepIndex === 3 ? (
                 <div className="aksa-onboarding-panel">
                   <div
-                    className="aksa-camera-preview-container"
+                    className="aksa-camera-preview-container aksa-camera-preview--mirrored"
                     hidden={effectiveCameraOutcome !== "active"}
                   >
                     <video
@@ -643,22 +643,28 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
               {/* Substep 4 & 5: Calibration / Head setup */}
               {substepIndex === 4 || substepIndex === 5 ? (
                 <div className="aksa-onboarding-panel">
-                  <p className="aksa-hint">{m.onboarding_head_setup_detail({}, options)}</p>
-
-                  <div className="aksa-onboarding-calibration-box" style={{ marginTop: "16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                      <StatusChip
-                        tone={
-                          headControl.calibrationState.status === "completed"
-                            ? "ready"
-                            : !canCalibrate || headControl.calibrationState.status === "failed"
-                              ? "attention"
-                              : headControl.calibrationState.status === "capturing"
-                                ? "pending"
-                                : "neutral"
-                        }
-                        value={calibrationCopy}
-                      />
+                  <section
+                    aria-labelledby="onboarding-calibration-title"
+                    className="aksa-onboarding-calibration-card"
+                  >
+                    <div className="aksa-onboarding-calibration-card__status" role="status">
+                      <span aria-hidden="true" className="aksa-onboarding-calibration-card__icon">
+                        {headControl.calibrationState.status === "completed" ? (
+                          <Check className="aksa-icon" size={20} />
+                        ) : headControl.calibrationState.status === "capturing" ? (
+                          <Sparkles className="aksa-icon" size={20} />
+                        ) : (
+                          <Camera className="aksa-icon" size={20} />
+                        )}
+                      </span>
+                      <div>
+                        <h2 className="aksa-onboarding-calibration-card__title" id="onboarding-calibration-title">
+                          {calibrationCopy}
+                        </h2>
+                        <p className="aksa-onboarding-calibration-card__helper">
+                          {m.onboarding_head_setup_detail({}, options)}
+                        </p>
+                      </div>
                     </div>
 
                     {headControl.calibrationState.status === "capturing" ? (
@@ -667,46 +673,30 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                         aria-valuemax={100}
                         aria-valuemin={0}
                         aria-valuenow={calibrationProgress}
-                        className="aksa-progress-bar-container"
+                        className="aksa-onboarding-calibration-card__progress"
                         role="progressbar"
-                        style={{ width: "100%", height: "8px", background: "var(--color-aksa-line)", borderRadius: "4px", overflow: "hidden", marginBottom: "16px" }}
                       >
                         <div
-                          style={{
-                            width: `${calibrationProgress}%`,
-                            height: "100%",
-                            background: "var(--color-aksa-teal-deep)",
-                            transition: "width 100ms ease"
-                          }}
+                          className="aksa-onboarding-calibration-card__progress-value"
+                          style={{ width: `${calibrationProgress}%` }}
                         />
                       </div>
                     ) : null}
 
-                    <div className="aksa-onboarding__controls" style={{ display: "flex", gap: "12px" }}>
-                      <button
-                        className="aksa-button aksa-button--primary"
-                        disabled={
-                          !canCalibrate || headControl.calibrationState.status === "capturing"
-                        }
-                        onClick={handleStartCalibration}
-                        type="button"
-                      >
-                        <Sparkles aria-hidden="true" className="aksa-icon" size={16} />
-                        <span>
-                          {headControl.calibrationState.status === "completed"
-                            ? m.onboarding_calibration_restart({}, options)
-                            : m.onboarding_calibration_start({}, options)}
-                        </span>
-                      </button>
-                      <button
-                        className="aksa-button aksa-button--secondary"
-                        onClick={skipPhase2}
-                        type="button"
-                      >
-                        <span>{m.onboarding_skip_head({}, options)}</span>
-                      </button>
-                    </div>
-                  </div>
+                    <button
+                      className="aksa-button aksa-button--primary"
+                      disabled={!canCalibrate || headControl.calibrationState.status === "capturing"}
+                      onClick={handleStartCalibration}
+                      type="button"
+                    >
+                      <Sparkles aria-hidden="true" className="aksa-icon" size={16} />
+                      <span>
+                        {headControl.calibrationState.status === "completed"
+                          ? m.onboarding_calibration_restart({}, options)
+                          : m.onboarding_calibration_start({}, options)}
+                      </span>
+                    </button>
+                  </section>
                 </div>
               ) : null}
 

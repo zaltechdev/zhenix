@@ -49,12 +49,16 @@ export function AksaPointer({
         transform: `translate3d(${position.x}px, ${position.y}px, 0)`
       }}
     >
+      <span aria-hidden="true" className="aksa-pointer-overlay__contrast" style={{ pointerEvents: "none" }}>
+        <Image alt="" height={26} priority src={AksaPointerLogo} width={26} />
+      </span>
       <Image
         alt=""
         className="aksa-pointer-overlay__logo"
         height={26}
         priority
         src={AksaPointerLogo}
+        style={{ pointerEvents: "none" }}
         width={26}
       />
 

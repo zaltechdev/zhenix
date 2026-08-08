@@ -2655,14 +2655,15 @@
 .aksa-onboarding-preview-box {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-aksa-line);
   border-radius: var(--radius-md);
   background: var(--color-aksa-cloud);
   align-items: center;
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
+  margin-inline: auto;
   box-sizing: border-box;
 }
 
@@ -2683,6 +2684,8 @@
 
 .aksa-camera-preview-container {
   width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -2695,11 +2698,79 @@
   object-fit: cover;
 }
 
+/* Presentation-only mirror. MediaPipe reads the untransformed video source. */
+.aksa-camera-preview--mirrored {
+  transform: scaleX(-1);
+}
+
 .aksa-onboarding-panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   margin-bottom: var(--space-5);
+}
+
+.aksa-onboarding-phase--head-control .aksa-onboarding-footer {
+  margin-top: var(--space-5);
+}
+
+.aksa-onboarding-calibration-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-5);
+  width: min(100%, 560px);
+  padding: var(--space-5);
+  border: 1px solid var(--color-aksa-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-aksa-cloud);
+  box-shadow: var(--shadow-aksa-raised);
+}
+
+.aksa-onboarding-calibration-card__status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.aksa-onboarding-calibration-card__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round);
+  background: var(--color-aksa-teal-soft);
+  color: var(--color-aksa-teal-deep);
+}
+
+.aksa-onboarding-calibration-card__title {
+  margin: 0;
+  color: var(--color-aksa-ink);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.aksa-onboarding-calibration-card__helper {
+  margin: var(--space-1) 0 0;
+  color: var(--color-aksa-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.aksa-onboarding-calibration-card__progress {
+  width: 100%;
+  height: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-round);
+  background: var(--color-aksa-line);
+}
+
+.aksa-onboarding-calibration-card__progress-value {
+  height: 100%;
+  background: var(--color-aksa-teal-deep);
+  transition: width var(--duration-fast) var(--ease-calm);
 }
 
 .aksa-details {
@@ -3190,6 +3261,21 @@
   transition: transform var(--duration-fast) var(--ease-calm), filter var(--duration-fast) var(--ease-calm);
 }
 
+.aksa-pointer-overlay__contrast {
+  position: absolute;
+  z-index: 0;
+  width: 26px;
+  height: 26px;
+  pointer-events: none;
+  transform: scale(1.14);
+  filter: brightness(0) invert(1) drop-shadow(0 0 1px rgba(2, 6, 23, 0.96));
+}
+
+.aksa-pointer-overlay__contrast img {
+  width: 100%;
+  height: 100%;
+}
+
 .aksa-pointer-overlay--target .aksa-pointer-overlay__logo {
   transform: scale(1.08);
   filter: drop-shadow(0 1px 2px rgba(79, 140, 247, 0.45));
@@ -3205,6 +3291,7 @@
   width: 40px;
   height: 40px;
   transform: rotate(-90deg);
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.92)) drop-shadow(0 0 1px rgba(2, 6, 23, 0.9));
 }
 
 .aksa-pointer-overlay__progress-bg {

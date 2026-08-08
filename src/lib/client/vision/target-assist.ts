@@ -109,6 +109,10 @@ export class TargetAssistController {
     };
   }
 
+  public get isLocked(): boolean {
+    return this.lockedTarget !== null;
+  }
+
   public clear(): void {
     this.pendingTarget = null;
     this.pendingSinceMs = 0;

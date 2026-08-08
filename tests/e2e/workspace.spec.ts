@@ -89,6 +89,46 @@ test.describe("primary path", () => {
     await expect(page.locator(".aksa-pointer-overlay")).toHaveCount(0);
   });
 
+  test("onboarding mirrors only its preview and keeps calibration responsive", async ({ page }) => {
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1280, height: 768 },
+      { width: 900, height: 900 },
+      { width: 320, height: 640 }
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/onboarding");
+      await page.evaluate(() => window.sessionStorage.clear());
+      await page.reload();
+
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      const preview = page.locator(".aksa-camera-preview--mirrored");
+      await expect(preview).toHaveCount(1);
+      await expect(
+        page.evaluate(() =>
+          Array.from(document.styleSheets).some((sheet) => {
+            try {
+              return Array.from(sheet.cssRules).some(
+                (rule) =>
+                  rule instanceof CSSStyleRule &&
+                  rule.selectorText === ".aksa-camera-preview--mirrored" &&
+                  rule.style.transform === "scaleX(-1)"
+              );
+            } catch {
+              return false;
+            }
+          })
+        )
+      ).resolves.toBe(true);
+
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await expect(page.getByRole("heading", { level: 1, name: "Head pointer" })).toBeVisible();
+      await expect(page.locator(".aksa-onboarding-calibration-card")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Skip head control", exact: true })).toHaveCount(1);
+      expect(await hasHorizontalOverflow(page)).toBe(false);
+    }
+  });
+
   test("onboarding teardown leads to an explicit Workspace start path", async ({ page }) => {
     await page.goto("/onboarding");
     await page.getByRole("link", { name: "Finish later", exact: true }).click();

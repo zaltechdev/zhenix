@@ -6,6 +6,7 @@ import { createAksaError } from "@/lib/contracts/errors";
 import { AuthForm } from "@/components/auth/auth-form";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import type { HeadControlEngineFactory } from "@/lib/client/vision/head-control-context";
+import { mapCameraPoseToScreenDelta } from "@/lib/client/vision/pointer-mapping";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/onboarding",
@@ -178,6 +179,31 @@ describe("onboarding", () => {
     expect(
       screen.getByRole("button", { name: m.onboarding_allow_camera({}, { locale: "en" }) })
     ).toBeInTheDocument();
+  });
+
+  it("mirrors only the visible preview while retaining physical pointer direction", () => {
+    const rendered = render(<OnboardingFlow locale="en" />);
+    advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
+
+    expect(rendered.container.querySelector(".aksa-camera-preview--mirrored video.aksa-camera-preview")).not.toBeNull();
+    expect(mapCameraPoseToScreenDelta(-8, 0, 50, 0, 1280, 720).x).toBeGreaterThan(0);
+    expect(mapCameraPoseToScreenDelta(8, 0, 50, 0, 1280, 720).x).toBeLessThan(0);
+  });
+
+  it("groups calibration in one panel and keeps a single skip action in the footer", () => {
+    render(<OnboardingFlow locale="en" />);
+    advanceTo(m.onboarding_head_setup_title({}, { locale: "en" }));
+
+    const card = document.querySelector(".aksa-onboarding-calibration-card");
+    expect(card).not.toBeNull();
+    expect(card).toHaveTextContent(m.onboarding_calibration_tracking_required({}, { locale: "en" }));
+    expect(card).toHaveTextContent(m.onboarding_head_setup_detail({}, { locale: "en" }));
+    expect(card?.querySelector("button")).toBe(
+      screen.getByRole("button", { name: m.onboarding_calibration_start({}, { locale: "en" }) })
+    );
+    expect(
+      screen.getAllByRole("button", { name: m.onboarding_skip_head({}, { locale: "en" }) })
+    ).toHaveLength(1);
   });
 
   it("reports a refused camera with single primary recovery and no duplicate fallback controls", async () => {

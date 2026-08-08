@@ -514,3 +514,26 @@ DO NOT START PHASE III.
   - `tests/unit/head-control-coordinator.test.tsx`
   - `tests/unit/pointer-mapping.test.ts`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 08:58:48
+* **Model used**: GPT-5.6
+* **Human Prompt**: `Read attached terra.md, execute, only execute in terra.md scope.`
+* **TLDR AI agents done**: Added centralized Rest Lock hysteresis after filtered mapping, preserved Target Assist precedence, mirrored only the presented onboarding preview, improved logo-pointer contrast, and consolidated calibration setup. Full unit, type, lint, build, and scoped browser checks passed. Webcam stream startup and teardown were observed; physical head-movement verification was not possible without an operator.
+* **file changed**:
+  - `.agents/features/accessibility-controls.md`
+  - `.agents/features/auth-onboarding.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/components/workspace/aksa-pointer.tsx`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/rest-lock.ts`
+  - `src/lib/client/vision/target-assist.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/aksa-pointer.test.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/rest-lock.test.ts`
+  - `logs/log-henix.md`
