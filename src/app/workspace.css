@@ -1010,6 +1010,10 @@
   justify-content: center;
 }
 
+.aksa-composer__submit {
+  grid-column: -2 / -1;
+}
+
 .aksa-composer__voice-state {
   margin: 0;
   color: var(--color-aksa-muted);
@@ -2943,6 +2947,10 @@
   color: var(--color-aksa-muted);
   margin: 0;
   line-height: 1.35;
+}
+
+.aksa-onboarding-card.is-selected .aksa-onboarding-card__desc {
+  color: var(--color-aksa-ink);
 }
 
 .aksa-onboarding-reassurance {

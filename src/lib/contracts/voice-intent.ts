@@ -11,6 +11,7 @@ export const aksaIntentNames = [
   "NAV_HISTORY",
   "NAV_ACTIVITY",
   "NAV_ACCESSIBILITY",
+  "NAV_CONTROLS",
   "NAV_SETTINGS",
   "NAV_ACCOUNT",
   "HEAD_PAUSE",

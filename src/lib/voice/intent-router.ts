@@ -78,6 +78,13 @@ const intentDefinitions: readonly IntentDefinition[] = [
     }
   },
   {
+    intent: "NAV_CONTROLS",
+    patterns: {
+      en: [/^(?:open|go to) controls$/, /^control settings$/],
+      id: [/^buka kontrol$/, /^ke kontrol$/, /^pengaturan kontrol$/]
+    }
+  },
+  {
     intent: "NAV_SETTINGS",
     patterns: {
       en: [/^(?:open|go to) settings$/],
@@ -154,11 +161,19 @@ export function matchAksaIntent(
   const normalized = normalizeAksaTranscript(transcript);
   if (!normalized) return null;
 
-  const matches = intentDefinitions.filter((definition) =>
+  const localeMatches = intentDefinitions.filter((definition) =>
     definition.patterns[locale].some((pattern) => pattern.test(normalized))
   );
 
-  return matches.length === 1 ? matches[0].intent : null;
+  if (localeMatches.length === 1) return localeMatches[0].intent;
+  if (localeMatches.length > 1) return null;
+
+  const alternateLocale: CommandLocale = locale === "en" ? "id" : "en";
+  const codeSwitchMatches = intentDefinitions.filter((definition) =>
+    definition.patterns[alternateLocale].some((pattern) => pattern.test(normalized))
+  );
+
+  return codeSwitchMatches.length === 1 ? codeSwitchMatches[0].intent : null;
 }
 
 export type AksaSemanticClassifier = (

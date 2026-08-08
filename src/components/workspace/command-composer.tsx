@@ -393,16 +393,6 @@ export function CommandComposer({
       </div>
 
       <div className="aksa-composer__controls">
-        <button
-          className="aksa-button aksa-button--primary"
-          disabled={!canSubmit(state)}
-          onClick={() => void submit()}
-          type="button"
-        >
-          <Send aria-hidden="true" className="aksa-icon" />
-          <span>{submitting ? m.composer_working({}, options) : m.composer_submit({}, options)}</span>
-        </button>
-
         {offerVoice ? (
           <>
             {voiceSettings.mode !== "commands" ? <button
@@ -469,6 +459,16 @@ export function CommandComposer({
             <span>{m.composer_cancel_task({}, options)}</span>
           </button>
         ) : null}
+
+        <button
+          className="aksa-button aksa-button--primary aksa-composer__submit"
+          disabled={!canSubmit(state)}
+          onClick={() => void submit()}
+          type="button"
+        >
+          <Send aria-hidden="true" className="aksa-icon" />
+          <span>{submitting ? m.composer_working({}, options) : m.composer_submit({}, options)}</span>
+        </button>
       </div>
 
       {listening && listeningMode ? (

@@ -16,6 +16,7 @@ const examples: Array<{ intent: AksaIntent; en: string; id: string }> = [
   { intent: "NAV_HISTORY", en: "open history", id: "buka riwayat" },
   { intent: "NAV_ACTIVITY", en: "show activity", id: "lihat aktivitas" },
   { intent: "NAV_ACCESSIBILITY", en: "open accessibility", id: "buka aksesibilitas" },
+  { intent: "NAV_CONTROLS", en: "open controls", id: "buka kontrol" },
   { intent: "NAV_SETTINGS", en: "open settings", id: "buka pengaturan" },
   { intent: "NAV_ACCOUNT", en: "open account", id: "buka akun" },
   { intent: "HEAD_PAUSE", en: "pause pointer", id: "jeda pointer" },
@@ -45,6 +46,8 @@ describe("Aksa deterministic voice router", () => {
   });
 
   it("matches Indonesian and English code-switch control phrases", () => {
+    expect(matchAksaIntent("buka Gmail", "en")).toBe("NAV_GMAIL");
+    expect(matchAksaIntent("open settings", "id")).toBe("NAV_SETTINGS");
     expect(matchAksaIntent("pause head control", "id")).toBe("HEAD_PAUSE");
     expect(matchAksaIntent("resume kontrol kepala", "id")).toBe("HEAD_RESUME");
     expect(matchAksaIntent("kalibrasi head control", "id")).toBe("HEAD_CALIBRATE");

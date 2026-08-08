@@ -19,6 +19,7 @@ const navigationRoutes: Partial<Record<AksaIntent, WorkspaceRoute>> = {
   NAV_HISTORY: "/workspace/history",
   NAV_ACTIVITY: "/workspace/activity",
   NAV_ACCESSIBILITY: "/workspace/accessibility",
+  NAV_CONTROLS: "/workspace/controls",
   NAV_SETTINGS: "/workspace/settings",
   NAV_ACCOUNT: "/workspace/account"
 };

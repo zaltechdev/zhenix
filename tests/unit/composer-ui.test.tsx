@@ -326,6 +326,18 @@ describe("command composer", () => {
     );
   });
 
+  it("keeps the primary Send action after both voice actions", () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+    renderOfflineComposer();
+
+    const dictate = screen.getByRole("button", { name: "Dictate" });
+    const liveVoice = screen.getByRole("button", { name: "Live Voice" });
+    const send = screen.getByRole("button", { name: "Send command" });
+
+    expect(dictate.compareDocumentPosition(liveVoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(liveVoice.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("executes one final command once across duplicate recognition callbacks", async () => {
     vi.stubGlobal("SpeechRecognition", RecognitionMock);
     renderOfflineComposer();

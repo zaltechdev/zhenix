@@ -32,10 +32,10 @@ test.describe("Accessibility audits", () => {
     });
   }
 
-  test("no accessibility issues while the review dialog is open", async ({ page }) => {
-    await page.goto("/workspace");
-    await page.getByRole("button", { name: "Open the review example" }).click();
-    await expect(page.getByRole("dialog", { name: "Review before action" })).toBeVisible();
+  test("no accessibility issues while onboarding accessibility options are open", async ({ page }) => {
+    await page.goto("/onboarding");
+    await page.getByRole("button", { name: "Accessibility options" }).click();
+    await expect(page.getByRole("dialog", { name: "Accessibility options" })).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
