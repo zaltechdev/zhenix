@@ -13,6 +13,7 @@ export interface TargetAssistConfig {
   lockedJitterRadiusPx: number;
   escapeDisplacementPx: number;
   escapeVelocityPxPerMs: number;
+  releaseFrames: number;
   magneticStrength: number;
 }
 
@@ -28,6 +29,7 @@ export const TARGET_ASSIST_DEFAULTS: TargetAssistConfig = {
   lockedJitterRadiusPx: 5,
   escapeDisplacementPx: 36,
   escapeVelocityPxPerMs: 0.68,
+  releaseFrames: 2,
   magneticStrength: 0.42
 };
 
@@ -38,6 +40,7 @@ export interface TargetAssistResult {
   candidateTarget: HTMLElement | null;
   isLocked: boolean;
   released: boolean;
+  selectionSuppressed: boolean;
 }
 
 function distanceBetween(left: Vector2D, right: Vector2D): number {
@@ -97,6 +100,8 @@ export class TargetAssistController {
   private lastRawPointer: Vector2D | null = null;
   private lastRawTimestampMs = 0;
   private lastAssistedPointer: Vector2D | null = null;
+  private escapeDirection: Vector2D | null = null;
+  private escapeFrames = 0;
 
   constructor(config: Partial<TargetAssistConfig> = {}) {
     this.config = {
@@ -105,7 +110,8 @@ export class TargetAssistController {
       releaseRadiusPx: Math.max(
         config.assistRadiusPx ?? TARGET_ASSIST_DEFAULTS.assistRadiusPx,
         config.releaseRadiusPx ?? TARGET_ASSIST_DEFAULTS.releaseRadiusPx
-      )
+      ),
+      releaseFrames: Math.max(2, config.releaseFrames ?? TARGET_ASSIST_DEFAULTS.releaseFrames)
     };
   }
 
@@ -121,6 +127,7 @@ export class TargetAssistController {
     this.lastRawPointer = null;
     this.lastRawTimestampMs = 0;
     this.lastAssistedPointer = null;
+    this.clearEscapeCandidate();
   }
 
   public process(
@@ -128,16 +135,29 @@ export class TargetAssistController {
     candidates: TargetCandidate[],
     nowMs: number
   ): TargetAssistResult {
-    const velocity = this.rawVelocity(rawPointer, nowMs);
+    const { previousRawPointer, velocity } = this.rawMotion(rawPointer, nowMs);
     const locked = this.findCandidateForLockedTarget(rawPointer, candidates);
 
-    if (this.lockedTarget && (!locked || this.shouldEscape(rawPointer, locked, velocity))) {
+    if (this.lockedTarget && !locked) {
       this.release();
       this.lastAssistedPointer = rawPointer;
       return this.result(rawPointer, null, null, false, true);
     }
 
     if (this.lockedTarget && locked) {
+      if (this.shouldEscape(rawPointer, locked, velocity)) {
+        if (this.confirmEscape(rawPointer, previousRawPointer)) {
+          this.release();
+          this.lastAssistedPointer = rawPointer;
+          return this.result(rawPointer, null, null, false, true);
+        }
+
+        const held = this.stabilizeLockedPointer(rawPointer, locked.bounds);
+        this.lastAssistedPointer = held;
+        return this.result(held, locked, locked, true, false, true);
+      }
+
+      this.clearEscapeCandidate();
       this.lockedTarget = locked;
       const stabilized = this.stabilizeLockedPointer(rawPointer, locked.bounds);
       this.lastAssistedPointer = stabilized;
@@ -173,13 +193,17 @@ export class TargetAssistController {
     return this.result(assisted, null, candidate, false, false);
   }
 
-  private rawVelocity(rawPointer: Vector2D, nowMs: number): number {
+  private rawMotion(rawPointer: Vector2D, nowMs: number): {
+    previousRawPointer: Vector2D | null;
+    velocity: number;
+  } {
+    const previousRawPointer = this.lastRawPointer;
     const elapsed = nowMs - this.lastRawTimestampMs;
     const velocity =
-      this.lastRawPointer && elapsed > 0 ? distanceBetween(rawPointer, this.lastRawPointer) / elapsed : 0;
+      previousRawPointer && elapsed > 0 ? distanceBetween(rawPointer, previousRawPointer) / elapsed : 0;
     this.lastRawPointer = { ...rawPointer };
     this.lastRawTimestampMs = nowMs;
-    return velocity;
+    return { previousRawPointer, velocity };
   }
 
   private findCandidateForLockedTarget(
@@ -206,11 +230,33 @@ export class TargetAssistController {
     locked: TargetCandidate,
     velocity: number
   ): boolean {
+    if (
+      this.lockAnchor &&
+      distanceBetween(rawPointer, this.lockAnchor) <= this.config.lockedJitterRadiusPx
+    ) {
+      return false;
+    }
     const leftReleaseZone = locked.distancePx > this.config.releaseRadiusPx;
     const displaced = this.lockAnchor
       ? distanceBetween(rawPointer, this.lockAnchor) >= this.config.escapeDisplacementPx
       : false;
     return leftReleaseZone || displaced || velocity >= this.config.escapeVelocityPxPerMs;
+  }
+
+  private confirmEscape(rawPointer: Vector2D, previousRawPointer: Vector2D | null): boolean {
+    const origin = this.lockAnchor ?? this.lastAssistedPointer ?? rawPointer;
+    const direction = {
+      x: rawPointer.x - origin.x,
+      y: rawPointer.y - origin.y
+    };
+    const continued =
+      this.escapeDirection !== null &&
+      this.escapeDirection.x * direction.x + this.escapeDirection.y * direction.y > 0 &&
+      distanceBetween(rawPointer, previousRawPointer ?? rawPointer) >= 1;
+
+    this.escapeDirection = direction;
+    this.escapeFrames = continued ? this.escapeFrames + 1 : 1;
+    return this.escapeFrames >= this.config.releaseFrames;
   }
 
   private stabilizeLockedPointer(rawPointer: Vector2D, bounds: TargetRectangle): Vector2D {
@@ -251,6 +297,12 @@ export class TargetAssistController {
     this.pendingSinceMs = 0;
     this.lockedTarget = null;
     this.lockAnchor = null;
+    this.clearEscapeCandidate();
+  }
+
+  private clearEscapeCandidate(): void {
+    this.escapeDirection = null;
+    this.escapeFrames = 0;
   }
 
   private result(
@@ -258,7 +310,8 @@ export class TargetAssistController {
     active: TargetCandidate | null,
     candidate: TargetCandidate | null,
     isLocked: boolean,
-    released: boolean
+    released: boolean,
+    selectionSuppressed = false
   ): TargetAssistResult {
     return {
       position,
@@ -266,7 +319,8 @@ export class TargetAssistController {
       activeTargetBounds: active?.bounds ?? null,
       candidateTarget: candidate?.element ?? null,
       isLocked,
-      released
+      released,
+      selectionSuppressed
     };
   }
 }

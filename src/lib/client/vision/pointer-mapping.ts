@@ -30,6 +30,7 @@ export interface PoseDelta {
 
 export interface StabilizedPoseInput extends PoseDelta {
   spikeRejected: boolean;
+  motionDegrees: number;
   motionResponse: number;
 }
 
@@ -47,6 +48,8 @@ const MAX_YAW_FRAME_CHANGE_DEGREES = 8;
 const MAX_PITCH_FRAME_CHANGE_DEGREES = 6;
 const SPIKE_CONFIRM_TOLERANCE_DEGREES = 4;
 const POINTER_EDGE_INSET_PX = 16;
+const CALIBRATION_NEUTRAL_ENVELOPE_DEGREES = 0.35;
+const MINIMUM_CALIBRATION_RANGE_DEGREES = 4;
 
 function normalizeSetting(value: number): number {
   return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
@@ -142,6 +145,7 @@ export class PoseInputStabilizer {
       yaw: this.yawDeadZone.apply(filtered.pose.yaw, deadZoneSetting),
       pitch: this.pitchDeadZone.apply(filtered.pose.pitch, deadZoneSetting),
       spikeRejected: accepted.spikeRejected,
+      motionDegrees: accepted.motionDegrees,
       motionResponse: filtered.motionResponse
     };
   }
@@ -335,16 +339,27 @@ export function mapCameraPoseToScreenDelta(
   viewportHeight = 1080,
   calibrationRange?: DirectionalCalibrationRange | null
 ): Vector2D {
-  const calibratedYaw = calibrationRange
-    ? cameraYawDelta >= 0
-      ? (cameraYawDelta / Math.max(calibrationRange.left, 1.5)) * 12
-      : (cameraYawDelta / Math.max(calibrationRange.right, 1.5)) * 12
+  const applyCalibrationEnvelope = (value: number): number => {
+    const magnitude = Math.abs(value);
+    if (magnitude <= CALIBRATION_NEUTRAL_ENVELOPE_DEGREES) return 0;
+    return Math.sign(value) * (magnitude - CALIBRATION_NEUTRAL_ENVELOPE_DEGREES);
+  };
+  const stableYaw = calibrationRange
+    ? applyCalibrationEnvelope(cameraYawDelta)
     : cameraYawDelta;
-  const calibratedPitch = calibrationRange
-    ? cameraPitchDelta >= 0
-      ? (cameraPitchDelta / Math.max(calibrationRange.up, 1.5)) * 10
-      : (cameraPitchDelta / Math.max(calibrationRange.down, 1.5)) * 10
+  const stablePitch = calibrationRange
+    ? applyCalibrationEnvelope(cameraPitchDelta)
     : cameraPitchDelta;
+  const calibratedYaw = calibrationRange
+    ? stableYaw >= 0
+      ? (stableYaw / Math.max(calibrationRange.left, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 12
+      : (stableYaw / Math.max(calibrationRange.right, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 12
+    : stableYaw;
+  const calibratedPitch = calibrationRange
+    ? stablePitch >= 0
+      ? (stablePitch / Math.max(calibrationRange.up, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 10
+      : (stablePitch / Math.max(calibrationRange.down, MINIMUM_CALIBRATION_RANGE_DEGREES)) * 10
+    : stablePitch;
 
   return mapPoseToScreenDelta(
     calibratedYaw * CAMERA_YAW_TO_SCREEN_DIRECTION,

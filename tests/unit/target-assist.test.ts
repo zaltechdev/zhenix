@@ -90,13 +90,18 @@ describe("Target Assist", () => {
       released: false
     });
     expect(controller.process({ x: 231, y: 120 }, [target], 1225)).toMatchObject({
+      activeTarget: button,
+      isLocked: true,
+      selectionSuppressed: true
+    });
+    expect(controller.process({ x: 250, y: 120 }, [target], 1325)).toMatchObject({
       activeTarget: null,
       isLocked: false,
       released: true
     });
   });
 
-  it("releases immediately when deliberate raw-pointer movement escapes the lock", () => {
+  it("releases after sustained deliberate raw-pointer movement escapes the lock", () => {
     const button = document.createElement("button");
     const target = candidate(button, 100, 100, 240, 60);
     const controller = new TargetAssistController({ escapeVelocityPxPerMs: 100 });
@@ -105,6 +110,11 @@ describe("Target Assist", () => {
     controller.process({ x: 105, y: 120 }, [target], 125);
 
     expect(controller.process({ x: 145, y: 120 }, [target], 1125)).toMatchObject({
+      activeTarget: button,
+      isLocked: true,
+      selectionSuppressed: true
+    });
+    expect(controller.process({ x: 180, y: 120 }, [target], 1225)).toMatchObject({
       activeTarget: null,
       isLocked: false,
       released: true
@@ -148,11 +158,39 @@ describe("Target Assist", () => {
       dwell.processFrame(locked.position, locked.activeTarget, locked.activeTargetBounds, 175, true).state
     ).toBe("dwelling");
 
-    const released = assist.process({ x: 145, y: 120 }, [target], 275);
+    const escaping = assist.process({ x: 145, y: 120 }, [target], 275);
     expect(
-      dwell.processFrame(released.position, released.activeTarget, released.activeTargetBounds, 275, true)
+      dwell.processFrame(
+        escaping.position,
+        escaping.selectionSuppressed ? null : escaping.activeTarget,
+        escaping.activeTargetBounds,
+        275,
+        true
+      )
     ).toMatchObject({ state: "idle", progressRatio: 0 });
+    const released = assist.process({ x: 180, y: 120 }, [target], 300);
+    expect(released).toMatchObject({ activeTarget: null, isLocked: false, released: true });
     expect(activate).not.toHaveBeenCalled();
+  });
+
+  it("holds the visual lock through one spike without target flapping", () => {
+    const button = document.createElement("button");
+    const target = candidate(button, 100, 100, 80, 40);
+    const controller = new TargetAssistController();
+
+    controller.process({ x: 95, y: 120 }, [target], 0);
+    controller.process({ x: 95, y: 120 }, [target], 125);
+
+    expect(controller.process({ x: 180, y: 120 }, [target], 150)).toMatchObject({
+      activeTarget: button,
+      isLocked: true,
+      selectionSuppressed: true
+    });
+    expect(controller.process({ x: 96, y: 120 }, [target], 175)).toMatchObject({
+      activeTarget: button,
+      isLocked: true,
+      selectionSuppressed: false
+    });
   });
 
   it("clears locks on tracking loss and requires a fresh acquisition", () => {

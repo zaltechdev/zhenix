@@ -202,10 +202,16 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     act(() => {
       engine.emit(visionFrame(1000, { poseDelta: { yaw: -5, pitch: 0, roll: 0 } }));
     });
-    expect(result.current.activeTarget).toBeNull();
+    expect(result.current.activeTarget).toBe(button);
+    expect(result.current.dwellProgress.state).toBe("idle");
 
     act(() => {
       engine.emit(visionFrame(1040, { poseDelta: { yaw: -6, pitch: 0, roll: 0 } }));
+    });
+    expect(result.current.activeTarget).toBeNull();
+    expect(result.current.isRestLocked).toBe(true);
+    act(() => {
+      engine.emit(visionFrame(1080, { poseDelta: { yaw: -7, pitch: 0, roll: 0 } }));
     });
     expect(result.current.isRestLocked).toBe(false);
   });
@@ -312,9 +318,63 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
           poseDelta: { yaw: -6, pitch: 0, roll: 0 }
         })
       );
+      engine.emit(
+        visionFrame(1_300, {
+          pose: rawPose,
+          poseDelta: { yaw: -7, pitch: 0, roll: 0 }
+        })
+      );
     });
     expect(result.current.isRestLocked).toBe(false);
     expect(result.current.pointerPosition.x).toBeGreaterThan(window.innerWidth / 2);
+  });
+
+  it("rebases tracking recovery from the last rendered pointer without a jump", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = { ...SETTINGS_OFF, deadZone: 0, smoothing: 0 };
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(visionFrame(index * 100, { pose: { yaw: 0, pitch: 0, roll: 0 } }));
+      }
+      engine.emit(visionFrame(600, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(760, { poseDelta: { yaw: 0, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(800, { poseDelta: { yaw: -5, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(840, { poseDelta: { yaw: -6, pitch: 0, roll: 0 } }));
+      engine.emit(visionFrame(880, { poseDelta: { yaw: -7, pitch: 0, roll: 0 } }));
+    });
+    const beforeLoss = { ...result.current.pointerPosition };
+    expect(beforeLoss.x).toBeGreaterThan(window.innerWidth / 2);
+
+    act(() => {
+      engine.emit(visionFrame(900, { faceDetected: false, lifecycleState: "tracking_lost" }));
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(
+          visionFrame(900 + index * 100, {
+            pose: { yaw: 4, pitch: 1, roll: 0 },
+            poseDelta: { yaw: 4, pitch: 1, roll: 0 }
+          })
+        );
+      }
+      engine.emit(
+        visionFrame(1_500, {
+          pose: { yaw: 4, pitch: 1, roll: 0 },
+          poseDelta: { yaw: 0, pitch: 0, roll: 0 }
+        })
+      );
+    });
+
+    expect(result.current.pointerPosition.x).toBeCloseTo(beforeLoss.x, 5);
+    expect(result.current.pointerPosition.y).toBeCloseTo(beforeLoss.y, 5);
   });
 
   it("isolates IndexedDB cached profiles by user ID and throws on missing user ID", async () => {
@@ -773,6 +833,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     expect(click).toHaveBeenCalledTimes(1);
     expect(result.current.activationFeedbackKey).toBe(1);
+    const positionBeforeLoss = { ...result.current.pointerPosition };
 
     act(() => {
       engine.emit(
@@ -796,8 +857,8 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
         );
       }
     });
-    expect(result.current.pointerPosition.x).toBe(window.innerWidth / 2);
-    expect(result.current.pointerPosition.y).toBe(window.innerHeight / 2);
+    expect(result.current.pointerPosition.x).toBeCloseTo(positionBeforeLoss.x, 5);
+    expect(result.current.pointerPosition.y).toBeCloseTo(positionBeforeLoss.y, 5);
     expect(result.current.activeTarget).toBeNull();
     expect(click).toHaveBeenCalledTimes(1);
 

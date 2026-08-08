@@ -42,6 +42,19 @@ describe("Pointer Mapping Math", () => {
     expect(physicalLeft.x).toBeLessThan(0);
   });
 
+  it("keeps calibrated neutral noise still and floors unsafe calibration gain", () => {
+    const tinyRange = { left: 1.5, right: 1.5, up: 1.5, down: 1.5 };
+    const safeRange = { left: 4, right: 4, up: 4, down: 4 };
+
+    expect(mapCameraPoseToScreenDelta(0.3, -0.3, 50, 0, 1280, 720, tinyRange)).toEqual({
+      x: 0,
+      y: 0
+    });
+    expect(mapCameraPoseToScreenDelta(1, -1, 50, 0, 1280, 720, tinyRange)).toEqual(
+      mapCameraPoseToScreenDelta(1, -1, 50, 0, 1280, 720, safeRange)
+    );
+  });
+
   it("reaches every screen region without hard-clamping into an edge", () => {
     const width = 1280;
     const height = 720;

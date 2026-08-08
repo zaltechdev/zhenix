@@ -162,6 +162,8 @@ export function HeadControlProvider({
   const calibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
   const currentPosRef = useRef<Vector2D>(pointerPosition);
+  const renderedPosRef = useRef<Vector2D>(pointerPosition);
+  const pointerOriginRef = useRef<Vector2D>(pointerPosition);
   const reacquisitionReadyRef = useRef(false);
   const frameClockRef = useRef<FreshFrameClock>(new FreshFrameClock());
   const reacquisitionRef = useRef<TrackingReacquisitionController>(
@@ -191,6 +193,8 @@ export function HeadControlProvider({
     if (resetPointer && typeof window !== "undefined") {
       const centered = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       currentPosRef.current = centered;
+      renderedPosRef.current = centered;
+      pointerOriginRef.current = centered;
       setPointerPosition(centered);
     }
   }, []);
@@ -478,6 +482,8 @@ export function HeadControlProvider({
         reacquisitionReadyRef.current = false;
         reacquisitionRef.current.reset();
         resetInteractionState(false);
+        currentPosRef.current = { ...renderedPosRef.current };
+        pointerOriginRef.current = { ...renderedPosRef.current };
         setLifecycleState("tracking_lost");
         setErrorCategory("tracking_lost");
         if (calibrationEngineRef.current.getState().status === "capturing") {
@@ -502,7 +508,9 @@ export function HeadControlProvider({
           reacquisitionReadyRef.current = true;
           setNeutralBaselineState(reacquisition.baseline);
           engineRef.current?.setNeutralBaseline(reacquisition.baseline);
-          resetInteractionState(true);
+          currentPosRef.current = { ...renderedPosRef.current };
+          pointerOriginRef.current = { ...renderedPosRef.current };
+          resetInteractionState(false);
           if (dwellRef.current) dwellRef.current.requireFreshCycle();
           if (gestureRef.current) gestureRef.current.disarmUntilRelease();
         }
@@ -562,8 +570,8 @@ export function HeadControlProvider({
       );
 
       const targetPos: Vector2D = {
-        x: window.innerWidth / 2 + screenDelta.x,
-        y: window.innerHeight / 2 + screenDelta.y
+        x: pointerOriginRef.current.x + screenDelta.x,
+        y: pointerOriginRef.current.y + screenDelta.y
       };
 
       const smoothedPos = smoothCoordinates(
@@ -575,8 +583,12 @@ export function HeadControlProvider({
       );
       const clampedPos = clampCoordinates(smoothedPos, window.innerWidth, window.innerHeight);
 
-      currentPosRef.current = clampedPos;
-      const restLock = restLockRef.current.process(clampedPos, now);
+      const restLock = restLockRef.current.process(
+        clampedPos,
+        now,
+        stabilizedPose.motionDegrees
+      );
+      currentPosRef.current = restLock.position;
       setIsRestLocked(restLock.isLocked);
 
       // 5. Confirmation Lockout & Re-Arm Guard
@@ -620,10 +632,14 @@ export function HeadControlProvider({
       }
 
       const assistedPosition = targetAssist?.position ?? restLock.position;
-      const eligibleTarget = targetAssist?.activeTarget ?? null;
+      const visualTarget = targetAssist?.activeTarget ?? null;
+      const eligibleTarget = targetAssist?.selectionSuppressed
+        ? null
+        : visualTarget;
       const eligibleBounds = targetAssist?.activeTargetBounds ?? null;
+      renderedPosRef.current = assistedPosition;
       setPointerPosition(assistedPosition);
-      setActiveTarget(eligibleTarget);
+      setActiveTarget(visualTarget);
 
       // Process Dwell
       if (
