@@ -82,7 +82,9 @@ export function createRecognition(locale: "en" | "id"): SpeechRecognitionLike | 
   recognition.lang = recognitionLanguage(locale);
   recognition.continuous = false;
   recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
+  // Indonesian recognition benefits from alternatives where browser speech services
+  // expose regional pronunciation choices. The selected transcript remains verbatim.
+  recognition.maxAlternatives = locale === "id" ? 3 : 1;
   return recognition;
 }
 
@@ -91,7 +93,14 @@ export function transcriptFromEvent(event: SpeechRecognitionEventLike): string {
   for (let index = 0; index < event.results.length; index += 1) {
     const result = event.results[index];
     if (result.length > 0) {
-      transcript += result[0].transcript;
+      let selected = result[0];
+      for (let alternativeIndex = 1; alternativeIndex < result.length; alternativeIndex += 1) {
+        const alternative = result[alternativeIndex];
+        if (alternative.confidence > selected.confidence) {
+          selected = alternative;
+        }
+      }
+      transcript += selected.transcript;
     }
   }
   return transcript.trim();

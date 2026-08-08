@@ -1,4 +1,4 @@
-﻿---
+﻿﻿---
 ### Timestamp: [2026-08-06 23:09:12]
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `use smooth transition or animated progress, not sudden jump, remvoe the notice`
@@ -557,4 +557,16 @@ DO NOT START PHASE III.
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/calibration.test.ts`
   - `tests/unit/head-control-coordinator.test.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 09:42:54
+* **Model used**: GPT-5.6
+* **Human Prompt**: `Head control why jump to part 2? should be part 1 first add bahasa indonesia lingusitic support for voice command`
+* **TLDR AI agents done**: Head Control now always enters through Part 1. Indonesian speech recognition uses `id-ID`, ranks browser alternatives by confidence, and keeps selected speech verbatim.
+* **file changed**:
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/lib/client/voice/speech-recognition.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/speech-recognition.test.ts`
   - `logs/log-henix.md`
