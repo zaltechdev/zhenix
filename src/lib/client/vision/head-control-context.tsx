@@ -107,6 +107,9 @@ const DEFAULT_CALIBRATION: CalibrationState = {
   progressRatio: 0,
   samplesCount: 0,
   baseline: null,
+  range: null,
+  direction: "center",
+  step: 1,
   errorMessage: null,
   attemptId: 0
 };
@@ -149,6 +152,7 @@ export function HeadControlProvider({
   const dwellRef = useRef<DwellController | null>(null);
   const gestureRef = useRef<GestureDetector | null>(null);
   const calibrationEngineRef = useRef<CalibrationEngine>(new CalibrationEngine());
+  const calibrationRangeRef = useRef<CalibrationState["range"]>(null);
   const calibrationAttemptRef = useRef(0);
   const calibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentPosRef = useRef<Vector2D>(pointerPosition);
@@ -372,6 +376,22 @@ export function HeadControlProvider({
     }
   }, []);
 
+  const scheduleCalibrationTimeout = useCallback(
+    (attemptId: number) => {
+      clearCalibrationTimeout();
+      calibrationTimeoutRef.current = setTimeout(() => {
+        if (calibrationAttemptRef.current !== attemptId) {
+          return;
+        }
+        const state = calibrationEngineRef.current.fail("timeout", attemptId);
+        setCalibrationState(state);
+        calibrationRangeRef.current = null;
+        calibrationTimeoutRef.current = null;
+      }, CALIBRATION_CONFIG.timeoutMs);
+    },
+    [clearCalibrationTimeout]
+  );
+
   // Calibration triggers
   const startCalibration = useCallback(() => {
     if (lifecycleState !== "active") {
@@ -379,15 +399,9 @@ export function HeadControlProvider({
     }
     clearCalibrationTimeout();
     const attemptId = calibrationEngineRef.current.start();
+    calibrationRangeRef.current = null;
     calibrationAttemptRef.current = attemptId;
-    calibrationTimeoutRef.current = setTimeout(() => {
-      if (calibrationAttemptRef.current !== attemptId) {
-        return;
-      }
-      const state = calibrationEngineRef.current.fail("timeout", attemptId);
-      setCalibrationState(state);
-      calibrationTimeoutRef.current = null;
-    }, CALIBRATION_CONFIG.timeoutMs);
+    scheduleCalibrationTimeout(attemptId);
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
     if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     restLockRef.current.reset();
@@ -397,12 +411,13 @@ export function HeadControlProvider({
     setDwellProgress(DEFAULT_DWELL);
     setGestureStatus(DEFAULT_GESTURE);
     setCalibrationState(calibrationEngineRef.current.getState());
-  }, [clearCalibrationTimeout, lifecycleState]);
+  }, [clearCalibrationTimeout, lifecycleState, scheduleCalibrationTimeout]);
 
   const cancelCalibration = useCallback(() => {
     clearCalibrationTimeout();
     calibrationAttemptRef.current += 1;
     calibrationEngineRef.current.cancel();
+    calibrationRangeRef.current = null;
     setCalibrationState(calibrationEngineRef.current.getState());
   }, [clearCalibrationTimeout]);
 
@@ -480,7 +495,8 @@ export function HeadControlProvider({
             currentProfile.pointerSensitivity,
             0,
             window.innerWidth,
-            window.innerHeight
+            window.innerHeight,
+            calibrationRangeRef.current
           );
           const reacquiredPosition = clampCoordinates(
             {
@@ -505,17 +521,24 @@ export function HeadControlProvider({
       const calibrationWasCapturing =
         calibrationEngineRef.current.getState().status === "capturing";
       if (calibrationWasCapturing) {
+        const previousStep = calibrationEngineRef.current.getState().step;
         const state = calibrationEngineRef.current.addSample(
           data.pose,
           data.timestampMs,
           calibrationAttemptRef.current
         );
         setCalibrationState(state);
+        calibrationRangeRef.current = state.range;
+        if (state.baseline && state.step === 2) {
+          setNeutralBaseline(state.baseline);
+        }
         if (state.status === "completed" && state.baseline) {
           clearCalibrationTimeout();
           setNeutralBaseline(state.baseline);
         } else if (state.status === "failed") {
           clearCalibrationTimeout();
+        } else if (state.step !== previousStep) {
+          scheduleCalibrationTimeout(calibrationAttemptRef.current);
         }
       }
 
@@ -526,7 +549,8 @@ export function HeadControlProvider({
         currentProfile.pointerSensitivity,
         0,
         window.innerWidth,
-        window.innerHeight
+        window.innerHeight,
+        calibrationRangeRef.current
       );
 
       const targetPos: Vector2D = {
@@ -623,7 +647,7 @@ export function HeadControlProvider({
         setGestureStatus(DEFAULT_GESTURE);
       }
     },
-    [clearCalibrationTimeout, setNeutralBaseline]
+    [clearCalibrationTimeout, scheduleCalibrationTimeout, setNeutralBaseline]
   );
 
   const startCamera = useCallback(

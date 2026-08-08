@@ -196,7 +196,7 @@ describe("onboarding", () => {
     fireEvent.click(screen.getByRole("button", { name: m.onboarding_continue({}, { locale: "en" }) }));
 
     expect(
-      screen.getByRole("heading", { name: m.onboarding_voice_explanation_title({}, { locale: "en" }) })
+      screen.getByRole("heading", { name: m.onboarding_voice_task_title({}, { locale: "en" }) })
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: m.onboarding_skip_voice({}, { locale: "en" }) }));
@@ -221,7 +221,7 @@ describe("onboarding", () => {
 
     expect(controlVideo).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: m.onboarding_voice_explanation_title({}, { locale: "en" }) })
+      screen.getByRole("heading", { name: m.onboarding_voice_task_title({}, { locale: "en" }) })
     ).toBeInTheDocument();
   });
 
@@ -257,7 +257,7 @@ describe("onboarding", () => {
 
   it("groups calibration in one panel and keeps a single skip action in the footer", () => {
     render(<OnboardingFlow locale="en" />);
-    advanceTo(m.onboarding_head_setup_title({}, { locale: "en" }));
+    fireEvent.click(document.querySelectorAll<HTMLButtonElement>(".aksa-onboarding-rail__button")[1]);
 
     const card = document.querySelector(".aksa-onboarding-calibration-card");
     expect(card).not.toBeNull();
@@ -400,7 +400,7 @@ describe("onboarding", () => {
     expect(engineFactory).not.toHaveBeenCalled();
     expect(
       screen.getByRole("heading", {
-        name: m.onboarding_voice_explanation_title({}, { locale: "en" })
+        name: m.onboarding_voice_task_title({}, { locale: "en" })
       })
     ).toBeInTheDocument();
   });
@@ -430,7 +430,7 @@ describe("onboarding", () => {
   it("offers no microphone control when the browser has no speech recognition", () => {
     render(<OnboardingFlow locale="en" />);
 
-    advanceTo(m.onboarding_voice_explanation_title({}, { locale: "en" }));
+    advanceTo(m.onboarding_voice_task_title({}, { locale: "en" }));
     expect(
       screen.getByText(m.onboarding_microphone_unsupported({}, { locale: "en" }))
     ).toBeInTheDocument();
@@ -439,15 +439,33 @@ describe("onboarding", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps an editable transcript field even without recognition", () => {
+  it("keeps recognition feedback read-only", () => {
     render(<OnboardingFlow locale="en" />);
 
-    advanceTo(m.onboarding_voice_test_title({}, { locale: "en" }));
-    const transcript = screen.getByLabelText(
-      m.onboarding_voice_transcript_label({}, { locale: "en" })
+    advanceTo(m.onboarding_voice_task_title({}, { locale: "en" }));
+    expect(document.querySelector("textarea")).toBeNull();
+    expect(screen.queryByLabelText(m.onboarding_voice_transcript_label({}, { locale: "en" }))).toBeNull();
+  });
+
+  it("completes the local voice task only when option one is selected", () => {
+    render(<OnboardingFlow locale="en" />);
+
+    advanceTo(m.onboarding_voice_task_title({}, { locale: "en" }));
+    fireEvent.click(screen.getByRole("button", { name: m.onboarding_continue({}, { locale: "en" }) }));
+
+    fireEvent.click(
+      screen.getByRole("button", { name: m.onboarding_voice_task_option_one({}, { locale: "en" }) })
     );
-    fireEvent.change(transcript, { target: { value: "Open my latest assignment" } });
-    expect(transcript).toHaveValue("Open my latest assignment");
+    expect(
+      screen.getByText(m.onboarding_voice_task_success({}, { locale: "en" }))
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: m.onboarding_voice_task_option_two({}, { locale: "en" }) })
+    );
+    expect(
+      screen.queryByText(m.onboarding_voice_task_success({}, { locale: "en" }))
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the workspace reachable via Finish later action", () => {

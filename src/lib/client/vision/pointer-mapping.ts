@@ -1,3 +1,5 @@
+import type { DirectionalCalibrationRange } from "./calibration";
+
 /**
  * Pointer mapping engine converting head pose deltas into smooth, bounded screen coordinates.
  * Pure math functions designed for high precision, zero neck strain, and temporal stability.
@@ -330,11 +332,23 @@ export function mapCameraPoseToScreenDelta(
   sensitivitySetting: number,
   deadZoneSetting: number,
   viewportWidth = 1920,
-  viewportHeight = 1080
+  viewportHeight = 1080,
+  calibrationRange?: DirectionalCalibrationRange | null
 ): Vector2D {
+  const calibratedYaw = calibrationRange
+    ? cameraYawDelta >= 0
+      ? (cameraYawDelta / Math.max(calibrationRange.left, 1.5)) * 12
+      : (cameraYawDelta / Math.max(calibrationRange.right, 1.5)) * 12
+    : cameraYawDelta;
+  const calibratedPitch = calibrationRange
+    ? cameraPitchDelta >= 0
+      ? (cameraPitchDelta / Math.max(calibrationRange.up, 1.5)) * 10
+      : (cameraPitchDelta / Math.max(calibrationRange.down, 1.5)) * 10
+    : cameraPitchDelta;
+
   return mapPoseToScreenDelta(
-    cameraYawDelta * CAMERA_YAW_TO_SCREEN_DIRECTION,
-    cameraPitchDelta,
+    calibratedYaw * CAMERA_YAW_TO_SCREEN_DIRECTION,
+    calibratedPitch,
     sensitivitySetting,
     deadZoneSetting,
     viewportWidth,

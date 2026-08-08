@@ -15,6 +15,7 @@ import {
   type SpeechRecognitionLike
 } from "@/lib/client/voice/speech-recognition";
 import { useBrowserValue } from "@/lib/client/state/use-browser-value";
+import { matchesOnboardingOptionOne } from "@/lib/client/voice/onboarding-voice-task";
 import {
   clearOnboardingStep,
   useOnboardingStep
@@ -52,31 +53,16 @@ const PHASES: PhaseDef[] = [
   { id: 4, titleKey: "onboarding_phase_first_task" }
 ];
 
-function getPhaseRadialProgress(phaseId: OnboardingPhase, currentPhase: OnboardingPhase, substepIndex: number): number {
+function getPhaseRadialProgress(phaseId: OnboardingPhase, currentPhase: OnboardingPhase): number {
   if (currentPhase > phaseId) return 100;
   if (currentPhase < phaseId) return 0;
 
   if (phaseId === 1) return 100;
-  if (phaseId === 2) {
-    if (substepIndex <= 5) return 50; // half radial
-    return 100; // full radial
-  }
-  if (phaseId === 3) {
-    if (substepIndex <= 8) return 50; // half radial
-    return 100; // full radial
-  }
+  if (phaseId === 2 || phaseId === 3) return 100;
   return 100;
 }
 
-function getNestedPart(phaseId: OnboardingPhase, substepIndex: number): "1" | "2" | null {
-  if (phaseId === 2) {
-    if (substepIndex <= 5) return "1";
-    return "2";
-  }
-  if (phaseId === 3) {
-    if (substepIndex <= 8) return "1";
-    return "2";
-  }
+function getNestedPart(): null {
   return null;
 }
 
@@ -107,6 +93,8 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   const [recognitionFailed, setRecognitionFailed] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [voiceOptionOneChecked, setVoiceOptionOneChecked] = useState(false);
+  const [voiceTaskStatus, setVoiceTaskStatus] = useState<"idle" | "mismatch" | "complete">("idle");
   const [firstCommand, setFirstCommand] = useState<string>("");
   const [taskSubmitted, setTaskSubmitted] = useState(false);
   const [selectedCards, setSelectedCards] = useState<{ head: boolean; voice: boolean }>({ head: true, voice: true });
@@ -270,22 +258,54 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     headControl.calibrationState.progressRatio * 100
   );
   const calibrationStatus = headControl.calibrationState.status;
+  const calibrationInstruction =
+    headControl.calibrationState.direction === "left"
+      ? {
+          title: m.onboarding_calibration_left_title({}, options),
+          helper: m.onboarding_calibration_left_helper({}, options)
+        }
+      : headControl.calibrationState.direction === "right"
+        ? {
+            title: m.onboarding_calibration_right_title({}, options),
+            helper: m.onboarding_calibration_right_helper({}, options)
+          }
+        : headControl.calibrationState.direction === "up"
+          ? {
+              title: m.onboarding_calibration_up_title({}, options),
+              helper: m.onboarding_calibration_up_helper({}, options)
+            }
+          : headControl.calibrationState.direction === "down"
+            ? {
+                title: m.onboarding_calibration_down_title({}, options),
+                helper: m.onboarding_calibration_down_helper({}, options)
+              }
+            : headControl.calibrationState.direction === "return_center"
+              ? {
+                  title: m.onboarding_calibration_return_center_title({}, options),
+                  helper: m.onboarding_calibration_return_center_helper({}, options)
+                }
+              : {
+                  title: m.onboarding_calibration_center_title({}, options),
+                  helper: m.onboarding_calibration_center_helper({}, options)
+                };
   const calibrationCopy = !canCalibrate
     ? m.onboarding_calibration_tracking_required({}, options)
     : calibrationStatus === "completed"
-      ? m.onboarding_calibration_complete({}, options)
-      : calibrationStatus === "capturing"
-        ? m.onboarding_calibration_capturing({ progress: calibrationProgress }, options)
-        : calibrationStatus === "failed"
-          ? headControl.calibrationState.errorMessage === "tracking_lost"
-            ? m.onboarding_calibration_tracking_interrupted({}, options)
-            : m.onboarding_calibration_failed({}, options)
-          : m.onboarding_calibration_idle({}, options);
+      ? m.onboarding_calibration_success_title({}, options)
+    : calibrationStatus === "capturing"
+        ? calibrationInstruction.title
+    : calibrationStatus === "failed"
+      ? headControl.calibrationState.errorMessage === "tracking_lost"
+        ? m.onboarding_calibration_tracking_interrupted({}, options)
+            : m.onboarding_calibration_position_failed({}, options)
+          : m.onboarding_calibration_center_title({}, options);
   const calibrationHelper = !canCalibrate
     ? m.onboarding_head_setup_detail({}, options)
     : calibrationStatus === "capturing"
-      ? m.onboarding_calibration_capturing({ progress: calibrationProgress }, options)
-      : m.onboarding_head_setup_detail({}, options);
+      ? calibrationInstruction.helper
+      : calibrationStatus === "completed"
+        ? m.onboarding_calibration_success_helper({}, options)
+        : m.onboarding_calibration_center_helper({}, options);
 
   const requestMicrophone = useCallback(async () => {
     if (typeof navigator.mediaDevices?.getUserMedia !== "function") {
@@ -314,7 +334,14 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     voiceRecognitionRef.current = recognition;
     setIsListening(true);
     recognition.onresult = (event) => {
-      setTranscript(transcriptFromEvent(event));
+      const heard = transcriptFromEvent(event);
+      setTranscript(heard);
+      if (matchesOnboardingOptionOne(heard, locale)) {
+        setVoiceOptionOneChecked(true);
+        setVoiceTaskStatus("complete");
+      } else {
+        setVoiceTaskStatus("mismatch");
+      }
     };
     recognition.onerror = () => {
       setMicrophoneOutcome("denied");
@@ -445,8 +472,8 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
             {PHASES.map((p, idx) => {
               const isActive = currentPhase === p.id;
               const isCompleted = currentPhase > p.id;
-              const progressPercentage = getPhaseRadialProgress(p.id, currentPhase, substepIndex);
-              const part = getNestedPart(p.id, substepIndex);
+              const progressPercentage = getPhaseRadialProgress(p.id, currentPhase);
+              const part = getNestedPart();
               const partLabel = part ? m.onboarding_phase_part({ part }, options) : null;
               const CIRCUMFERENCE = 75.398;
               const dashOffset = CIRCUMFERENCE - (progressPercentage / 100) * CIRCUMFERENCE;
@@ -596,21 +623,13 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
           {currentPhase === 2 ? (
             <div className="aksa-onboarding-phase aksa-onboarding-phase--head-control">
               <h1 className="aksa-onboarding__heading" data-onboarding-heading ref={headingRef} tabIndex={-1}>
-                {substepIndex === 2 || substepIndex === 3
-                  ? m.onboarding_head_explanation_title({}, options)
-                  : substepIndex === 4 || substepIndex === 5
-                    ? m.onboarding_head_setup_title({}, options)
-                    : m.onboarding_tuning_title({}, options)}
+                {m.onboarding_head_explanation_title({}, options)}
               </h1>
               <p className="aksa-onboarding__description">
-                {substepIndex === 2 || substepIndex === 3
-                  ? m.onboarding_head_explanation_desc({}, options)
-                  : substepIndex === 4 || substepIndex === 5
-                    ? m.onboarding_head_setup_body({}, options)
-                    : m.onboarding_tuning_body({}, options)}
+                {m.onboarding_head_explanation_desc({}, options)}
               </p>
               {/* Substep 2 & 3: Explanation and Camera permission */}
-              {substepIndex === 2 || substepIndex === 3 ? (
+              {currentPhase === 2 ? (
                 <div className="aksa-onboarding-panel">
                   <div
                     className="aksa-camera-preview-container"
@@ -659,7 +678,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                         </button>
                         <button
                           className="aksa-button aksa-button--secondary"
-                          onClick={() => goToPhase(3)}
+                          onClick={skipPhase2}
                           type="button"
                         >
                           <span>{m.onboarding_continue_no_camera({}, options)}</span>
@@ -710,7 +729,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                         <button className="aksa-button aksa-button--primary" onClick={() => void requestCamera()} type="button">
                           {m.onboarding_try_camera_again({}, options)}
                         </button>
-                        <button className="aksa-button aksa-button--secondary" onClick={() => goToPhase(3)} type="button">
+                        <button className="aksa-button aksa-button--secondary" onClick={skipPhase2} type="button">
                           {m.onboarding_continue_no_camera({}, options)}
                         </button>
                       </div>
@@ -726,7 +745,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
               ) : null}
 
               {/* Substep 4 & 5: Calibration / Head setup */}
-              {substepIndex === 4 || substepIndex === 5 ? (
+              {currentPhase === 2 ? (
                 <div className="aksa-onboarding-panel">
                   <section
                     aria-labelledby="onboarding-calibration-title"
@@ -747,7 +766,26 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                           {calibrationCopy}
                         </h2>
                         <p className="aksa-onboarding-calibration-card__helper">{calibrationHelper}</p>
+                        {calibrationStatus === "capturing" ? (
+                          <p className="aksa-onboarding-calibration-card__step" aria-live="polite">
+                            {m.onboarding_calibration_step(
+                              {
+                                step: String(headControl.calibrationState.step),
+                                direction: calibrationInstruction.title
+                              },
+                              options
+                            )}
+                          </p>
+                        ) : null}
                       </div>
+                    </div>
+
+                    <div aria-hidden="true" className="aksa-calibration-directions">
+                      <span className={headControl.calibrationState.direction === "up" ? "is-active" : ""}>↑</span>
+                      <span className={headControl.calibrationState.direction === "left" ? "is-active" : ""}>←</span>
+                      <span className={headControl.calibrationState.direction === "center" || headControl.calibrationState.direction === "return_center" ? "is-active" : ""}>●</span>
+                      <span className={headControl.calibrationState.direction === "right" ? "is-active" : ""}>→</span>
+                      <span className={headControl.calibrationState.direction === "down" ? "is-active" : ""}>↓</span>
                     </div>
 
                     {headControl.calibrationState.status === "capturing" ? (
@@ -772,7 +810,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                         onClick={headControl.cancelCalibration}
                         type="button"
                       >
-                        {m.confirmation_cancel({}, options)}
+                        {m.onboarding_calibration_cancel({}, options)}
                       </button>
                     ) : !canCalibrate ? (
                       <button
@@ -804,7 +842,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
               ) : null}
 
               {/* Substep 6: Tuning / Preferences */}
-              {substepIndex === 6 ? (
+              {calibrationStatus === "completed" ? (
                 <div className="aksa-onboarding-panel">
                   <div
                     aria-label={m.onboarding_setup_style_label({}, options)}
@@ -874,13 +912,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                   </button>
                   <button
                     className="aksa-button aksa-button--primary"
-                    onClick={() =>
-                      substepIndex < 4
-                        ? setSubstepIndex(4)
-                        : substepIndex < 6
-                          ? setSubstepIndex(6)
-                          : goToPhase(selectedCards.voice ? 3 : 4)
-                    }
+                    onClick={() => goToPhase(selectedCards.voice ? 3 : 4)}
                     type="button"
                   >
                     <span>{m.onboarding_continue({}, options)}</span>
@@ -895,14 +927,10 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
           {currentPhase === 3 ? (
             <div className="aksa-onboarding-phase">
               <h1 className="aksa-onboarding__heading" data-onboarding-heading ref={headingRef} tabIndex={-1}>
-                {substepIndex === 7 || substepIndex === 8
-                  ? m.onboarding_voice_explanation_title({}, options)
-                  : m.onboarding_voice_test_title({}, options)}
+                {m.onboarding_voice_task_title({}, options)}
               </h1>
               <p className="aksa-onboarding__description">
-                {substepIndex === 7 || substepIndex === 8
-                  ? m.onboarding_voice_explanation_desc({}, options)
-                  : m.onboarding_voice_test_body({}, options)}
+                {m.onboarding_voice_task_body({}, options)}
               </p>
               {/* Substep 7 & 8: Voice Explanation & Permission */}
               {substepIndex === 7 || substepIndex === 8 ? (
@@ -990,39 +1018,50 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
               {/* Substep 9: Voice Test */}
               {substepIndex === 9 ? (
                 <div className="aksa-onboarding-panel">
+                  <p className="aksa-onboarding-voice-task__prompt">{m.onboarding_voice_task_prompt({}, options)}</p>
+                  <div aria-label={m.onboarding_voice_task_title({}, options)} className="aksa-onboarding-voice-task" role="group">
+                    <button
+                      aria-pressed={voiceOptionOneChecked}
+                      className={`aksa-onboarding-voice-task__option ${voiceOptionOneChecked ? "is-checked" : ""}`}
+                      onClick={() => {
+                        setVoiceOptionOneChecked(true);
+                        setVoiceTaskStatus("complete");
+                      }}
+                      type="button"
+                    >
+                      <Check aria-hidden="true" className="aksa-icon" />
+                      {m.onboarding_voice_task_option_one({}, options)}
+                    </button>
+                    <button
+                      aria-pressed={!voiceOptionOneChecked}
+                      className="aksa-onboarding-voice-task__option"
+                      onClick={() => {
+                        setVoiceOptionOneChecked(false);
+                        setVoiceTaskStatus("idle");
+                      }}
+                      type="button"
+                    >
+                      {m.onboarding_voice_task_option_two({}, options)}
+                    </button>
+                  </div>
                   {voiceSupported === false ? (
                     <StatusChip tone="attention" value={m.onboarding_microphone_unsupported({}, options)} />
+                  ) : isListening ? (
+                    <button className="aksa-button aksa-button--secondary" onClick={stopVoiceTest} type="button">
+                      <Mic aria-hidden="true" className="aksa-icon" />
+                      <span>{m.composer_stop_listening({}, options)}</span>
+                    </button>
                   ) : (
-                    <div className="aksa-onboarding__controls">
-                      {isListening ? (
-                        <button className="aksa-button aksa-button--secondary" onClick={stopVoiceTest} type="button">
-                          <Mic aria-hidden="true" className="aksa-icon" />
-                          <span>{m.composer_stop_listening({}, options)}</span>
-                        </button>
-                      ) : (
-                        <button className="aksa-button aksa-button--primary" onClick={runVoiceTest} type="button">
-                          <Mic aria-hidden="true" className="aksa-icon" />
-                          <span>{m.composer_start_listening({}, options)}</span>
-                        </button>
-                      )}
-                      <button className="aksa-button aksa-button--quiet" onClick={() => setTranscript("")} type="button">
-                        {m.composer_clear({}, options)}
-                      </button>
-                    </div>
+                    <button className="aksa-button aksa-button--primary" onClick={runVoiceTest} type="button">
+                      <Mic aria-hidden="true" className="aksa-icon" />
+                      <span>{m.composer_start_listening({}, options)}</span>
+                    </button>
                   )}
-
-                  <div className="aksa-field">
-                    <label className="aksa-label" htmlFor="onboarding-transcript">
-                      {m.onboarding_voice_transcript_label({}, options)}
-                    </label>
-                    <textarea
-                      className="aksa-textarea"
-                      id="onboarding-transcript"
-                      onChange={(event) => setTranscript(event.target.value)}
-                      placeholder={m.onboarding_first_command_example({}, options)}
-                      rows={2}
-                      value={transcript}
-                    />
+                  <div aria-live="polite" className="aksa-onboarding-voice-task__result" role="status">
+                    {isListening ? m.onboarding_voice_task_listening({}, options) : null}
+                    {transcript ? m.onboarding_voice_task_heard({ transcript }, options) : null}
+                    {voiceTaskStatus === "mismatch" ? m.onboarding_voice_task_mismatch({}, options) : null}
+                    {voiceTaskStatus === "complete" ? m.onboarding_voice_task_success({}, options) : null}
                   </div>
                 </div>
               ) : null}

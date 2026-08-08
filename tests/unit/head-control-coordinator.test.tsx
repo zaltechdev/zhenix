@@ -858,11 +858,11 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       }
     });
     expect(result.current.calibrationState.status).toBe("capturing");
-    expect(result.current.calibrationState.samplesCount).toBe(19);
+    expect(result.current.calibrationState.samplesCount).toBe(7);
+    expect(result.current.neutralBaseline).toEqual(pose);
 
     act(() => engine.emit(visionFrame(4000, { pose })));
-    expect(result.current.calibrationState.status).toBe("completed");
-    expect(result.current.calibrationState.samplesCount).toBe(0);
+    expect(result.current.calibrationState.status).toBe("capturing");
     expect(result.current.neutralBaseline).toEqual(pose);
     expect(engine.setNeutralBaseline).toHaveBeenCalledWith(pose);
   });
@@ -871,13 +871,21 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     const calEngine = new CalibrationEngine(5);
     calEngine.start();
 
-    for (let i = 0; i < 5; i++) {
-      calEngine.addSample({ yaw: -2, pitch: 4, roll: 0 });
-    }
+    let timestamp = 0;
+    const capture = (pose: { yaw: number; pitch: number; roll: number }) => {
+      for (let index = 0; index < 5; index += 1) calEngine.addSample(pose, timestamp++);
+    };
+    capture({ yaw: -2, pitch: 4, roll: 0 });
+    capture({ yaw: 4, pitch: 4, roll: 0 });
+    capture({ yaw: -8, pitch: 4, roll: 0 });
+    capture({ yaw: -2, pitch: 9, roll: 0 });
+    capture({ yaw: -2, pitch: -3, roll: 0 });
+    capture({ yaw: -2, pitch: 4, roll: 0 });
 
     const state = calEngine.getState();
     expect(state.status).toBe("completed");
     expect(state.baseline).toEqual({ yaw: -2, pitch: 4, roll: 0 });
+    expect(state.range).toEqual({ left: 6, right: 6, up: 5, down: 7 });
     expect(state.samplesCount).toBe(0); // Raw sample array cleared
   });
 

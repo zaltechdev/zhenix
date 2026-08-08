@@ -2749,6 +2749,66 @@
   pointer-events: none;
 }
 
+.aksa-calibration-directions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(2rem, 1fr));
+  gap: var(--space-2);
+  max-width: 13rem;
+  margin: var(--space-4) auto;
+  color: var(--color-aksa-muted);
+  text-align: center;
+  font-size: 1.25rem;
+}
+
+.aksa-calibration-directions span:first-child { grid-column: 2; }
+.aksa-calibration-directions span:last-child { grid-column: 2; }
+.aksa-calibration-directions .is-active {
+  color: var(--color-aksa-teal);
+  font-weight: 700;
+}
+
+.aksa-onboarding-calibration-card__step {
+  margin: var(--space-2) 0 0;
+  color: var(--color-aksa-muted);
+  font-size: 0.875rem;
+}
+
+.aksa-onboarding-voice-task {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.aksa-onboarding-voice-task__prompt {
+  margin: 0 0 var(--space-3);
+  color: var(--color-aksa-ink);
+  font-weight: 600;
+}
+
+.aksa-onboarding-voice-task__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-aksa-line);
+  border-radius: var(--radius-md);
+  background: var(--color-aksa-cloud);
+  color: var(--color-aksa-ink);
+  text-align: left;
+}
+
+.aksa-onboarding-voice-task__option.is-checked {
+  border-color: var(--color-aksa-teal);
+  background: var(--color-aksa-teal-soft);
+}
+
+.aksa-onboarding-voice-task__result {
+  min-height: 1.5rem;
+  margin-top: var(--space-3);
+  color: var(--color-aksa-muted);
+}
+
 .aksa-onboarding-panel {
   display: flex;
   flex-direction: column;
