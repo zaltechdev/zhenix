@@ -45,6 +45,7 @@ export interface HeadControlContextValue {
   activeTarget: HTMLElement | null;
   dwellProgress: DwellProgress;
   gestureStatus: GestureStatus;
+  activationFeedbackKey: number;
   profile: AccessibilityProfile;
   neutralBaseline: NeutralBaseline | null;
   calibrationState: CalibrationState;
@@ -135,6 +136,7 @@ export function HeadControlProvider({
   const [activeTarget, setActiveTarget] = useState<HTMLElement | null>(null);
   const [dwellProgress, setDwellProgress] = useState<DwellProgress>(DEFAULT_DWELL);
   const [gestureStatus, setGestureStatus] = useState<GestureStatus>(DEFAULT_GESTURE);
+  const [activationFeedbackKey, setActivationFeedbackKey] = useState(0);
   const [neutralBaseline, setNeutralBaselineState] = useState<NeutralBaseline | null>(null);
   const [calibrationState, setCalibrationState] = useState<CalibrationState>(DEFAULT_CALIBRATION);
 
@@ -192,6 +194,12 @@ export function HeadControlProvider({
     profileRef.current = profile;
   }, [profile]);
 
+  /** Dispatch through the same DOM click path as mouse and keyboard before visual confirmation. */
+  const dispatchHeadSelection = useCallback((target: HTMLElement) => {
+    target.click();
+    setActivationFeedbackKey((current) => current + 1);
+  }, []);
+
   // Server data wins. Without it, reset before loading only the current user's cache.
   useEffect(() => {
     let cancelled = false;
@@ -215,7 +223,8 @@ export function HeadControlProvider({
     if (!dwellRef.current) {
       dwellRef.current = new DwellController({
         dwellDurationMs: profile.dwellDurationMs ?? 1200,
-        cooldownMs: 500
+        cooldownMs: 500,
+        onActivate: dispatchHeadSelection
       });
     } else {
       dwellRef.current.updateConfig(profile.dwellDurationMs ?? 1200);
@@ -225,7 +234,8 @@ export function HeadControlProvider({
       gestureRef.current = new GestureDetector({
         gestureType: profile.selectionMode === "off" ? null : profile.gestureType,
         threshold: profile.gestureThreshold ?? 50,
-        cooldownMs: profile.gestureCooldownMs ?? 600
+        cooldownMs: profile.gestureCooldownMs ?? 600,
+        onActivate: dispatchHeadSelection
       });
     } else {
       gestureRef.current.updateConfig({
@@ -234,7 +244,8 @@ export function HeadControlProvider({
             ? null
             : profile.gestureType,
         threshold: profile.gestureThreshold ?? 50,
-        cooldownMs: profile.gestureCooldownMs ?? 600
+        cooldownMs: profile.gestureCooldownMs ?? 600,
+        onActivate: dispatchHeadSelection
       });
     }
   }, [
@@ -242,7 +253,8 @@ export function HeadControlProvider({
     profile.gestureCooldownMs,
     profile.gestureThreshold,
     profile.gestureType,
-    profile.selectionMode
+    profile.selectionMode,
+    dispatchHeadSelection
   ]);
 
   // Synchronize live profile settings & write to user-scoped cache
@@ -264,11 +276,12 @@ export function HeadControlProvider({
               ? null
               : newProfile.gestureType,
           threshold: newProfile.gestureThreshold ?? 50,
-          cooldownMs: newProfile.gestureCooldownMs ?? 600
+          cooldownMs: newProfile.gestureCooldownMs ?? 600,
+          onActivate: dispatchHeadSelection
         });
       }
     },
-    [profileScope, userId]
+    [dispatchHeadSelection, profileScope, userId]
   );
 
   const setNeutralBaseline = useCallback((baseline: NeutralBaseline) => {
@@ -721,6 +734,7 @@ export function HeadControlProvider({
         activeTarget,
         dwellProgress,
         gestureStatus,
+        activationFeedbackKey,
         profile,
         neutralBaseline,
         calibrationState,
@@ -744,6 +758,7 @@ export function HeadControlProvider({
         lifecycleState={lifecycleState}
         position={pointerPosition}
         reducedMotion={profile.reducedMotion}
+        activationKey={activationFeedbackKey}
       />
     </HeadControlContext.Provider>
   );

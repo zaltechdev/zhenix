@@ -30,6 +30,44 @@ Zalfa Daffani Fadhillah Al Hanif (Zaltech - https://github.com/zaltechdev)
   - `logs/log-zaltech.md`
 
 ---
+### Timestamp: 2026-08-08 08:18:00
+* **Model used**: GPT-5 (default)
+* **Human Prompt**: `# AKSA HEAD POINTER - CURSOR VISUAL POLISH PASS
+
+Repository: github.com/zaltechdev/zhenix
+Branch: dev
+
+Do this ONLY after the Target Assist + Stability pass is complete and verified.
+
+MISSION:
+
+Polish the Aksa head-control pointer so it feels like a deliberate product interaction rather than a generic mouse cursor.
+
+Do NOT modify head-pose math, Target Assist behavior, smoothing/filtering, dwell timing semantics, gesture detection, backend, agent features, or unrelated UI. This pass is VISUAL FEEDBACK ONLY.
+
+Replace the generic pointer with the existing supplied official Aksa SVG. Do not redraw, generate, convert to Lucide, or unnecessarily alter the brand. Keep it compact, crisp, readable in light and dark UI, pointer-events: none, centered around the effective coordinate, without trails, excessive shadows, or glow.
+
+When Target Assist locks an actionable target and dwell begins, render a smooth circular progress ring around the logo from real DwellController progress. It starts empty, fills to activation, and resets immediately after unlock, leaving target, tracking loss, pause, confirmation-boundary clearing, or dwell cancellation. Add restrained acquired-target feedback only, such as small scale, outline, or halo. Do not teleport the pointer.
+
+After dwell or gesture successfully activates a control, show one restrained Aksa logo pop lasting about 120 to 180 ms. The pop must occur only after a real onClick or selection dispatch succeeds. Head-control dwell and Target Assist must fire actual actionable events through the existing dispatchAction, onSelect, or equivalent pipeline. Keyboard, mouse, and head activation must converge into the same functional click handler. Do not pop for cancelled dwell, below-threshold or off-target gesture, disabled target, tracking loss, or confirmation guard rejection.
+
+Respect prefers-reduced-motion and persisted Aksa reduced-motion preference. Reduced motion has no scale pop or spinning, but remains understandable with static state and functional click. Pointer lifecycle remains hidden for idle, initializing, paused, disabled, and error; visible for active; tracking_lost follows existing approved freeze or hide behavior. Keep visual updates GPU-friendly and do not add animation libraries or expensive per-frame React work.
+
+Add focused tests for supplied Aksa logo rendering, pointer-events none, real dwell progress, dwell cancellation ring reset, one activation pop, no pop on cancelled action, reduced motion no pop, lifecycle hidden states, Target Assist visual lock, and real click or selection handler dispatch. Keep head-control tests strong. With a real webcam, check normal pointing, Target Assist button acquisition, clear ring, leaving during dwell, complete dwell click and pop, gesture click and pop, readability, labels, and performance.
+
+Run bun run i18n:compile, bun run typecheck, bun run lint, bun run test, bun run build, and focused E2E if coverage exists. Keep one small atomic visual plus interaction correctness commit, push dev without force, and report official asset, sizing and visibility, dwell, pop and dispatch, reduced motion, physical webcam verification, exact tests, commit SHA, and pushed HEAD. Stop without unrelated work.`
+* **TLDR AI agents done**: Replaced the generic overlay with the supplied `logo/aksa.svg`, added compact target-lock emphasis, controller-driven dwell ring, and reduced-motion static progress. Dwell and gesture now use a shared DOM click dispatcher that increments visual feedback only after `target.click()` dispatches. Added 11 pointer tests plus dwell and gesture dispatch assertions. i18n, typecheck, lint, 242 unit tests, build, and five focused E2E tests passed. Browser runtime confirmed the official pointer rendered while active; physical directional and usability movement could not be performed remotely.
+* **file changed**:
+  - `logo/aksa.svg`
+  - `src/components/workspace/aksa-pointer.tsx`
+  - `src/app/workspace.css`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `.agents/features/accessibility-controls.md`
+  - `tests/unit/aksa-pointer.test.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `logs/log-zaltech.md`
+
+---
 ### Timestamp: 2026-08-07 19:04:45
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `SPEEDRUN PHASE II: REAL HEAD CONTROL`

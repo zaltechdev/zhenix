@@ -63,6 +63,12 @@ Give a user who cannot operate a mouse a reliable way to point and select anywhe
 - Similar adjacent candidates remain unlocked until movement makes one clearly nearest. A valid current lock remains preferred over a new nearby candidate.
 - Assist configuration is internal and centralized in the client controller. It is not exposed as engineering controls in accessibility settings.
 
+### Pointer feedback
+
+- The runtime pointer uses the supplied Aksa SVG asset, remains compact, and never participates in hit testing.
+- An acquired target adds restrained pointer emphasis. Its dwell ring reflects live `DwellController` progress and clears with any dwell cancellation or target release.
+- A brief activation pop occurs only after the shared DOM selection dispatch succeeds. Reduced-motion mode keeps the progress readable without animated pointer feedback.
+
 ### Gesture selection
 
 | Step | User | Aksa |

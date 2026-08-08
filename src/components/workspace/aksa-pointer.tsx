@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { Vector2D } from "@/lib/client/vision/pointer-mapping";
 import { DwellProgress } from "@/lib/client/vision/dwell-controller";
 import { VisionLifecycleState } from "@/lib/client/vision/vision-engine";
+import AksaPointerLogo from "../../../logo/aksa.svg";
 
 export interface AksaPointerProps {
   position: Vector2D;
@@ -10,6 +12,7 @@ export interface AksaPointerProps {
   dwellProgress: DwellProgress;
   hasTarget: boolean;
   reducedMotion?: boolean;
+  activationKey?: number;
 }
 
 export function AksaPointer({
@@ -17,7 +20,8 @@ export function AksaPointer({
   lifecycleState,
   dwellProgress,
   hasTarget,
-  reducedMotion = false
+  reducedMotion = false,
+  activationKey = 0
 }: AksaPointerProps) {
   // Initialization must not look operational. Tracking loss keeps the last safe position visible.
   if (lifecycleState !== "active" && lifecycleState !== "tracking_lost") {
@@ -25,52 +29,63 @@ export function AksaPointer({
   }
 
   const isTrackingLost = lifecycleState === "tracking_lost";
-  const isDwelling = dwellProgress.state === "dwelling";
+  const isDwelling = dwellProgress.state === "dwelling" && hasTarget;
   const progressRatio = dwellProgress.progressRatio;
   const strokeDashoffset = 100 - progressRatio * 100;
+  const className = `aksa-pointer-overlay ${isTrackingLost ? "aksa-pointer-overlay--lost" : ""} ${
+    hasTarget ? "aksa-pointer-overlay--target" : ""
+  } ${activationKey > 0 && !reducedMotion ? "aksa-pointer-overlay--activated" : ""} ${
+    reducedMotion ? "aksa-pointer-overlay--reduced-motion" : ""
+  }`;
 
   return (
     <div
       aria-hidden="true"
-      className={`aksa-pointer-overlay ${isTrackingLost ? "aksa-pointer-overlay--lost" : ""} ${
-        hasTarget ? "aksa-pointer-overlay--target" : ""
-      }`}
+      className={className}
+      data-aksa-pointer="true"
+      key={`aksa-pointer-${activationKey}`}
       style={{
+        pointerEvents: "none",
         transform: `translate3d(${position.x}px, ${position.y}px, 0)`
       }}
     >
-      {/* Outer target ring */}
-      <div className="aksa-pointer-overlay__outer" />
+      <Image
+        alt=""
+        className="aksa-pointer-overlay__logo"
+        height={26}
+        priority
+        src={AksaPointerLogo}
+        width={26}
+      />
 
-      {/* Center dot */}
-      <div className="aksa-pointer-overlay__dot" />
-
-      {/* Dwell Progress Ring */}
-      {isDwelling && progressRatio > 0 ? (
-        reducedMotion ? (
-          <div className="aksa-pointer-overlay__reduced-progress">
-            {Math.round(progressRatio * 100)}%
-          </div>
-        ) : (
+      {isDwelling ? (
+        <>
           <svg className="aksa-pointer-overlay__progress-ring" viewBox="0 0 36 36">
             <circle
               className="aksa-pointer-overlay__progress-bg"
               cx="18"
               cy="18"
-              r="14"
+              pathLength="100"
+              r="15"
             />
             <circle
               className="aksa-pointer-overlay__progress-bar"
               cx="18"
               cy="18"
-              r="14"
+              pathLength="100"
+              r="15"
               style={{
                 strokeDasharray: "100",
                 strokeDashoffset: `${strokeDashoffset}`
               }}
             />
           </svg>
-        )
+          {reducedMotion ? (
+            <div className="aksa-pointer-overlay__reduced-progress">
+              {Math.round(progressRatio * 100)}%
+            </div>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

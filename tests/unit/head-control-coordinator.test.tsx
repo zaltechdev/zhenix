@@ -397,6 +397,76 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(engine.factory).toHaveBeenCalledTimes(1);
   });
 
+  it("dispatches a real dwell click before emitting pointer activation feedback", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = {
+      ...SETTINGS_OFF,
+      selectionMode: "dwell",
+      dwellDurationMs: 300
+    };
+    const button = document.createElement("button");
+    const click = vi.fn();
+    button.addEventListener("click", click);
+    document.body.appendChild(button);
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(visionFrame(index * 100));
+      }
+      engine.emit(visionFrame(600));
+      engine.emit(visionFrame(800));
+      engine.emit(visionFrame(900));
+      engine.emit(visionFrame(1200));
+    });
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(result.current.activationFeedbackKey).toBe(1);
+  });
+
+  it("does not emit activation feedback when dwell is cancelled before dispatch", async () => {
+    const engine = createControllableEngine();
+    const profile: AccessibilityProfile = {
+      ...SETTINGS_OFF,
+      selectionMode: "dwell",
+      dwellDurationMs: 300
+    };
+    const button = document.createElement("button");
+    const click = vi.fn();
+    button.addEventListener("click", click);
+    document.body.appendChild(button);
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={profile} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.startCamera(document.createElement("video"), createMockStream().stream)).toBe(true);
+    });
+    act(() => {
+      for (let index = 1; index <= 5; index += 1) {
+        engine.emit(visionFrame(index * 100));
+      }
+      engine.emit(visionFrame(600));
+      engine.emit(visionFrame(800));
+      engine.emit(visionFrame(900));
+      engine.emit(visionFrame(1000, { lifecycleState: "tracking_lost", faceDetected: false }));
+    });
+
+    expect(click).not.toHaveBeenCalled();
+    expect(result.current.activationFeedbackKey).toBe(0);
+  });
+
   it("blocks a held gesture across modal opening, then allows a released fresh gesture", async () => {
     const engine = createControllableEngine();
     const profile: AccessibilityProfile = {
@@ -499,6 +569,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       engine.emit(visionFrame(800, { blendshapes: held }));
     });
     expect(click).toHaveBeenCalledTimes(1);
+    expect(result.current.activationFeedbackKey).toBe(1);
 
     act(() => {
       engine.emit(
@@ -542,6 +613,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       engine.emit(visionFrame(1700, { blendshapes: held }));
     });
     expect(click).toHaveBeenCalledTimes(2);
+    expect(result.current.activationFeedbackKey).toBe(2);
   });
 
   it("requires stable reacquisition and gesture release after disabling and restarting", async () => {
