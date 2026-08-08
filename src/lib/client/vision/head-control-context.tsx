@@ -171,6 +171,20 @@ export function HeadControlProvider({
     }
   }, []);
 
+  const ensureBackgroundVideo = useCallback(() => {
+    if (backgroundVideoRef.current) return backgroundVideoRef.current;
+    if (typeof document === "undefined") return null;
+
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.style.display = "none";
+    document.body.appendChild(video);
+    backgroundVideoRef.current = video;
+    return video;
+  }, []);
+
   const cleanFailedStartup = useCallback(
     (videoElement: HTMLVideoElement | null, stream: MediaStream | null) => {
       if (stream) {
@@ -615,6 +629,13 @@ export function HeadControlProvider({
   const startCamera = useCallback(
     async (videoElement: HTMLVideoElement, stream: MediaStream): Promise<boolean> => {
       startupCancelledRef.current = false;
+      const processingVideo = ensureBackgroundVideo();
+      if (!processingVideo) {
+        cleanFailedStartup(videoElement, stream);
+        setLifecycleState("error");
+        setErrorCategory("camera_unavailable");
+        return false;
+      }
       if (!engineRef.current) {
         engineRef.current = engineFactory({
           onFrame: handleFrame,
@@ -639,13 +660,20 @@ export function HeadControlProvider({
       setErrorCategory(null);
       prepareForSafeReacquisition();
 
+      const cleanStartup = () => {
+        cleanFailedStartup(videoElement, stream);
+        if (processingVideo !== videoElement) {
+          cleanFailedStartup(processingVideo, null);
+        }
+      };
+
       const failStartup = (category: VisionFailureCategory): false => {
         try {
           engineRef.current?.disable();
         } catch {
           // Stream cleanup below remains authoritative.
         }
-        cleanFailedStartup(videoElement, stream);
+        cleanStartup();
         setLifecycleState("error");
         setErrorCategory(category);
         return false;
@@ -653,19 +681,24 @@ export function HeadControlProvider({
 
       try {
         videoElement.srcObject = stream;
+        if (processingVideo !== videoElement) {
+          processingVideo.srcObject = stream;
+        }
       } catch {
         return failStartup("camera_unavailable");
       }
 
-      const playPreview = () => {
-        void videoElement.play().catch(() => {
+      const playVideo = (video: HTMLVideoElement) => {
+        void video.play().catch(() => {
           // The engine remains authoritative if a browser blocks muted playback.
         });
       };
-      if (videoElement.readyState >= HTMLMediaElement.HAVE_METADATA) {
-        playPreview();
-      } else {
-        videoElement.addEventListener("loadedmetadata", playPreview, { once: true });
+      for (const video of new Set([videoElement, processingVideo])) {
+        if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+          playVideo(video);
+        } else {
+          video.addEventListener("loadedmetadata", () => playVideo(video), { once: true });
+        }
       }
 
       let initialized = false;
@@ -673,7 +706,7 @@ export function HeadControlProvider({
         initialized = await engineRef.current.initialize();
       } catch {
         if (startupCancelledRef.current) {
-          cleanFailedStartup(videoElement, stream);
+          cleanStartup();
           setLifecycleState("disabled");
           setErrorCategory(null);
           return false;
@@ -686,7 +719,7 @@ export function HeadControlProvider({
         } catch {
           // Stream cleanup below remains authoritative.
         }
-        cleanFailedStartup(videoElement, stream);
+        cleanStartup();
         setLifecycleState("disabled");
         setErrorCategory(null);
         return false;
@@ -696,7 +729,7 @@ export function HeadControlProvider({
       }
 
       try {
-        engineRef.current.start(videoElement, stream);
+        engineRef.current.start(processingVideo, stream);
         return true;
       } catch {
         return failStartup("camera_unavailable");
@@ -705,6 +738,7 @@ export function HeadControlProvider({
     [
       cleanFailedStartup,
       engineFactory,
+      ensureBackgroundVideo,
       handleFrame,
       prepareForSafeReacquisition,
       removeBackgroundVideo
@@ -739,16 +773,7 @@ export function HeadControlProvider({
         }
 
         if (!targetVideo) {
-          if (!backgroundVideoRef.current && typeof document !== "undefined") {
-            const vid = document.createElement("video");
-            vid.autoplay = true;
-            vid.muted = true;
-            vid.playsInline = true;
-            vid.style.display = "none";
-            document.body.appendChild(vid);
-            backgroundVideoRef.current = vid;
-          }
-          targetVideo = backgroundVideoRef.current;
+          targetVideo = ensureBackgroundVideo();
         }
 
         if (!targetVideo) {
@@ -769,7 +794,7 @@ export function HeadControlProvider({
         return false;
       }
     },
-    [cleanFailedStartup, startCamera]
+    [cleanFailedStartup, ensureBackgroundVideo, startCamera]
   );
 
   const pauseControl = useCallback(() => {

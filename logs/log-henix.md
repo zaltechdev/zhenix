@@ -604,3 +604,13 @@ DO NOT START PHASE III.
   - `src/components/onboarding/onboarding-flow.tsx`
   - `tests/unit/auth-onboarding.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 10:08:10
+* **Model used**: GPT-5.6
+* **Human Prompt**: `if head mouse control active, keep it active on all pages.`
+* **TLDR AI agents done**: Moved camera processing ownership into the app-level head-control provider so visual previews and route changes cannot detach active tracking.
+* **file changed**:
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `logs/log-henix.md`

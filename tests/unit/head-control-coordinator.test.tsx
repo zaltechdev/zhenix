@@ -948,6 +948,36 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(result.current.errorCategory).toBe("model_load_failed");
   });
 
+  it("keeps provider-owned camera processing mounted after a preview unmounts", async () => {
+    let processingVideo: HTMLVideoElement | null = null;
+    const engineFactory = createEngineFactory({
+      initialized: true,
+      onStart: (video) => {
+        processingVideo = video;
+      }
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engineFactory} initialProfile={SETTINGS_OFF} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const rendered = renderHook(() => useHeadControl(), { wrapper });
+    const preview = document.createElement("video");
+
+    await act(async () => {
+      expect(await rendered.result.current.startCamera(preview, createMockStream().stream)).toBe(true);
+    });
+    if (!processingVideo) throw new Error("Camera processor was not started");
+
+    expect(processingVideo).not.toBe(preview);
+    expect(document.body.contains(processingVideo)).toBe(true);
+    preview.remove();
+    expect(document.body.contains(processingVideo)).toBe(true);
+
+    rendered.unmount();
+    expect(document.body.contains(processingVideo)).toBe(false);
+  });
+
   it("stops the acquired stream when video attachment throws", async () => {
     const { stop, stream } = createMockStream();
     Object.defineProperty(navigator, "mediaDevices", {
