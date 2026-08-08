@@ -89,19 +89,42 @@ export function createRecognition(locale: "en" | "id"): SpeechRecognitionLike | 
 }
 
 export function transcriptFromEvent(event: SpeechRecognitionEventLike): string {
-  let transcript = "";
+  return transcriptAlternativesFromEvent(event)[0] ?? "";
+}
+
+export function finalTranscriptAlternativesFromEvent(
+  event: SpeechRecognitionEventLike
+): string[] {
+  return transcriptAlternativesFromEvent(event, true);
+}
+
+function transcriptAlternativesFromEvent(
+  event: SpeechRecognitionEventLike,
+  finalOnly = false
+): string[] {
+  const segments: SpeechRecognitionAlternative[][] = [];
+
   for (let index = 0; index < event.results.length; index += 1) {
     const result = event.results[index];
-    if (result.length > 0) {
-      let selected = result[0];
-      for (let alternativeIndex = 1; alternativeIndex < result.length; alternativeIndex += 1) {
-        const alternative = result[alternativeIndex];
-        if (alternative.confidence > selected.confidence) {
-          selected = alternative;
-        }
-      }
-      transcript += selected.transcript;
+    if (result.length === 0 || (finalOnly && !result.isFinal)) continue;
+
+    const alternatives = Array.from({ length: result.length }, (_, alternativeIndex) =>
+      result.item(alternativeIndex)
+    ).sort((left, right) => right.confidence - left.confidence);
+    segments.push(alternatives);
+  }
+
+  if (segments.length === 0) return [];
+
+  const primary = segments.map(([best]) => best.transcript);
+  const candidates = [primary.join(" ").trim()];
+  for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex += 1) {
+    for (const alternative of segments[segmentIndex]) {
+      const candidate = [...primary];
+      candidate[segmentIndex] = alternative.transcript;
+      candidates.push(candidate.join(" ").trim());
     }
   }
-  return transcript.trim();
+
+  return [...new Set(candidates.filter(Boolean))];
 }

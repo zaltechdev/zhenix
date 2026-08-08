@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, ChevronDown } from "lucide-react";
 import { ID, US } from "country-flag-icons/react/3x2";
 import { m } from "@/paraglide/messages.js";
@@ -8,6 +9,7 @@ import { setLocale } from "@/paraglide/runtime.js";
 import type { Locale } from "@/paraglide/runtime.js";
 
 export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const messageOptions = { locale };
@@ -37,9 +39,7 @@ export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
     // eslint-disable-next-line
     document.cookie = `PARAGLIDE_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
     setLocale(newLocale, { reload: false });
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
+    router.refresh();
   }
 
   const options: { code: Locale; label: string }[] = [
@@ -96,5 +96,4 @@ export function LocaleSwitcher({ locale = "en" }: { locale?: Locale } = {}) {
     </div>
   );
 }
-
 

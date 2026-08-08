@@ -272,6 +272,42 @@ test.describe("workspace shell", () => {
 });
 
 test.describe("command composer", () => {
+  test("exposes separate dictation and live command controls when speech is available", async ({ page }) => {
+    await page.addInitScript(() => {
+      class RecognitionStub {
+        lang = "";
+        continuous = false;
+        interimResults = false;
+        maxAlternatives = 1;
+        onresult = null;
+        onerror = null;
+        onend = null;
+        onstart = null;
+        start() {}
+        stop() {}
+        abort() {}
+      }
+      Object.defineProperty(window, "SpeechRecognition", {
+        configurable: true,
+        value: RecognitionStub
+      });
+    });
+    await page.goto("/workspace");
+
+    await expect(page.getByRole("button", { name: "Send command" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Dictate" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Live Voice" })).toBeVisible();
+  });
+
+  test("serves the authenticated semantic intent boundary instead of a missing route", async ({ request }) => {
+    const response = await request.post("/api/commands/intent", {
+      data: { transcript: "Could you show my documents?", locale: "en" }
+    });
+
+    expect(response.status()).toBe(401);
+    expect(await response.json()).toEqual({ intent: "UNKNOWN" });
+  });
+
   test("reports what Aksa received and why it cannot run", async ({ page }) => {
     await page.goto("/workspace");
 
@@ -317,6 +353,33 @@ test.describe("command composer", () => {
     await expect(panel).toBeVisible();
     /** No sources and no answer, because grounding is unavailable. */
     await expect(page.getByRole("list", { name: /Sources/ })).toHaveCount(0);
+  });
+});
+
+test.describe("dark-mode control readouts", () => {
+  test("keeps percentage and reduced-motion readouts opaque and distinct", async ({ page }) => {
+    await page.goto("/workspace/accessibility");
+    const styles = await page.evaluate(() => {
+      document.documentElement.dataset.theme = "dark";
+      const percentage = document.querySelector(".aksa-output");
+      const reduced = document.createElement("div");
+      reduced.className = "aksa-pointer-overlay__reduced-progress";
+      reduced.textContent = "50%";
+      document.body.appendChild(reduced);
+
+      const read = (element: Element | null) => {
+        if (!element) return null;
+        const style = getComputedStyle(element);
+        return { color: style.color, background: style.backgroundColor };
+      };
+      return { percentage: read(percentage), reduced: read(reduced) };
+    });
+
+    expect(styles.percentage).not.toBeNull();
+    expect(styles.percentage?.background).not.toBe("rgba(0, 0, 0, 0)");
+    expect(styles.percentage?.color).not.toBe(styles.percentage?.background);
+    expect(styles.reduced?.background).not.toBe("rgba(0, 0, 0, 0)");
+    expect(styles.reduced?.color).not.toBe(styles.reduced?.background);
   });
 });
 

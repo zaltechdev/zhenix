@@ -44,6 +44,12 @@ describe("Aksa deterministic voice router", () => {
     expect(matchAksaIntent("buka dokumen saya sekarang", "id")).toBeNull();
   });
 
+  it("matches Indonesian and English code-switch control phrases", () => {
+    expect(matchAksaIntent("pause head control", "id")).toBe("HEAD_PAUSE");
+    expect(matchAksaIntent("resume kontrol kepala", "id")).toBe("HEAD_RESUME");
+    expect(matchAksaIntent("kalibrasi head control", "id")).toBe("HEAD_CALIBRATE");
+  });
+
   it("executes deterministic matches without semantic routing", async () => {
     const semanticClassifier = vi.fn();
 

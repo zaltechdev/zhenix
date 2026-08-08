@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COMMAND_TEXT_MAX_LENGTH, commandLocaleSchema } from "@/lib/contracts/command";
 
 export const aksaIntentNames = [
   "NAV_HOME",
@@ -32,3 +33,11 @@ export const aksaSemanticIntentResponseSchema = z
   .object({ intent: aksaIntentResolutionSchema })
   .strict();
 
+export const aksaSemanticIntentRequestSchema = z
+  .object({
+    transcript: z.string().trim().min(1).max(COMMAND_TEXT_MAX_LENGTH),
+    locale: commandLocaleSchema
+  })
+  .strict();
+
+export type AksaSemanticIntentRequest = z.infer<typeof aksaSemanticIntentRequestSchema>;

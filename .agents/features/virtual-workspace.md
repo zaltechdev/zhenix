@@ -70,7 +70,7 @@ Navigation intents work from voice, text, keyboard, pointer, and head control eq
 | Sheet view | empty, loading, range loaded, range too large, write pending confirmation, write applied, load failed, disconnected |
 | Web search view | idle, searching, artifact ready, no usable source, failed |
 | Current task panel | idle, understanding, executing with current step, waiting for confirmation, completed, partially completed, failed, cancelled, undo available |
-| Command bar | text mode, voice mode listening, transcribing, transcript editable, submitting, unsupported speech recognition, microphone denied |
+| Command bar | text submission, microphone dictation, live voice commands, listening, transcribing, transcript editable, submitting, unsupported speech recognition, microphone denied |
 | Unsupported action | refusal with reason and a supported alternative |
 
 Every view has an explicit empty state that explains why it is empty and offers one next action.
@@ -187,6 +187,7 @@ No failure in one view breaks another view. The shell and the command bar remain
 - No drag-and-drop requirement anywhere. File selection uses activation, not dragging.
 - All targets are at least 44 by 44 px with at least 8 px separation.
 - The command bar is reachable from every view by keyboard shortcut and by pointer.
+- Dictation only fills the editable command field. Live Voice executes final recognized commands through the deterministic EN/ID allowlist, then uses the authenticated structured semantic fallback only after a deterministic miss.
 - The current task state announces through a polite live region, assertive for confirmation and failure.
 - Empty, loading, and failure states are announced after a meaningful delay, not on every keystroke.
 - No horizontal scrolling at 320 px, usable at 200 percent zoom.
@@ -210,6 +211,7 @@ No failure in one view breaks another view. The shell and the command bar remain
 13. A workspace identifier substituted in a request is ignored in favor of the session value.
 14. Google-sourced content containing markup or instructions renders as inert text.
 15. Every view is completable by keyboard only and by mouse only.
+16. Interim or duplicate speech results never execute. One final Live Voice result executes at most once.
 16. Every view renders correctly in Indonesian and English at 320 px and at 200 percent zoom.
 17. Automated accessibility checks report zero critical violations on all workspace views.
 

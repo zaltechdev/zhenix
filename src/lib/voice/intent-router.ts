@@ -4,6 +4,7 @@ import {
   type AksaIntentResolution
 } from "@/lib/contracts/voice-intent";
 import type { CommandLocale } from "@/lib/contracts/command";
+import type { AksaSemanticIntentRequest } from "@/lib/contracts/voice-intent";
 
 type LocalePatterns = Record<CommandLocale, readonly RegExp[]>;
 
@@ -94,21 +95,29 @@ const intentDefinitions: readonly IntentDefinition[] = [
     intent: "HEAD_PAUSE",
     patterns: {
       en: [/^pause head control$/, /^pause pointer$/],
-      id: [/^jeda kontrol kepala$/, /^jeda pointer$/]
+      id: [/^jeda kontrol kepala$/, /^jeda pointer$/, /^pause (?:kontrol kepala|head control)$/]
     }
   },
   {
     intent: "HEAD_RESUME",
     patterns: {
       en: [/^resume head control$/, /^resume pointer$/],
-      id: [/^lanjutkan kontrol kepala$/, /^lanjutkan pointer$/]
+      id: [
+        /^lanjutkan kontrol kepala$/,
+        /^lanjutkan pointer$/,
+        /^resume (?:kontrol kepala|head control)$/
+      ]
     }
   },
   {
     intent: "HEAD_CALIBRATE",
     patterns: {
       en: [/^calibrate head control$/, /^recalibrate head control$/],
-      id: [/^kalibrasi kontrol kepala$/, /^kalibrasi ulang kontrol kepala$/]
+      id: [
+        /^kalibrasi kontrol kepala$/,
+        /^kalibrasi ulang kontrol kepala$/,
+        /^kalibrasi head control$/
+      ]
     }
   },
   {
@@ -151,11 +160,6 @@ export function matchAksaIntent(
 
   return matches.length === 1 ? matches[0].intent : null;
 }
-
-export type AksaSemanticIntentRequest = {
-  transcript: string;
-  locale: CommandLocale;
-};
 
 export type AksaSemanticClassifier = (
   request: AksaSemanticIntentRequest

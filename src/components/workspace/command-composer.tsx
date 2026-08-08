@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Eraser, Mic, MicOff, Send, Square, X } from "lucide-react";
+import { AudioLines, Eraser, Mic, MicOff, Send, Square, X } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import type { CommandResult } from "@/lib/contracts/command";
@@ -17,6 +17,7 @@ import { useOptionalAksaActions } from "@/components/workspace/aksa-action-conte
 import { StatusChip } from "@/components/workspace/status-chip";
 import {
   createRecognition,
+  finalTranscriptAlternativesFromEvent,
   isSpeechRecognitionSupported,
   transcriptFromEvent,
   type SpeechRecognitionErrorEventLike,
@@ -109,6 +110,8 @@ export function CommandComposer({
   const inputId = useId();
   const hintId = useId();
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const recognitionModeRef = useRef<"dictation" | "command" | null>(null);
+  const [recognitionMode, setRecognitionMode] = useState<"dictation" | "command" | null>(null);
   const voiceSubmissionRef = useRef(false);
   const options = { locale };
 
@@ -131,10 +134,23 @@ export function CommandComposer({
   const announcement = announcementCopy(state.announcement, locale);
 
   const executeVoiceIntent = useCallback(
-    async (transcript: string) => {
+    async (transcript: string, alternatives: readonly string[] = []) => {
       if (!aksaActions) return;
 
       const commandLocale = locale === "id" ? "id" : "en";
+      for (const candidate of [transcript, ...alternatives]) {
+        const deterministic = matchAksaIntent(candidate, commandLocale);
+        if (deterministic !== null) {
+          aksaActions.executeAksaIntent(deterministic);
+          dispatch({
+            type: "local_intent_result",
+            intent: deterministic,
+            source: "deterministic"
+          });
+          return;
+        }
+      }
+
       const resolution = await resolveAksaIntent({
         locale: commandLocale,
         transcript
@@ -154,29 +170,42 @@ export function CommandComposer({
     [aksaActions, dispatch, locale]
   );
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback((mode: "dictation" | "command") => {
+    if (recognitionRef.current !== null) return;
+
     const recognition = createRecognition(locale === "id" ? "id" : "en");
     if (recognition === null) {
       dispatch({ type: "voice_capability", supported: false });
       return;
     }
 
+    recognitionModeRef.current = mode;
+    setRecognitionMode(mode);
+    voiceSubmissionRef.current = false;
     recognition.onstart = () => dispatch({ type: "listening_started" });
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const transcript = transcriptFromEvent(event);
       if (transcript !== "") {
         dispatch({ type: "transcript_updated", transcript });
-        const hasFinalResult = Array.from({ length: event.results.length }).some(
-          (_, index) => event.results[index]?.isFinal === true
-        );
-        if (hasFinalResult && aksaActions) {
+        const finalCandidates = finalTranscriptAlternativesFromEvent(event);
+        if (
+          mode === "command" &&
+          finalCandidates.length > 0 &&
+          !voiceSubmissionRef.current &&
+          aksaActions
+        ) {
           voiceSubmissionRef.current = true;
           dispatch({ type: "submit_started" });
-          void executeVoiceIntent(transcript);
+          void executeVoiceIntent(finalCandidates[0], finalCandidates.slice(1));
         }
       }
     };
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+        recognitionModeRef.current = null;
+        setRecognitionMode(null);
+      }
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         dispatch({ type: "voice_denied" });
         return;
@@ -184,8 +213,11 @@ export function CommandComposer({
       dispatch({ type: "voice_failed" });
     };
     recognition.onend = () => {
+      if (recognitionRef.current !== recognition) return;
       const submitted = voiceSubmissionRef.current;
-      voiceSubmissionRef.current = false;
+      recognitionRef.current = null;
+      recognitionModeRef.current = null;
+      setRecognitionMode(null);
       if (!submitted) dispatch({ type: "listening_stopped" });
     };
 
@@ -193,6 +225,11 @@ export function CommandComposer({
     try {
       recognition.start();
     } catch {
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+        recognitionModeRef.current = null;
+        setRecognitionMode(null);
+      }
       dispatch({ type: "voice_failed" });
     }
   }, [aksaActions, dispatch, executeVoiceIntent, locale]);
@@ -217,11 +254,6 @@ export function CommandComposer({
         intent: deterministicIntent,
         source: "deterministic"
       });
-      return;
-    }
-
-    if (aksaActions && state.source === "voice") {
-      await executeVoiceIntent(state.text);
       return;
     }
 
@@ -252,10 +284,11 @@ export function CommandComposer({
         result: { outcome: "rejected", error: createAksaError("unavailable") }
       });
     }
-  }, [aksaActions, dispatch, executeVoiceIntent, locale, state]);
+  }, [aksaActions, dispatch, locale, state]);
 
   const taskState = displayedTaskState(state);
   const listening = state.status === "listening" || state.status === "transcribing";
+  const listeningMode = recognitionMode;
   const submitting = state.status === "submitting";
   const offerVoice = shouldOfferVoiceControl(state);
   const hasContent =
@@ -362,23 +395,48 @@ export function CommandComposer({
         </button>
 
         {offerVoice ? (
-          <button
-            aria-pressed={listening}
-            className="aksa-button aksa-button--secondary"
-            onClick={() => (listening ? stopListening() : startListening())}
-            type="button"
-          >
-            {listening ? (
-              <Square aria-hidden="true" className="aksa-icon" />
-            ) : (
-              <Mic aria-hidden="true" className="aksa-icon" />
-            )}
-            <span>
-              {listening
-                ? m.composer_stop_listening({}, options)
-                : m.home_speak_action({}, options)}
-            </span>
-          </button>
+          <>
+            <button
+              aria-pressed={listeningMode === "dictation"}
+              className="aksa-button aksa-button--secondary"
+              disabled={listening && listeningMode !== "dictation"}
+              onClick={() =>
+                listeningMode === "dictation" ? stopListening() : startListening("dictation")
+              }
+              type="button"
+            >
+              {listeningMode === "dictation" ? (
+                <Square aria-hidden="true" className="aksa-icon" />
+              ) : (
+                <Mic aria-hidden="true" className="aksa-icon" />
+              )}
+              <span>
+                {listeningMode === "dictation"
+                  ? m.composer_stop_dictation({}, options)
+                  : m.composer_dictate_action({}, options)}
+              </span>
+            </button>
+            <button
+              aria-pressed={listeningMode === "command"}
+              className="aksa-button aksa-button--secondary"
+              disabled={listening && listeningMode !== "command"}
+              onClick={() =>
+                listeningMode === "command" ? stopListening() : startListening("command")
+              }
+              type="button"
+            >
+              {listeningMode === "command" ? (
+                <Square aria-hidden="true" className="aksa-icon" />
+              ) : (
+                <AudioLines aria-hidden="true" className="aksa-icon" />
+              )}
+              <span>
+                {listeningMode === "command"
+                  ? m.composer_stop_voice_commands({}, options)
+                  : m.composer_live_voice_action({}, options)}
+              </span>
+            </button>
+          </>
         ) : null}
 
         {hasContent ? (

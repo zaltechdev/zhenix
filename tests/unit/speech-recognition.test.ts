@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createRecognition,
+  finalTranscriptAlternativesFromEvent,
   recognitionLanguage,
   transcriptFromEvent,
   type SpeechRecognitionLike
@@ -50,5 +51,37 @@ describe("Indonesian speech recognition", () => {
     });
 
     expect(transcript).toBe("Buka dokumen terkini");
+  });
+
+  it("executes only final alternatives and ignores interim recognition", () => {
+    const interim = {
+      length: 1,
+      isFinal: false,
+      0: { transcript: "buka", confidence: 0.9 },
+      item: () => ({ transcript: "buka", confidence: 0.9 })
+    };
+    const final = {
+      length: 2,
+      isFinal: true,
+      0: { transcript: "buka email", confidence: 0.7 },
+      1: { transcript: "buka gmail", confidence: 0.95 },
+      item: (index: number) =>
+        index === 0
+          ? { transcript: "buka email", confidence: 0.7 }
+          : { transcript: "buka gmail", confidence: 0.95 }
+    };
+
+    expect(
+      finalTranscriptAlternativesFromEvent({
+        resultIndex: 0,
+        results: Object.assign([interim], { item: () => interim })
+      })
+    ).toEqual([]);
+    expect(
+      finalTranscriptAlternativesFromEvent({
+        resultIndex: 0,
+        results: Object.assign([interim, final], { item: (index: number) => [interim, final][index] })
+      })
+    ).toEqual(["buka gmail", "buka email"]);
   });
 });

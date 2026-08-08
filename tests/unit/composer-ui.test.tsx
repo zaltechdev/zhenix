@@ -14,6 +14,7 @@ const routerPush = vi.hoisted(() => vi.fn());
 
 class RecognitionMock implements SpeechRecognitionLike {
   static latest: RecognitionMock | null = null;
+  static instances: RecognitionMock[] = [];
   lang = "";
   continuous = false;
   interimResults = false;
@@ -28,6 +29,7 @@ class RecognitionMock implements SpeechRecognitionLike {
 
   constructor() {
     RecognitionMock.latest = this;
+    RecognitionMock.instances.push(this);
   }
 }
 
@@ -45,16 +47,20 @@ function renderComposer(locale: "en" | "id" = "en") {
   );
 }
 
-function renderOfflineComposer() {
-  return render(
+function offlineComposer(locale: "en" | "id" = "en") {
+  return (
     <HeadControlProvider>
       <WorkspaceActionProvider>
         <CommandProvider>
-          <CommandComposer locale="en" />
+          <CommandComposer locale={locale} />
         </CommandProvider>
       </WorkspaceActionProvider>
     </HeadControlProvider>
   );
+}
+
+function renderOfflineComposer(locale: "en" | "id" = "en") {
+  return render(offlineComposer(locale));
 }
 
 beforeEach(() => {
@@ -68,6 +74,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   RecognitionMock.latest = null;
+  RecognitionMock.instances = [];
 });
 
 describe("command composer", () => {
@@ -237,7 +244,7 @@ describe("command composer", () => {
     renderOfflineComposer();
 
     const speak = await screen.findByRole("button", {
-      name: m.home_speak_action({}, { locale: "en" })
+      name: m.composer_live_voice_action({}, { locale: "en" })
     });
     fireEvent.click(speak);
 
@@ -259,5 +266,110 @@ describe("command composer", () => {
       expect(routerPush).toHaveBeenCalledWith("/workspace/mail");
     });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps dictation editable without executing its final transcript", async () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderOfflineComposer();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_dictate_action({}, { locale: "en" })
+      })
+    );
+    const recognition = RecognitionMock.latest;
+    const result = {
+      length: 1,
+      isFinal: true,
+      0: { transcript: "open gmail", confidence: 1 },
+      item: () => ({ transcript: "open gmail", confidence: 1 })
+    };
+    recognition?.onresult?.({
+      resultIndex: 0,
+      results: Object.assign([result], { item: () => result })
+    });
+    recognition?.onend?.();
+
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveValue("open gmail"));
+    expect(routerPush).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("executes one final command once across duplicate recognition callbacks", async () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+    renderOfflineComposer();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_live_voice_action({}, { locale: "en" })
+      })
+    );
+    const recognition = RecognitionMock.latest;
+    const result = {
+      length: 1,
+      isFinal: true,
+      0: { transcript: "open gmail", confidence: 1 },
+      item: () => ({ transcript: "open gmail", confidence: 1 })
+    };
+    const event = {
+      resultIndex: 0,
+      results: Object.assign([result], { item: () => result })
+    };
+
+    recognition?.onresult?.(event);
+    recognition?.onresult?.(event);
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1));
+  });
+
+  it("considers Indonesian recognition alternatives before semantic fallback", async () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderOfflineComposer("id");
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_live_voice_action({}, { locale: "id" })
+      })
+    );
+    const recognition = RecognitionMock.latest;
+    const result = {
+      length: 2,
+      isFinal: true,
+      0: { transcript: "buka gimel", confidence: 0.9 },
+      1: { transcript: "buka gmail", confidence: 0.8 },
+      item: (index: number) =>
+        index === 0
+          ? { transcript: "buka gimel", confidence: 0.9 }
+          : { transcript: "buka gmail", confidence: 0.8 }
+    };
+    recognition?.onresult?.({
+      resultIndex: 0,
+      results: Object.assign([result], { item: () => result })
+    });
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith("/workspace/mail"));
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("uses the new locale for the next recognition without remounting controls", async () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+    const rendered = renderOfflineComposer("en");
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_dictate_action({}, { locale: "en" })
+      })
+    );
+    expect(RecognitionMock.latest?.lang).toBe("en-US");
+    RecognitionMock.latest?.onend?.();
+
+    rendered.rerender(offlineComposer("id"));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_dictate_action({}, { locale: "id" })
+      })
+    );
+    expect(RecognitionMock.instances).toHaveLength(2);
+    expect(RecognitionMock.latest?.lang).toBe("id-ID");
   });
 });
