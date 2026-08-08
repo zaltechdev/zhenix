@@ -158,3 +158,20 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `tests/unit/target-resolver.test.ts`
   - `tests/unit/target-assist.test.ts`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-08 14:47:00
+* **Model used**: GPT-5
+* **Human Prompt**: `Referenced Phase I runtime-reliability specification. Implement Phase I, verify it, and log a TLDR instead of the long Markdown prompt.`
+* **TLDR AI agents done**: Replaced the missing semantic voice endpoint with an authenticated, rate-limited, deterministic-first Gemini classifier that accepts only structured allowlisted intents. The real route now returns HTTP 401 when unauthenticated instead of 404. All 357 unit tests, production build, and 24 Workspace browser tests passed.
+* **file changed**:
+  - `.agents/debug-zaltech.md`
+  - `src/app/api/commands/intent/route.ts`
+  - `src/lib/contracts/voice-intent.ts`
+  - `src/lib/server/voice/intent-classifier.ts`
+  - `src/lib/server/voice/intent-rate-limit.ts`
+  - `src/lib/voice/intent-router.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/voice-intent-classifier.test.ts`
+  - `tests/unit/voice-intent-router.test.ts`
+  - `logs/log-zaltech.md`

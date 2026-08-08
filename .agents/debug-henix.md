@@ -185,3 +185,35 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Localization compile, typecheck, lint, 338 unit tests, production build, 21/21 Workspace E2E tests, focused calibration Playwright coverage, and focused no-reacquisition runtime coverage passed.
 - Prevention: Keep runtime calibration, active-stream reuse, pointer lockout, canonical intent routing, and sidebar accessibility assertions in the focused gates.
 - Commit or PR: Pending.
+
+## 2026-08-08 14:44 - Startup neutral reused an invalid pointer origin
+
+- Status: fixed
+- Owner: Henix
+- Area: head-control startup, idle stability, tracking recovery
+- Symptoms: A stationary user could see the pointer move away from center after camera startup or tracking recovery. Duplicate or older frames could still reach pointer processing.
+- Reproduction: Start the coordinator with a stable raw pose away from zero, then send the first interaction frame using the engine delta from the old zero baseline. Repeat a processed timestamp with a large pose delta.
+- Expected: Stable startup and recovery establish the user's current pose as neutral. Idle frames stay centered, stale frames do nothing, and deliberate sustained movement releases Rest Lock.
+- Actual: Reacquisition counted faces but retained the engine's zero or previous neutral baseline. The first post-recovery frame mapped that offset into screen motion, and the coordinator did not reject non-increasing timestamps.
+- Root cause: Reacquisition tracked only a face-frame count, not a stable raw-pose window, and frame timing accepted duplicate or stale timestamps.
+- Fix: Added bounded stable-pose reacquisition, applied its average as the engine and UI neutral baseline, centered and disarmed interaction at the boundary, and rejected invalid, duplicate, or stale frame timestamps. Permanent fix.
+- Files changed: `src/lib/client/vision/head-control-context.tsx`, `src/lib/client/vision/tracking-stability.ts`
+- Verification: Coordinator and tracking tests prove centered idle startup, stale-frame rejection, isolated-spike reset, Rest Lock acquisition, deliberate release, centered recovery, and fresh gesture requirements. Localization, typecheck, lint, 357 unit tests, production build, and 24 Workspace Playwright tests passed.
+- Prevention: Keep the startup, tracking-loss, stale-frame, stationary-idle, and deliberate-movement regressions in the focused head-control suite.
+- Commit or PR: `45946e2`.
+
+## 2026-08-08 14:44 - Voice modes, locale refresh, and runtime feedback crossed boundaries
+
+- Status: fixed
+- Owner: Henix
+- Area: command composer, locale switching, accessibility contrast, browser console
+- Symptoms: Final speech callbacks could execute more than once, dictation and command execution shared one button, changing locale reloaded and stopped mounted controls, dark readouts were hard to read, and MediaPipe placed an informational XNNPACK notice in the error console.
+- Reproduction: Deliver one final recognition result twice, use the old Speak control for dictation, switch language while head control is active, inspect dark percentage output, then start MediaPipe and inspect browser errors.
+- Expected: Dictation remains editable, Live Voice executes one final command once, locale refresh preserves camera state, readouts remain opaque and legible, and informational startup output is not reported as an application error.
+- Actual: Any final result triggered execution, repeated callbacks were not guarded, `window.location.reload()` remounted the runtime, transparent readouts inherited dark text, and the XNNPACK information line appeared at error level.
+- Root cause: Speech modes had no explicit boundary or final-result idempotency guard, locale switching used a document reload, readouts lacked semantic surfaces, and MediaPipe routes one known startup notice through stderr.
+- Fix: Split Send, Dictate, and Live Voice; considered recognition alternatives deterministically; executed final commands once; replaced reload with `router.refresh()`; added opaque semantic readouts; and rerouted only the exact XNNPACK notice to information while preserving all other errors. Permanent fix.
+- Files changed: `messages/en.json`, `messages/id.json`, `src/app/workspace.css`, `src/components/shared/locale-switcher.tsx`, `src/components/workspace/command-composer.tsx`, `src/lib/client/voice/speech-recognition.ts`, `src/lib/client/vision/mediapipe-console.ts`, `src/lib/voice/intent-router.ts`
+- Verification: Localization, typecheck, lint, 357 unit tests, production build, and 24 Workspace Playwright tests passed. Dark-mode browser inspection showed readable readouts, locale changed to Indonesian while `Face tracking lost` remained mounted, and the final browser error list was empty.
+- Prevention: Unit coverage asserts interim suppression, recognition alternatives, duplicate final idempotency, dictation non-execution, next-recognition locale, refresh continuity, and exact console-level routing.
+- Commit or PR: `45946e2`, `c188994`.

@@ -67,4 +67,18 @@ A security-relevant issue follows the same template with three additions.
 
 ## Entries
 
-No verified issues recorded yet. Implementation has not started.
+## 2026-08-08 14:44 - Semantic voice fallback called a missing endpoint
+
+- Status: fixed
+- Owner: Zaltech
+- Area: authenticated API, Gemini intent classification, rate limiting
+- Symptoms: A deterministic miss posted recognized text to `/api/commands/intent` and received the Next.js 404 page, so the advertised semantic fallback never existed.
+- Reproduction: POST `{ transcript, locale }` to `/api/commands/intent` before the fix. The real development server returned HTTP 404.
+- Expected: An authenticated route validates transcript text, tries the deterministic registry first, optionally asks Gemini for one structured allowlisted intent, and otherwise returns `UNKNOWN`.
+- Actual: No route handler or server classifier existed.
+- Root cause: The client semantic request was merged before its server boundary was implemented.
+- Fix: Added a strict Zod request contract, authenticated no-store route, deterministic-first server classifier, structured Gemini response schema, allowlist validation, in-flight deduplication, timeout handling, and per-user rate limiting. Permanent fix.
+- Files changed: `src/app/api/commands/intent/route.ts`, `src/lib/contracts/voice-intent.ts`, `src/lib/server/voice/intent-classifier.ts`, `src/lib/server/voice/intent-rate-limit.ts`, `src/lib/voice/intent-router.ts`
+- Verification: Server classifier tests accepted only allowlisted structured output and rejected malformed output. Real Playwright HTTP verification now returns authenticated-boundary HTTP 401 with `{ intent: "UNKNOWN" }`, not 404. Localization, typecheck, lint, 357 unit tests, production build, and 24 Workspace Playwright tests passed.
+- Prevention: Unit tests cover deterministic independence, structured provider output, malformed output, and request limits. Workspace E2E asserts that the route exists and enforces authentication.
+- Commit or PR: `c188994`.

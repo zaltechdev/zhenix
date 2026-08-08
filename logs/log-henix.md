@@ -781,3 +781,34 @@ DO NOT START PHASE III.
   - `tests/unit/calibration.test.ts`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 14:47:00
+* **Model used**: GPT-5
+* **Human Prompt**: `Referenced Phase I runtime-reliability specification. Implement Phase I, verify it, and log a TLDR instead of the long Markdown prompt.`
+* **TLDR AI agents done**: Stabilized head-control neutral acquisition and stale-frame handling, separated dictation from idempotent Live Voice commands, added authenticated structured Gemini fallback, preserved camera and recognition across locale refreshes, fixed dark readout contrast and MediaPipe console severity, then passed 357 unit tests, production build, and 24 Workspace browser tests. Physical camera startup worked, but no face was available for movement acceptance checks.
+* **file changed**:
+  - `.agents/debug-henix.md`
+  - `.agents/features/accessibility-controls.md`
+  - `.agents/features/virtual-workspace.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/components/shared/locale-switcher.tsx`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/mediapipe-console.ts`
+  - `src/lib/client/vision/tracking-stability.ts`
+  - `src/lib/client/vision/vision-engine.ts`
+  - `src/lib/client/voice/speech-recognition.ts`
+  - `src/lib/contracts/voice-intent.ts`
+  - `src/lib/voice/intent-router.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/composer-ui.test.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/locale-switcher.test.tsx`
+  - `tests/unit/mediapipe-console.test.ts`
+  - `tests/unit/speech-recognition.test.ts`
+  - `tests/unit/tracking-stability.test.ts`
+  - `tests/unit/voice-intent-router.test.ts`
+  - `logs/log-henix.md`
