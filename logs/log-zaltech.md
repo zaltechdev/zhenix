@@ -93,5 +93,30 @@ Zalfa Daffani Fadhillah Al Hanif (Zaltech - https://github.com/zaltechdev)
   - `tests/unit/head-control-coordinator.test.tsx`
   - `logs/log-zaltech.md`
 
+---
+### Timestamp: 2026-08-08 07:56:11
+* **Model used**: GPT-5 (default)
+* **Human Prompt**: `# AKSA HEAD CONTROL - TARGET ASSIST + STABILITY PASS
 
+Repository: github.com/zaltechdev/zhenix
+Branch: dev - log into zaltech
 
+Fix real physical usability of Aksa head control. Do not redesign Phase II, start Phase III, or refactor unrelated architecture. Real webcam testing found mirrored horizontal movement and target jitter. Verify MediaPipe yaw sign with physical webcam, fix only at head-pose to pointer mapping, remove development diagnostics, and add deterministic direction tests. Physical head right must move pointer right and physical head left must move pointer left. Do not mirror MediaPipe input or couple preview mirroring to control semantics.
+
+Build restrained DOM-aware Target Assist using existing semantic interactive target rules. Eligible targets include buttons, href anchors, inputs, textareas, selects, checkboxes, radios, switches, explicit ARIA interactive roles, and explicit Aksa interactive elements. Exclude disabled, aria-disabled, hidden, inert, generic containers, and body text. Measure distance to bounding rectangles, not centres. Centralize approximately 30 to 50 px assist configuration. Use soft magnetic approach, acquisition delay around 100 to 150 ms, target lock, existing ready feedback, hysteresis with a larger release boundary, intentional displacement or velocity escape, deterministic adjacent-target handling, dwell cancellation after unlock, gesture activation only for acquired targets, and tracking-loss clearing.
+
+Audit pose-to-pointer filtering. Add restrained low-latency stability: implausible delta clamping, isolated spike rejection, dead-zone hysteresis, adaptive filtering. Do not add laggy moving-average buffers or a large user configuration panel. Preserve Phase II confirmation guards. Use physical webcam acceptance checks for direction, calm neutral pointer, deliberate movement, target acquire and release, adjacent controls, dwell, gesture, empty regions, viewport reachability, and tracking recovery.
+
+Add deterministic tests for physical direction mapping, pose spikes, stationary jitter, adaptive smoothing, dead-zone hysteresis, rectangle distance, nearest eligible target, acquisition delay, target lock, release hysteresis, intentional escape, adjacent stability, dwell cancellation after unlock, tracking-loss clearing, and disabled or hidden targets. Keep Phase II tests passing. Run bun run i18n:compile, bun run typecheck, bun run lint, bun run test, bun run build, and focused E2E/browser tests. Commit atomically, push dev without force, then report direction, filtering, Target Assist behavior, physical webcam verification, observed usability, exact test results, commits, and pushed HEAD.`
+* **TLDR AI agents done**: Fixed camera-space yaw at the pointer boundary, added semantic DOM Target Assist with 42 px acquisition radius, 125 ms acquisition delay, 70 px release radius, lock jitter suppression, ambiguity protection, immediate escape, dwell cancellation, gesture lock targeting, and tracking-loss clearing. Existing adaptive pointer filtering already covered pose spikes, jitter, dead-zone hysteresis, and fast movement. Physical webcam startup reached `Face tracking lost`, so physical direction verification was not possible. i18n, typecheck, lint, 229 unit tests, build, and five focused head-control E2E tests passed. The broad workspace E2E run exposed four unrelated existing composer/surface assertions.
+* **file changed**:
+  - `src/lib/client/vision/pointer-mapping.ts`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/target-assist.ts`
+  - `src/lib/client/vision/target-resolver.ts`
+  - `.agents/features/accessibility-controls.md`
+  - `tests/unit/pointer-mapping.test.ts`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/target-resolver.test.ts`
+  - `tests/unit/target-assist.test.ts`
+  - `logs/log-zaltech.md`
