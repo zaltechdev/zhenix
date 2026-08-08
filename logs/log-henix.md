@@ -582,6 +582,571 @@ DO NOT START PHASE III.
   - `logs/log-henix.md`
 
 ---
+### Timestamp: 2026-08-09 00:06:19
+* **Model used**: GPT-5 Codex
+* **Human Prompt**:
+```text
+# AKSA HEAD CONTROL - LAST CHANCE HARD FIX
+
+Repository: github.com/zaltechdev/zhenix
+Branch: dev
+
+THIS IS THE FINAL HEAD-CONTROL CORRECTIVE PASS.
+
+Real physical testing still FAILS:
+
+1. Idle pointer still jitters / drifts.
+2. Small head movement is too fast and unpredictable.
+3. Returning head to neutral does NOT reliably stop the pointer.
+4. Large intentional movement is acceptable.
+5. Hovering around targets is still jiggly.
+6. Tracking-loss/reacquisition itself works, BUT current behavior resets pointer toward center.
+7. Calibration still makes control worse / is not useful.
+8. Same failure occurs in both good and poor lighting.
+
+Automated tests are green but HUMAN HARDWARE TESTING FAILED.
+
+Do NOT touch unrelated product work.
+Do NOT start Agent Core.
+Do NOT redesign Workspace.
+Do NOT web search.
+Do NOT broadly explore the repo.
+Do NOT re-plan the architecture again.
+
+Work only on the existing relative-velocity Head Control implementation and directly related tests/settings.
+
+---
+
+## 1. PRESERVE WHAT ALREADY WORKS
+
+Keep:
+
+- relative velocity controller
+- delta-time integration
+- tracking-loss handling
+- current MediaPipe runtime
+- one shared calibration engine
+- Target Assist disabled by default
+- bounded max velocity
+- current EN/ID infrastructure
+
+Do NOT revert to absolute screen-position mapping.
+
+---
+
+## 2. MAIN FIX: NEUTRAL MUST MEAN EXACTLY ZERO VELOCITY
+
+Current fundamental bug:
+
+user returns to comfortable neutral
+→ residual pose noise continues generating movement
+
+Fix this decisively.
+
+Inside the effective neutral zone:
+
+vx = 0
+vy = 0
+
+Not:
+- tiny velocity
+- smoothed velocity
+- decaying movement
+- accumulated micro-delta
+
+Literal zero.
+
+The pointer must remain at its CURRENT screen coordinate.
+
+Returning head to neutral must NEVER pull pointer back toward screen center.
+
+---
+
+## 3. ADD A MUCH SAFER NEUTRAL ENVELOPE
+
+Current dead zone is still too narrow.
+
+Use calibrated per-axis noise if valid, BUT impose safe minimums.
+
+Do not allow calibration to create a tiny unusable dead zone.
+
+For example conceptually:
+
+effectiveDeadZoneX =
+max(measuredNoiseZoneX, safeMinimumX)
+
+effectiveDeadZoneY =
+max(measuredNoiseZoneY, safeMinimumY)
+
+Use independent X/Y values.
+
+Do NOT assume horizontal and vertical noise are equal.
+
+Use hysteresis:
+
+movement starts only above ENTER threshold
+
+movement stops once below a LOWER EXIT threshold
+
+Example principle:
+
+ENTER > EXIT
+
+so noise near the boundary does not chatter.
+
+---
+
+## 4. ADD IDLE NEUTRAL RECENTERING
+
+Natural posture drifts slowly over time.
+
+After the user has remained genuinely stable for roughly 500–1000 ms:
+
+slowly adapt the neutral pose toward the current stable pose.
+
+Requirements:
+
+- only while velocity is zero
+- only after stable observation window
+- extremely slow/bounded
+- never during intentional motion
+- never jump neutral
+- never move the pointer during recentering
+
+This should make:
+
+“comfortable current resting posture”
+
+become the zero-velocity reference gradually.
+
+Do NOT continuously chase every frame.
+
+---
+
+## 5. REDUCE LOW-END SPEED AGGRESSIVELY
+
+Current small motion is too fast.
+
+Keep high-speed travel for larger deliberate tilt, because that part is acceptable.
+
+Change the velocity curve so:
+
+just outside dead zone
+→ VERY slow precision movement
+
+medium deflection
+→ normal movement
+
+large deflection
+→ fast bounded travel
+
+Use a much gentler low-end response.
+
+Do NOT solve by reducing max speed globally.
+
+The problem is low-end sensitivity, not only max velocity.
+
+Prioritize precise target acquisition.
+
+---
+
+## 6. APPLY VELOCITY RAMP / SLEW LIMIT
+
+Avoid instant velocity jumps when crossing the dead-zone boundary.
+
+Use a small acceleration/deceleration limit.
+
+But keep latency low.
+
+Goal:
+
+neutral
+→ slight tilt
+→ gentle predictable movement
+
+not:
+
+neutral
+→ cross threshold
+→ sudden launch
+
+Stopping should be faster than accelerating.
+
+When pose returns into neutral:
+velocity should reach ZERO immediately or nearly immediately.
+
+---
+
+## 7. CALIBRATION: STOP LETTING IT DAMAGE CONTROL
+
+For this pass, calibration must become OPTIONAL ENHANCEMENT, not a dependency.
+
+If calibration quality is questionable:
+
+use safe defaults.
+
+Do NOT install bad calibration.
+
+Validation must reject:
+
+- tiny directional ranges
+- unstable capture
+- incomplete capture
+- invalid samples
+- excessive noise
+
+Do NOT reject natural asymmetry merely because left/right or up/down ranges differ.
+
+Each direction is validated independently.
+
+A user may have asymmetric mobility.
+
+---
+
+## 8. CALIBRATION OUTPUT SHOULD ONLY TUNE RANGE / NOISE SAFELY
+
+Calibration may provide:
+
+- neutral yaw/pitch
+- measured neutral noise
+- comfortable left range
+- comfortable right range
+- comfortable up range
+- comfortable down range
+
+It must NOT:
+
+- map directions to absolute screen coordinates
+- drastically amplify small motion
+- reduce dead zones below safe minimum
+- change maximum speed unpredictably
+
+If calibration is invalid:
+retain previous profile or defaults.
+
+Never leave the user worse than before calibration.
+
+---
+
+## 9. REACQUISITION BEHAVIOR MUST BE CONFIGURABLE
+
+Add a user setting for what happens after face tracking is lost and later reacquired.
+
+Canonical setting:
+
+`reacquisitionPointerBehavior`
+
+Allowed values:
+
+- `keep_position`
+- `reset_center`
+
+Default:
+`keep_position`
+
+### KEEP POSITION
+
+Tracking lost:
+- pointer freezes at current screen coordinate
+- velocity = 0
+- dwell/gesture cancelled
+
+Tracking returns:
+- preserve exact last pointer coordinate
+- establish fresh neutral pose
+- velocity starts at zero
+- no jump
+
+### RESET CENTER
+
+Tracking lost:
+- pointer freezes
+
+Tracking returns:
+- pointer moves/resets to viewport center
+- establish fresh neutral
+- velocity starts zero
+
+Do not mix the two behaviors.
+
+---
+
+## 10. EXPOSE REACQUISITION SETTING IN CONTROLS
+
+Controls → Head Control → Advanced/Behavior
+
+EN:
+
+**After camera tracking resumes**
+
+- Keep pointer where it was
+- Move pointer to screen center
+
+Helper:
+
+`Choose where the pointer starts after Aksa finds your face again.`
+
+ID:
+
+**Setelah pelacakan kamera tersambung kembali**
+
+- Pertahankan posisi penunjuk
+- Pindahkan penunjuk ke tengah layar
+
+Helper:
+
+`Pilih posisi penunjuk saat Aksa kembali mendeteksi wajahmu.`
+
+Persist setting through the existing accessibility/control profile.
+
+No new database architecture unless actually required.
+
+---
+
+## 11. TARGET ASSIST STAYS OFF
+
+Do NOT re-enable Target Assist in this pass.
+
+Raw pointer must be physically usable first.
+
+Dwell may work only when the actual pointer is over a valid target.
+
+No magnetic snapping.
+
+No semantic cursor redirection.
+
+---
+
+## 12. TESTS
+
+Add/update focused tests for:
+
+### Neutral
+
+stationary noisy pose for several seconds
+→ rendered pointer displacement = ~0
+
+### Return to neutral
+
+intentional movement
+→ pointer moves
+
+return pose inside neutral
+→ velocity = 0
+
+pointer remains at current coordinate
+
+### Boundary noise
+
+pose oscillates around dead-zone edge
+→ no repeated start/stop jitter
+
+### Low-end precision
+
+small deflection outside zone
+→ slow bounded movement
+
+### Strong movement
+
+large deflection
+→ faster movement
+
+### Idle neutral adaptation
+
+stable posture slowly shifts
+→ neutral follows slowly
+→ pointer does NOT move
+
+### Calibration bad
+
+invalid/tiny/noisy calibration
+→ rejected
+→ safe defaults/previous profile retained
+
+### Asymmetric range
+
+small left / larger right valid ranges
+→ accepted independently
+
+### Reacquisition KEEP
+
+tracking lost
+→ pointer frozen
+
+tracking returns
+→ same coordinate
+
+### Reacquisition CENTER
+
+tracking lost
+→ tracking returns
+→ pointer center
+
+### Target Assist
+
+default remains disabled
+
+---
+
+## 13. DO NOT WASTE MODEL USAGE
+
+Strict execution:
+
+1. Inspect current diff/current Head Control files.
+2. Implement only requirements above.
+3. Run focused tests.
+4. Fix only failures.
+5. Run full gates ONCE at end:
+
+bun run i18n:compile
+bun run typecheck
+bun run lint
+bun run test
+bun run build
+
+No repeated full suites.
+
+No unrelated refactors.
+
+No documentation essay.
+
+---
+
+## 14. HUMAN HARDWARE TEST — FINAL GATE
+
+After automated work, output this exact test:
+
+1. Start Head Control.
+2. Sit naturally still for 5 seconds.
+   EXPECT: pointer stays still.
+
+3. Slightly tilt right.
+   EXPECT: slow predictable movement.
+
+4. Return head to neutral.
+   EXPECT: pointer stops at current position.
+
+5. Repeat left/up/down.
+
+6. Tilt farther.
+   EXPECT: faster movement without teleporting.
+
+7. Hover around buttons.
+   EXPECT: no magnetic snapping or jitter caused by targets.
+
+8. Cover camera.
+   EXPECT: pointer freezes.
+
+9. Uncover with `Keep position`.
+   EXPECT: pointer remains where it was.
+
+10. Change setting to `Move to center`.
+
+11. Cover/uncover again.
+   EXPECT: pointer resets to center.
+
+12. Run calibration.
+   EXPECT: behavior becomes equal or better.
+
+13. Repeat under good and dim lighting.
+
+HARDWARE VERIFICATION determines success.
+
+---
+
+## FINAL ACCEPTANCE
+
+Do NOT claim success unless:
+
+[ ] stationary pointer is actually zero-motion in neutral
+
+[ ] returning to neutral stops pointer where it currently is
+
+[ ] small movement is precise and slow
+
+[ ] large movement still allows screen travel
+
+[ ] dead-zone boundary does not chatter
+
+[ ] idle recentering does not move pointer
+
+[ ] bad calibration is rejected
+
+[ ] calibration cannot shrink dead zone below safe minimum
+
+[ ] asymmetric mobility remains supported
+
+[ ] Target Assist remains disabled
+
+[ ] reacquisition Keep Position works
+
+[ ] reacquisition Reset Center works
+
+[ ] setting exposed in Controls EN + ID
+
+[ ] focused tests pass
+
+[ ] full gates pass
+
+[ ] commit pushed to dev
+
+FINAL RESPONSE MAX 15 LINES:
+
+HEAD CONTROL LAST CHANCE
+
+Neutral fix:
+- ...
+
+Velocity fix:
+- ...
+
+Calibration:
+- ...
+
+Reacquisition:
+- keep_position / reset_center implemented
+
+Focused tests:
+- ...
+
+Full gates:
+- ...
+
+Commit:
+- ...
+
+Remote:
+- ...
+
+HARDWARE VERIFICATION REQUIRED
+
+Then STOP.
+```
+* **TLDR AI agents done**: Added hard neutral zeroing, safe per-axis dead-zone floors, hysteresis, idle neutral adaptation, precision-biased velocity mapping, slew limiting, stricter safe calibration validation, configurable persisted reacquisition behavior, and exact EN/ID Controls copy. Focused Head Control tests passed 64/64. The full suite initially passed 387/390; only three directly related failures were fixed, and both affected files then passed 7/7. Localization, typecheck, lint, and production build passed. Physical camera behavior remains unverified.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/components/workspace/controls-settings.tsx`
+  - `src/lib/client/vision/calibration.ts`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `src/lib/client/vision/pointer-mapping.ts`
+  - `src/lib/contracts/auth.ts`
+  - `src/lib/server/db/client.ts`
+  - `src/lib/server/db/dal.ts`
+  - `src/lib/server/db/migrations/0001_amused_blue_marvel.sql`
+  - `src/lib/server/db/migrations/meta/0001_snapshot.json`
+  - `src/lib/server/db/migrations/meta/_journal.json`
+  - `src/lib/server/db/schema.ts`
+  - `tests/unit/calibration.test.ts`
+  - `tests/unit/controls-settings.test.tsx`
+  - `tests/unit/head-control-coordinator.test.tsx`
+  - `tests/unit/phase1-foundation.test.ts`
+  - `tests/unit/pointer-mapping.test.ts`
+  - `tests/unit/server-boundary.test.ts`
+  - `tests/unit/workspace-calibration-experience.test.tsx`
+
+---
 ### Timestamp: 2026-08-08 08:00:12
 * **Model used**: GPT-5 (High)
 * **Human Prompt**: `The navbar morph still looks quirky. Keep the glass effect unchanged and fix only the continuous morph with explicit numeric dimensions, 300ms easing, near-constant height, and repeated slow threshold testing.`

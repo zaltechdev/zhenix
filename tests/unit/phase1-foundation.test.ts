@@ -67,6 +67,7 @@ describe("Phase I Foundation - User Bootstrap & Idempotency", () => {
     expect(profile).not.toBeNull();
     expect(profile?.pointerSensitivity).toBe(50);
     expect(profile?.selectionMode).toBe("dwell");
+    expect(profile?.reacquisitionPointerBehavior).toBe("keep_position");
 
     const secondCall = await bootstrapUserWorkspaceAndProfile(userId, userEmail, "Test User 1");
     expect(secondCall.workspaceId).toBe(firstCall.workspaceId);
@@ -84,16 +85,19 @@ describe("Phase I Foundation - User Bootstrap & Idempotency", () => {
       gestureType: "smile",
       gestureThreshold: 70,
       gestureCooldownMs: 300,
+      reacquisitionPointerBehavior: "reset_center",
       reducedMotion: true
     });
 
     expect(updated.pointerSensitivity).toBe(85);
     expect(updated.selectionMode).toBe("both");
+    expect(updated.reacquisitionPointerBehavior).toBe("reset_center");
     expect(updated.reducedMotion).toBe(true);
 
     const reloaded = await getAccessibilityProfile(userId);
     expect(reloaded?.pointerSensitivity).toBe(85);
     expect(reloaded?.gestureType).toBe("smile");
+    expect(reloaded?.reacquisitionPointerBehavior).toBe("reset_center");
   });
 });
 

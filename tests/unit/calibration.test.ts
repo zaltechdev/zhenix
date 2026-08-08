@@ -111,7 +111,7 @@ describe("CalibrationEngine", () => {
 
     // Center
     engine.addSample({ yaw: 0, pitch: 0, roll: 0 }, 1, attemptId);
-    // Left - accepted during capture but too small for final validation (1.5 < 2)
+    // Left - accepted during capture but too small for final validation (1.5 < 3)
     engine.addSample({ yaw: 1.5, pitch: 0, roll: 0 }, 2, attemptId);
     // Right
     engine.addSample({ yaw: -5, pitch: 0, roll: 0 }, 3, attemptId);
@@ -148,6 +148,38 @@ describe("CalibrationEngine", () => {
     const state = engine.getState();
     expect(state.status).toBe("completed");
     expect(state.range).toEqual({ left: 15, right: 3.5, up: 8, down: 8 });
+  });
+
+  it("rejects excessive neutral noise instead of installing damaging calibration", () => {
+    const engine = new CalibrationEngine(5);
+    const attemptId = engine.start();
+    const centerNoise = [-1.2, 1.2, -1.1, 1.1, 0];
+    centerNoise.forEach((yaw, index) => {
+      engine.addSample({ yaw, pitch: 0, roll: 0 }, index + 1, attemptId);
+    });
+
+    [
+      { yaw: 8, pitch: 0, roll: 0 },
+      { yaw: -8, pitch: 0, roll: 0 },
+      { yaw: 0, pitch: 8, roll: 0 },
+      { yaw: 0, pitch: -8, roll: 0 },
+      { yaw: 0, pitch: 0, roll: 0 }
+    ].forEach((pose, directionIndex) => {
+      for (let sampleIndex = 0; sampleIndex < 5; sampleIndex += 1) {
+        engine.addSample(
+          pose,
+          100 + directionIndex * 10 + sampleIndex,
+          attemptId
+        );
+      }
+    });
+
+    expect(engine.getState()).toMatchObject({
+      status: "failed",
+      errorMessage: "neutral_noise_excessive_yaw",
+      range: null,
+      deadZone: null
+    });
   });
 
   it("accepts good symmetric calibration with valid ranges", () => {

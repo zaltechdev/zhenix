@@ -125,7 +125,7 @@ describe("workspace calibration experience", () => {
 
     const poses = [
       { yaw: 2, pitch: 3, roll: 0 },
-      { yaw: 4, pitch: 3, roll: 0 },
+      { yaw: 6, pitch: 3, roll: 0 },
       { yaw: -8, pitch: 3, roll: 0 },
       { yaw: 2, pitch: 9, roll: 0 },
       { yaw: 2, pitch: -3, roll: 0 },

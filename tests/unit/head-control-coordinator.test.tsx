@@ -102,6 +102,7 @@ const SETTINGS_OFF: AccessibilityProfile = {
   gestureType: null,
   gestureThreshold: null,
   gestureCooldownMs: null,
+  reacquisitionPointerBehavior: "keep_position",
   reducedMotion: false
 };
 
@@ -328,6 +329,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       gestureType: null,
       gestureThreshold: null,
       gestureCooldownMs: null,
+      reacquisitionPointerBehavior: "keep_position" as const,
       reducedMotion: false
     };
 
@@ -340,6 +342,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
       gestureType: "smile" as const,
       gestureThreshold: 60,
       gestureCooldownMs: 500,
+      reacquisitionPointerBehavior: "reset_center" as const,
       reducedMotion: true
     };
 
@@ -886,6 +889,76 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(click).toHaveBeenCalledTimes(2);
     expect(result.current.activationFeedbackKey).toBe(2);
   });
+
+  it.each([
+    { behavior: "keep_position" as const, resetsCenter: false },
+    { behavior: "reset_center" as const, resetsCenter: true }
+  ])(
+    "applies $behavior only after stable tracking reacquisition",
+    async ({ behavior, resetsCenter }) => {
+      const engine = createControllableEngine();
+      const profile: AccessibilityProfile = {
+        ...SETTINGS_OFF,
+        reacquisitionPointerBehavior: behavior
+      };
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <HeadControlProvider
+          engineFactory={engine.factory}
+          initialProfile={profile}
+          userId="test-user"
+        >
+          {children}
+        </HeadControlProvider>
+      );
+      const { result } = renderHook(() => useHeadControl(), { wrapper });
+
+      await act(async () => {
+        expect(
+          await result.current.startCamera(
+            document.createElement("video"),
+            createMockStream().stream
+          )
+        ).toBe(true);
+      });
+      act(() => {
+        for (let index = 1; index <= 5; index += 1) {
+          engine.emit(visionFrame(index * 100));
+        }
+        for (let index = 0; index < 8; index += 1) {
+          engine.emit(
+            visionFrame(600 + index * 100, {
+              poseDelta: { yaw: -8, pitch: 0, roll: 0 }
+            })
+          );
+        }
+      });
+
+      const positionBeforeLoss = { ...result.current.pointerPosition };
+      expect(positionBeforeLoss.x).not.toBeCloseTo(window.innerWidth / 2, 5);
+      act(() => {
+        engine.emit(
+          visionFrame(1400, { lifecycleState: "tracking_lost", faceDetected: false })
+        );
+      });
+      expect(result.current.pointerPosition).toEqual(positionBeforeLoss);
+
+      act(() => {
+        for (let index = 1; index <= 5; index += 1) {
+          engine.emit(
+            visionFrame(1400 + index * 100, {
+              poseDelta: { yaw: 0, pitch: 0, roll: 0 }
+            })
+          );
+        }
+      });
+
+      expect(result.current.pointerPosition).toEqual(
+        resetsCenter
+          ? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+          : positionBeforeLoss
+      );
+    }
+  );
 
   it("requires stable reacquisition and gesture release after disabling and restarting", async () => {
     const engine = createControllableEngine();

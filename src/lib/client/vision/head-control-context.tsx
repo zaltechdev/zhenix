@@ -170,6 +170,7 @@ export function HeadControlProvider({
   const currentPosRef = useRef<Vector2D>(pointerPosition);
   const renderedPosRef = useRef<Vector2D>(pointerPosition);
   const reacquisitionReadyRef = useRef(false);
+  const trackingWasLostRef = useRef(false);
   const frameClockRef = useRef<FreshFrameClock>(new FreshFrameClock());
   const reacquisitionRef = useRef<TrackingReacquisitionController>(
     new TrackingReacquisitionController()
@@ -428,7 +429,7 @@ export function HeadControlProvider({
         const state = calibrationEngineRef.current.fail("timeout", attemptId);
         setCalibrationState(state);
         restoreCalibrationRange();
-        resetInteractionState(true);
+        resetInteractionState(false);
         calibrationTimeoutRef.current = null;
       }, CALIBRATION_CONFIG.timeoutMs);
     },
@@ -450,7 +451,7 @@ export function HeadControlProvider({
     calibrationDeadZoneRef.current = null;
     calibrationAttemptRef.current = attemptId;
     scheduleCalibrationTimeout(attemptId);
-    resetInteractionState(true);
+    resetInteractionState(false);
     setCalibrationState(calibrationEngineRef.current.getState());
   }, [clearCalibrationTimeout, lifecycleState, resetInteractionState, scheduleCalibrationTimeout]);
 
@@ -459,12 +460,13 @@ export function HeadControlProvider({
     calibrationAttemptRef.current += 1;
     calibrationEngineRef.current.cancel();
     restoreCalibrationRange();
-    resetInteractionState(true);
+    resetInteractionState(false);
     setCalibrationState(calibrationEngineRef.current.getState());
   }, [clearCalibrationTimeout, resetInteractionState, restoreCalibrationRange]);
 
   const prepareForSafeReacquisition = useCallback(() => {
     reacquisitionReadyRef.current = false;
+    trackingWasLostRef.current = false;
     reacquisitionRef.current.reset();
     frameClockRef.current.reset();
     resetInteractionState(true);
@@ -492,6 +494,7 @@ export function HeadControlProvider({
       // 1. Tracking loss clears every inherited interaction and calibration sample.
       if (!data.faceDetected || data.lifecycleState === "tracking_lost") {
         reacquisitionReadyRef.current = false;
+        trackingWasLostRef.current = true;
         reacquisitionRef.current.reset();
         resetInteractionState(false);
         // Freeze pointer at last rendered position, velocity becomes zero
@@ -520,9 +523,14 @@ export function HeadControlProvider({
           reacquisitionReadyRef.current = true;
           setNeutralBaselineState(reacquisition.baseline);
           engineRef.current?.setNeutralBaseline(reacquisition.baseline);
-          // Preserve current screen pointer position, restart from velocity zero
-          currentPosRef.current = { ...renderedPosRef.current };
-          resetInteractionState(false);
+          const shouldResetCenter =
+            trackingWasLostRef.current &&
+            currentProfile.reacquisitionPointerBehavior === "reset_center";
+          if (!shouldResetCenter) {
+            currentPosRef.current = { ...renderedPosRef.current };
+          }
+          resetInteractionState(shouldResetCenter);
+          trackingWasLostRef.current = false;
           if (dwellRef.current) dwellRef.current.requireFreshCycle();
           if (gestureRef.current) gestureRef.current.disarmUntilRelease();
         }
@@ -558,7 +566,7 @@ export function HeadControlProvider({
           calibrationFallbackRangeRef.current = state.range ? { ...state.range } : null;
           calibrationFallbackDeadZoneRef.current = state.deadZone ? { ...state.deadZone } : null;
           setNeutralBaseline(state.baseline);
-          resetInteractionState(true);
+          resetInteractionState(false);
         } else if (state.status === "failed") {
           clearCalibrationTimeout();
           // Restore previous calibration on failure
@@ -567,10 +575,9 @@ export function HeadControlProvider({
           scheduleCalibrationTimeout(calibrationAttemptRef.current);
         }
 
-        // Calibration is a pointer-control safety boundary. Keep the pointer
-        // centered and leave dwell and gesture controllers disarmed until the
-        // next normal tracking frame after the overlay closes.
-        resetInteractionState(state.status === "completed" || state.status === "failed");
+        // Calibration freezes the current coordinate and leaves dwell and gesture
+        // controllers disarmed until the next normal tracking frame.
+        resetInteractionState(false);
         return;
       }
 
@@ -585,7 +592,8 @@ export function HeadControlProvider({
         effectiveDeadZone,
         calibrationRangeRef.current,
         currentProfile.pointerSensitivity,
-        deltaTimeSec
+        deltaTimeSec,
+        { yaw: data.poseDelta.yaw, pitch: data.poseDelta.pitch }
       );
 
       // Integrate: add velocity delta to current position

@@ -85,6 +85,8 @@ export async function bootstrapUserWorkspaceAndProfile(
       gestureType: provisionalAccessibilityProfile.gestureType,
       gestureThreshold: provisionalAccessibilityProfile.gestureThreshold,
       gestureCooldownMs: provisionalAccessibilityProfile.gestureCooldownMs,
+      reacquisitionPointerBehavior:
+        provisionalAccessibilityProfile.reacquisitionPointerBehavior,
       reducedMotion: provisionalAccessibilityProfile.reducedMotion ? 1 : 0,
       createdAt: now,
       updatedAt: now
@@ -147,6 +149,9 @@ export async function getAccessibilityProfile(userId: string): Promise<Accessibi
     gestureType: (profile.gestureType as AccessibilityProfile["gestureType"]) || null,
     gestureThreshold: profile.gestureThreshold,
     gestureCooldownMs: profile.gestureCooldownMs,
+    reacquisitionPointerBehavior:
+      (profile.reacquisitionPointerBehavior as AccessibilityProfile["reacquisitionPointerBehavior"]) ||
+      "keep_position",
     reducedMotion: Boolean(profile.reducedMotion)
   };
 }
@@ -175,6 +180,7 @@ export async function saveAccessibilityProfile(
         gestureType: profileData.gestureType,
         gestureThreshold: profileData.gestureThreshold,
         gestureCooldownMs: profileData.gestureCooldownMs,
+        reacquisitionPointerBehavior: profileData.reacquisitionPointerBehavior,
         reducedMotion: profileData.reducedMotion ? 1 : 0,
         updatedAt: now
       })
@@ -191,6 +197,7 @@ export async function saveAccessibilityProfile(
       gestureType: profileData.gestureType,
       gestureThreshold: profileData.gestureThreshold,
       gestureCooldownMs: profileData.gestureCooldownMs,
+      reacquisitionPointerBehavior: profileData.reacquisitionPointerBehavior,
       reducedMotion: profileData.reducedMotion ? 1 : 0,
       createdAt: now,
       updatedAt: now

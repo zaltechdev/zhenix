@@ -53,8 +53,11 @@ const POINTER_EDGE_INSET_PX = 16;
 export const MIN_DEAD_ZONE_DEGREES = 0.3;
 /** Maximum calibrated dead zone per axis in degrees. */
 export const MAX_DEAD_ZONE_DEGREES = 3.0;
-/** Default dead zone when no calibration exists. */
-export const DEFAULT_DEAD_ZONE_DEGREES = 0.8;
+/** Safe floors prevent noisy or poor calibration from shrinking the neutral envelope. */
+export const SAFE_MIN_YAW_ENTER_DEGREES = 1.25;
+export const SAFE_MIN_YAW_EXIT_DEGREES = 0.65;
+export const SAFE_MIN_PITCH_ENTER_DEGREES = 1.0;
+export const SAFE_MIN_PITCH_EXIT_DEGREES = 0.55;
 
 /** Minimum maximum speed (sensitivity = 0). */
 const MIN_MAX_SPEED_PX_PER_SEC = 300;
@@ -62,8 +65,20 @@ const MIN_MAX_SPEED_PX_PER_SEC = 300;
 const MAX_MAX_SPEED_PX_PER_SEC = 2400;
 /** Default comfortable range when uncalibrated. */
 const DEFAULT_COMFORTABLE_RANGE_DEGREES = 10;
-/** Gentle acceleration curve exponent near dead-zone boundary. */
-const ACCELERATION_EXPONENT = 1.8;
+/** Calibrated ranges below this floor cannot amplify small movement. */
+const MIN_COMFORTABLE_RANGE_DEGREES = 8;
+/** Strong precision bias near the dead-zone boundary without reducing top speed. */
+const ACCELERATION_EXPONENT = 2.6;
+/** Movement ramps gently while stopping remains substantially faster. */
+const ACCELERATION_LIMIT_PX_PER_SEC_SQUARED = 1800;
+const DECELERATION_LIMIT_PX_PER_SEC_SQUARED = 6000;
+/** Stable neutral adaptation starts after 750 ms and moves at a tightly bounded rate. */
+export const IDLE_NEUTRAL_WINDOW_SECONDS = 0.75;
+const IDLE_NEUTRAL_STABILITY_YAW_DEGREES = 0.3;
+const IDLE_NEUTRAL_STABILITY_PITCH_DEGREES = 0.25;
+const IDLE_NEUTRAL_RECENTER_RATE_DEGREES_PER_SEC = 0.12;
+const MAX_IDLE_NEUTRAL_YAW_OFFSET_DEGREES = 4;
+const MAX_IDLE_NEUTRAL_PITCH_OFFSET_DEGREES = 3;
 
 function normalizeSetting(value: number): number {
   return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
@@ -98,16 +113,17 @@ export interface CalibratedDeadZone {
 /** Build a default dead zone when no calibration data exists. */
 export function defaultDeadZone(): CalibratedDeadZone {
   return {
-    yawEnter: DEFAULT_DEAD_ZONE_DEGREES,
-    yawExit: DEFAULT_DEAD_ZONE_DEGREES * 0.6,
-    pitchEnter: DEFAULT_DEAD_ZONE_DEGREES,
-    pitchExit: DEFAULT_DEAD_ZONE_DEGREES * 0.6
+    yawEnter: SAFE_MIN_YAW_ENTER_DEGREES,
+    yawExit: SAFE_MIN_YAW_EXIT_DEGREES,
+    pitchEnter: SAFE_MIN_PITCH_ENTER_DEGREES,
+    pitchExit: SAFE_MIN_PITCH_EXIT_DEGREES
   };
 }
 
 /**
  * Scale a calibrated dead zone by a user preference slider (0-100).
- * 50 = use calibrated zone as-is. 0 = no dead zone. 100 = 2x calibrated zone.
+ * Safe per-axis floors always apply, so calibration and manual tuning can only
+ * enlarge the neutral envelope beyond the minimum safe values.
  */
 export function scaleDeadZone(
   calibrated: CalibratedDeadZone,
@@ -115,11 +131,22 @@ export function scaleDeadZone(
 ): CalibratedDeadZone {
   const normalized = normalizeSetting(deadZoneSetting);
   const multiplier = normalized / 50; // 0 -> 0x, 50 -> 1x, 100 -> 2x
+  const yawEnter = Math.max(SAFE_MIN_YAW_ENTER_DEGREES, calibrated.yawEnter * multiplier);
+  const pitchEnter = Math.max(
+    SAFE_MIN_PITCH_ENTER_DEGREES,
+    calibrated.pitchEnter * multiplier
+  );
   return {
-    yawEnter: calibrated.yawEnter * multiplier,
-    yawExit: calibrated.yawExit * multiplier,
-    pitchEnter: calibrated.pitchEnter * multiplier,
-    pitchExit: calibrated.pitchExit * multiplier
+    yawEnter,
+    yawExit: Math.min(
+      yawEnter * 0.75,
+      Math.max(SAFE_MIN_YAW_EXIT_DEGREES, calibrated.yawExit * multiplier)
+    ),
+    pitchEnter,
+    pitchExit: Math.min(
+      pitchEnter * 0.75,
+      Math.max(SAFE_MIN_PITCH_EXIT_DEGREES, calibrated.pitchExit * multiplier)
+    )
   };
 }
 
@@ -313,6 +340,10 @@ export class PoseInputStabilizer {
 export class VelocityController {
   private readonly yawDeadZone = new AxisDeadZoneHysteresis();
   private readonly pitchDeadZone = new AxisDeadZoneHysteresis();
+  private currentVelocity: Vector2D = { x: 0, y: 0 };
+  private neutralOffset: PoseDelta = { yaw: 0, pitch: 0 };
+  private idleAnchor: PoseDelta | null = null;
+  private idleStableSeconds = 0;
 
   /**
    * Process a stabilized pose delta into a pointer position delta.
@@ -322,6 +353,7 @@ export class VelocityController {
    * @param range - Calibrated comfortable directional ranges (null = use defaults)
    * @param sensitivitySetting - 0-100 user preference controlling max speed
    * @param deltaTimeSec - Frame delta time in seconds
+   * @param rawPoseDelta - Unfiltered pose used only for immediate neutral stopping
    * @returns Position delta to add to current pointer position
    */
   public process(
@@ -329,37 +361,58 @@ export class VelocityController {
     deadZone: CalibratedDeadZone,
     range: DirectionalCalibrationRange | null,
     sensitivitySetting: number,
-    deltaTimeSec: number
+    deltaTimeSec: number,
+    rawPoseDelta: PoseDelta = poseDelta
   ): Vector2D {
+    const dt = Number.isFinite(deltaTimeSec)
+      ? Math.max(0, Math.min(deltaTimeSec, 0.1))
+      : 0;
+    const effectivePose = this.applyNeutralOffset(poseDelta);
+    const effectiveRawPose = this.applyNeutralOffset(rawPoseDelta);
+
     // Invert camera yaw for screen direction
-    const screenYaw = poseDelta.yaw * CAMERA_YAW_TO_SCREEN_DIRECTION;
-    const screenPitch = poseDelta.pitch;
+    const screenYaw = effectivePose.yaw * CAMERA_YAW_TO_SCREEN_DIRECTION;
+    const screenPitch = effectivePose.pitch;
+    const rawScreenYaw = effectiveRawPose.yaw * CAMERA_YAW_TO_SCREEN_DIRECTION;
+    const rawScreenPitch = effectiveRawPose.pitch;
 
     // Per-axis dead zone with hysteresis
-    const activeYaw = this.yawDeadZone.apply(screenYaw, deadZone.yawEnter, deadZone.yawExit);
-    const activePitch = this.pitchDeadZone.apply(screenPitch, deadZone.pitchEnter, deadZone.pitchExit);
+    const yawIsRawNeutral = Math.abs(rawScreenYaw) <= deadZone.yawExit;
+    const pitchIsRawNeutral = Math.abs(rawScreenPitch) <= deadZone.pitchExit;
+    if (yawIsRawNeutral) this.yawDeadZone.reset();
+    if (pitchIsRawNeutral) this.pitchDeadZone.reset();
+    const activeYaw = yawIsRawNeutral
+      ? 0
+      : this.yawDeadZone.apply(screenYaw, deadZone.yawEnter, deadZone.yawExit);
+    const activePitch = pitchIsRawNeutral
+      ? 0
+      : this.pitchDeadZone.apply(screenPitch, deadZone.pitchEnter, deadZone.pitchExit);
 
     if (activeYaw === 0 && activePitch === 0) {
+      // Neutral is a hard stop. No decaying velocity or accumulated micro-delta survives.
+      this.currentVelocity = { x: 0, y: 0 };
+      this.observeIdleNeutral(rawPoseDelta, dt);
       return { x: 0, y: 0 };
     }
+    this.clearIdleObservation();
 
     // Directional comfortable ranges (degrees beyond dead zone boundary)
     const rangeLeft = Math.max(
-      (range?.left ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.yawExit,
-      1
-    );
+      (range?.left ?? DEFAULT_COMFORTABLE_RANGE_DEGREES),
+      MIN_COMFORTABLE_RANGE_DEGREES
+    ) - deadZone.yawExit;
     const rangeRight = Math.max(
-      (range?.right ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.yawExit,
-      1
-    );
+      (range?.right ?? DEFAULT_COMFORTABLE_RANGE_DEGREES),
+      MIN_COMFORTABLE_RANGE_DEGREES
+    ) - deadZone.yawExit;
     const rangeUp = Math.max(
-      (range?.up ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.pitchExit,
-      1
-    );
+      (range?.up ?? DEFAULT_COMFORTABLE_RANGE_DEGREES),
+      MIN_COMFORTABLE_RANGE_DEGREES
+    ) - deadZone.pitchExit;
     const rangeDown = Math.max(
-      (range?.down ?? DEFAULT_COMFORTABLE_RANGE_DEGREES) - deadZone.pitchExit,
-      1
-    );
+      (range?.down ?? DEFAULT_COMFORTABLE_RANGE_DEGREES),
+      MIN_COMFORTABLE_RANGE_DEGREES
+    ) - deadZone.pitchExit;
 
     // Normalize to 0..1 within comfortable range, clamp at 1
     const normalizedYaw = activeYaw >= 0
@@ -380,16 +433,95 @@ export class VelocityController {
       + (normalizeSetting(sensitivitySetting) / 100)
         * (MAX_MAX_SPEED_PX_PER_SEC - MIN_MAX_SPEED_PX_PER_SEC);
 
-    // Integrate velocity over time
+    const targetVelocity = {
+      x: velocityYaw * maxSpeed,
+      y: velocityPitch * maxSpeed
+    };
+    this.currentVelocity = {
+      x: activeYaw === 0 ? 0 : this.slew(this.currentVelocity.x, targetVelocity.x, dt),
+      y: activePitch === 0 ? 0 : this.slew(this.currentVelocity.y, targetVelocity.y, dt)
+    };
+
+    // Integrate the slew-limited velocity over time.
     return {
-      x: velocityYaw * maxSpeed * deltaTimeSec,
-      y: velocityPitch * maxSpeed * deltaTimeSec
+      x: this.currentVelocity.x * dt,
+      y: this.currentVelocity.y * dt
     };
   }
 
   public reset(): void {
     this.yawDeadZone.reset();
     this.pitchDeadZone.reset();
+    this.currentVelocity = { x: 0, y: 0 };
+    this.neutralOffset = { yaw: 0, pitch: 0 };
+    this.clearIdleObservation();
+  }
+
+  public getNeutralOffset(): Readonly<PoseDelta> {
+    return { ...this.neutralOffset };
+  }
+
+  private applyNeutralOffset(pose: PoseDelta): PoseDelta {
+    return {
+      yaw: pose.yaw - this.neutralOffset.yaw,
+      pitch: pose.pitch - this.neutralOffset.pitch
+    };
+  }
+
+  private slew(current: number, target: number, deltaTimeSec: number): number {
+    if (deltaTimeSec <= 0 || current === target) return current;
+    const sameDirection = current === 0 || Math.sign(current) === Math.sign(target);
+    const isAccelerating = sameDirection && Math.abs(target) > Math.abs(current);
+    const limit = isAccelerating
+      ? ACCELERATION_LIMIT_PX_PER_SEC_SQUARED
+      : DECELERATION_LIMIT_PX_PER_SEC_SQUARED;
+    const maximumChange = limit * deltaTimeSec;
+    const difference = target - current;
+    if (Math.abs(difference) <= maximumChange) return target;
+    return current + Math.sign(difference) * maximumChange;
+  }
+
+  private observeIdleNeutral(pose: PoseDelta, deltaTimeSec: number): void {
+    if (deltaTimeSec <= 0) return;
+    if (
+      !this.idleAnchor ||
+      Math.abs(pose.yaw - this.idleAnchor.yaw) > IDLE_NEUTRAL_STABILITY_YAW_DEGREES ||
+      Math.abs(pose.pitch - this.idleAnchor.pitch) > IDLE_NEUTRAL_STABILITY_PITCH_DEGREES
+    ) {
+      this.idleAnchor = { ...pose };
+      this.idleStableSeconds = 0;
+      return;
+    }
+
+    this.idleAnchor = {
+      yaw: this.idleAnchor.yaw + (pose.yaw - this.idleAnchor.yaw) * 0.08,
+      pitch: this.idleAnchor.pitch + (pose.pitch - this.idleAnchor.pitch) * 0.08
+    };
+    this.idleStableSeconds += deltaTimeSec;
+    if (this.idleStableSeconds < IDLE_NEUTRAL_WINDOW_SECONDS) return;
+
+    const maximumStep = IDLE_NEUTRAL_RECENTER_RATE_DEGREES_PER_SEC * deltaTimeSec;
+    this.neutralOffset = {
+      yaw: clampAxis(
+        this.moveToward(this.neutralOffset.yaw, this.idleAnchor.yaw, maximumStep),
+        MAX_IDLE_NEUTRAL_YAW_OFFSET_DEGREES
+      ),
+      pitch: clampAxis(
+        this.moveToward(this.neutralOffset.pitch, this.idleAnchor.pitch, maximumStep),
+        MAX_IDLE_NEUTRAL_PITCH_OFFSET_DEGREES
+      )
+    };
+  }
+
+  private moveToward(current: number, target: number, maximumChange: number): number {
+    const difference = target - current;
+    if (Math.abs(difference) <= maximumChange) return target;
+    return current + Math.sign(difference) * maximumChange;
+  }
+
+  private clearIdleObservation(): void {
+    this.idleAnchor = null;
+    this.idleStableSeconds = 0;
   }
 }
 

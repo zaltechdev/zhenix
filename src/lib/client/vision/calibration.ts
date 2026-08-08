@@ -12,7 +12,9 @@ export const CALIBRATION_CONFIG = {
   minimumDirectionalMovementDegrees: 1.5,
   stableWindowDegrees: 2.5,
   /** Minimum usable directional range in degrees. */
-  minimumUsableRangeDegrees: 2,
+  minimumUsableRangeDegrees: 3,
+  /** Maximum accepted neutral-axis MAD before safe defaults remain active. */
+  maximumNeutralMadDegrees: 0.75,
   /** MAD multiplier for dead zone enter threshold. */
   madEnterMultiplier: 2.5,
   /** MAD multiplier for dead zone exit threshold. */
@@ -100,6 +102,7 @@ export class CalibrationEngine {
   private attemptId = 0;
   private step = 0;
   private lastTimestampMs = -Infinity;
+  private neutralNoiseMad: { yaw: number; pitch: number } | null = null;
 
   constructor(private readonly requiredSamples: number = CALIBRATION_CONFIG.requiredSamples) {}
 
@@ -114,6 +117,7 @@ export class CalibrationEngine {
     this.errorMessage = null;
     this.step = 0;
     this.lastTimestampMs = -Infinity;
+    this.neutralNoiseMad = null;
     return this.attemptId;
   }
 
@@ -128,6 +132,7 @@ export class CalibrationEngine {
     this.errorMessage = null;
     this.step = 0;
     this.lastTimestampMs = -Infinity;
+    this.neutralNoiseMad = null;
   }
 
   public fail(reason: string, attemptId = this.attemptId): CalibrationState {
@@ -139,6 +144,7 @@ export class CalibrationEngine {
     this.range = null;
     this.deadZone = null;
     this.errorMessage = reason;
+    this.neutralNoiseMad = null;
     return this.getState();
   }
 
@@ -266,6 +272,7 @@ export class CalibrationEngine {
 
   private computeDeadZoneFromNoise(samples: HeadPose[]): CalibratedDeadZone {
     if (samples.length < 3) {
+      this.neutralNoiseMad = { yaw: 0, pitch: 0 };
       const enter = clampDeadZoneDegrees(MIN_DEAD_ZONE_DEGREES * CALIBRATION_CONFIG.madEnterMultiplier);
       return {
         yawEnter: enter,
@@ -280,6 +287,7 @@ export class CalibrationEngine {
 
     const yawMAD = computeMAD(yawValues);
     const pitchMAD = computeMAD(pitchValues);
+    this.neutralNoiseMad = { yaw: yawMAD, pitch: pitchMAD };
 
     const yawEnter = clampDeadZoneDegrees(yawMAD * CALIBRATION_CONFIG.madEnterMultiplier);
     const pitchEnter = clampDeadZoneDegrees(pitchMAD * CALIBRATION_CONFIG.madEnterMultiplier);
@@ -297,11 +305,38 @@ export class CalibrationEngine {
   }
 
   private validateCalibration(): string | null {
-    if (!this.range) return "missing_range";
+    if (!this.baseline || !this.range || !this.deadZone || !this.neutralNoiseMad) {
+      return "incomplete_calibration";
+    }
+
+    if (
+      ![
+        this.baseline.yaw,
+        this.baseline.pitch,
+        this.baseline.roll,
+        this.range.left,
+        this.range.right,
+        this.range.up,
+        this.range.down,
+        this.deadZone.yawEnter,
+        this.deadZone.yawExit,
+        this.deadZone.pitchEnter,
+        this.deadZone.pitchExit
+      ].every(Number.isFinite)
+    ) {
+      return "invalid_calibration";
+    }
+
+    if (this.neutralNoiseMad.yaw > CALIBRATION_CONFIG.maximumNeutralMadDegrees) {
+      return "neutral_noise_excessive_yaw";
+    }
+    if (this.neutralNoiseMad.pitch > CALIBRATION_CONFIG.maximumNeutralMadDegrees) {
+      return "neutral_noise_excessive_pitch";
+    }
 
     const { minimumUsableRangeDegrees } = CALIBRATION_CONFIG;
 
-    // Check each direction meets minimum
+    // Validate each direction independently. Natural directional asymmetry is valid.
     if (this.range.left < minimumUsableRangeDegrees) return "range_too_small_left";
     if (this.range.right < minimumUsableRangeDegrees) return "range_too_small_right";
     if (this.range.up < minimumUsableRangeDegrees) return "range_too_small_up";

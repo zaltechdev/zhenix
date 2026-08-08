@@ -227,6 +227,7 @@ describe("account boundary", () => {
       gestureType: null,
       gestureThreshold: null,
       gestureCooldownMs: null,
+      reacquisitionPointerBehavior: "keep_position",
       reducedMotion: false
     });
     expect(invalid.outcome).toBe("invalid_input");
@@ -240,6 +241,7 @@ describe("account boundary", () => {
       gestureType: null,
       gestureThreshold: null,
       gestureCooldownMs: null,
+      reacquisitionPointerBehavior: "keep_position",
       reducedMotion: false
     });
     expect(valid.outcome).toBe("unavailable");

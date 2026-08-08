@@ -9,6 +9,8 @@ import {
   VelocityController,
   defaultDeadZone,
   scaleDeadZone,
+  SAFE_MIN_PITCH_ENTER_DEGREES,
+  SAFE_MIN_YAW_ENTER_DEGREES,
   type CalibratedDeadZone
 } from "@/lib/client/vision/pointer-mapping";
 import type { DirectionalCalibrationRange } from "@/lib/client/vision/calibration";
@@ -38,12 +40,13 @@ function processSeconds(
 }
 
 describe("Velocity Controller", () => {
-  it("produces zero displacement for stationary noise within dead zone", () => {
+  it("produces exact zero displacement for several seconds of stationary noise", () => {
     const controller = new VelocityController();
-    const noiseValues = [0.1, -0.15, 0.2, -0.1, 0.05, -0.2, 0.15, -0.05, 0.1, -0.1];
+    const noiseValues = [0.54, -0.42, 0.48, -0.51, 0.39, -0.46, 0.5, -0.4];
     let totalX = 0;
     let totalY = 0;
-    for (const noise of noiseValues) {
+    for (let frame = 0; frame < 300; frame += 1) {
+      const noise = noiseValues[frame % noiseValues.length];
       const delta = controller.process(
         { yaw: noise, pitch: -noise * 0.8 },
         DEFAULT_DZ,
@@ -54,16 +57,16 @@ describe("Velocity Controller", () => {
       totalX += delta.x;
       totalY += delta.y;
     }
-    expect(Math.abs(totalX)).toBeLessThan(0.01);
-    expect(Math.abs(totalY)).toBeLessThan(0.01);
+    expect(totalX).toBe(0);
+    expect(totalY).toBe(0);
   });
 
   it("produces slow monotonic movement for slight intentional deflection", () => {
     const controller = new VelocityController();
     // Camera yaw -2 = physical right (inverted at boundary)
     const result = processSeconds(controller, -2, 0, DEFAULT_DZ, null, 50, 1);
-    expect(result.x).toBeGreaterThan(10);
-    expect(result.x).toBeLessThan(800);
+    expect(result.x).toBeGreaterThan(1);
+    expect(result.x).toBeLessThan(20);
   });
 
   it("produces faster movement for larger deflection", () => {
@@ -71,7 +74,7 @@ describe("Velocity Controller", () => {
     const controllerFast = new VelocityController();
     const slow = processSeconds(controllerSlow, -2, 0, DEFAULT_DZ, null, 50, 1);
     const fast = processSeconds(controllerFast, -8, 0, DEFAULT_DZ, null, 50, 1);
-    expect(fast.x).toBeGreaterThan(slow.x * 2);
+    expect(fast.x).toBeGreaterThan(slow.x * 20);
   });
 
   it("caps speed at configured maximum", () => {
@@ -82,15 +85,26 @@ describe("Velocity Controller", () => {
     expect(Math.abs(delta.x)).toBeLessThanOrEqual(41);
   });
 
-  it("returns velocity to zero when pose returns to neutral", () => {
+  it("returns velocity to literal zero and preserves the current coordinate", () => {
     const controller = new VelocityController();
-    // Move right
-    controller.process({ yaw: -5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
-    controller.process({ yaw: -5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
-    // Return to neutral
-    const atRest = controller.process({ yaw: 0, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    let pointerX = 500;
+    for (let frame = 0; frame < 30; frame += 1) {
+      pointerX += controller.process({ yaw: -5, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60).x;
+    }
+    const movedCoordinate = pointerX;
+    // Filtered pose may still lag, but the raw pose is already neutral.
+    const atRest = controller.process(
+      { yaw: -3, pitch: 0 },
+      DEFAULT_DZ,
+      null,
+      50,
+      1 / 60,
+      { yaw: 0, pitch: 0 }
+    );
+    pointerX += atRest.x;
     expect(atRest.x).toBe(0);
     expect(atRest.y).toBe(0);
+    expect(pointerX).toBe(movedCoordinate);
   });
 
   it("maintains dead-zone hysteresis without start/stop chatter", () => {
@@ -152,6 +166,32 @@ describe("Velocity Controller", () => {
     const high = processSeconds(controllerHigh, -5, 0, DEFAULT_DZ, null, 80, 1);
     expect(high.x).toBeGreaterThan(low.x * 1.5);
   });
+
+  it("ramps velocity on entry instead of launching at target speed", () => {
+    const controller = new VelocityController();
+    const first = controller.process({ yaw: -8, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    let later = first;
+    for (let frame = 0; frame < 20; frame += 1) {
+      later = controller.process({ yaw: -8, pitch: 0 }, DEFAULT_DZ, null, 50, 1 / 60);
+    }
+    expect(first.x).toBeGreaterThan(0);
+    expect(later.x).toBeGreaterThan(first.x * 5);
+  });
+
+  it("slowly adapts a stable idle neutral without moving the pointer", () => {
+    const controller = new VelocityController();
+    let displacement = 0;
+    for (let frame = 0; frame < 120; frame += 1) {
+      const delta = controller.process({ yaw: 0.5, pitch: 0.3 }, DEFAULT_DZ, null, 50, 0.1);
+      displacement += Math.hypot(delta.x, delta.y);
+    }
+
+    expect(displacement).toBe(0);
+    expect(controller.getNeutralOffset().yaw).toBeGreaterThan(0);
+    expect(controller.getNeutralOffset().yaw).toBeLessThanOrEqual(0.5);
+    expect(controller.getNeutralOffset().pitch).toBeGreaterThan(0);
+    expect(controller.getNeutralOffset().pitch).toBeLessThanOrEqual(0.3);
+  });
 });
 
 describe("Dead Zone Scaling", () => {
@@ -164,19 +204,21 @@ describe("Dead Zone Scaling", () => {
     expect(scaled.yawExit).toBeCloseTo(1.2);
   });
 
-  it("eliminates dead zone at setting 0", () => {
+  it("never shrinks either axis below its safe minimum", () => {
     const base = defaultDeadZone();
     const scaled = scaleDeadZone(base, 0);
-    expect(scaled.yawEnter).toBe(0);
-    expect(scaled.pitchEnter).toBe(0);
+    expect(scaled.yawEnter).toBe(SAFE_MIN_YAW_ENTER_DEGREES);
+    expect(scaled.pitchEnter).toBe(SAFE_MIN_PITCH_ENTER_DEGREES);
+    expect(scaled.yawExit).toBeLessThan(scaled.yawEnter);
+    expect(scaled.pitchExit).toBeLessThan(scaled.pitchEnter);
   });
 
   it("preserves calibrated zone at setting 50", () => {
     const base: CalibratedDeadZone = {
-      yawEnter: 1.0, yawExit: 0.6, pitchEnter: 0.8, pitchExit: 0.5
+      yawEnter: 1.5, yawExit: 0.9, pitchEnter: 1.2, pitchExit: 0.7
     };
     const scaled = scaleDeadZone(base, 50);
-    expect(scaled.yawEnter).toBeCloseTo(1.0);
+    expect(scaled.yawEnter).toBeCloseTo(1.5);
   });
 });
 

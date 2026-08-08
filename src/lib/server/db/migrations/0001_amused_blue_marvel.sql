@@ -1,0 +1,1 @@
+ALTER TABLE `accessibility_profiles` ADD `reacquisition_pointer_behavior` text DEFAULT 'keep_position' NOT NULL;

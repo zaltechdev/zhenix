@@ -499,6 +499,43 @@ export function HeadControlSettings({
         </section>
       ) : null}
 
+      <section aria-labelledby="head-reacquisition-heading" className="aksa-controls__group">
+        <h3 className="aksa-controls__group-title" id="head-reacquisition-heading">
+          {m.controls_reacquisition_heading({}, options)}
+        </h3>
+        <p className="aksa-hint">{m.controls_reacquisition_helper({}, options)}</p>
+        <div
+          aria-labelledby="head-reacquisition-heading"
+          className="aksa-choice-grid"
+          role="radiogroup"
+        >
+          <label className="aksa-choice">
+            <input
+              checked={profile.reacquisitionPointerBehavior === "keep_position"}
+              name="reacquisition-pointer-behavior"
+              onChange={() => update("reacquisitionPointerBehavior", "keep_position")}
+              type="radio"
+              value="keep_position"
+            />
+            <span>
+              <strong>{m.controls_reacquisition_keep({}, options)}</strong>
+            </span>
+          </label>
+          <label className="aksa-choice">
+            <input
+              checked={profile.reacquisitionPointerBehavior === "reset_center"}
+              name="reacquisition-pointer-behavior"
+              onChange={() => update("reacquisitionPointerBehavior", "reset_center")}
+              type="radio"
+              value="reset_center"
+            />
+            <span>
+              <strong>{m.controls_reacquisition_center({}, options)}</strong>
+            </span>
+          </label>
+        </div>
+      </section>
+
       <section aria-labelledby="head-selection-heading" className="aksa-controls__group">
         <h3 className="aksa-controls__group-title" id="head-selection-heading">
           {m.controls_selection_heading({}, options)}

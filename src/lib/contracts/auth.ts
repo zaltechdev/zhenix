@@ -87,6 +87,7 @@ export type AuthResult = z.infer<typeof authResultSchema>;
 
 export const selectionModeSchema = z.enum(["dwell", "gesture", "both", "off"]);
 export const gestureTypeSchema = z.enum(["mouth_open", "brow_raise", "eye_blink_long", "smile"]);
+export const reacquisitionPointerBehaviorSchema = z.enum(["keep_position", "reset_center"]);
 
 export const accessibilityProfileSchema = z.object({
   pointerSensitivity: z.number().int().min(0).max(100),
@@ -97,6 +98,7 @@ export const accessibilityProfileSchema = z.object({
   gestureType: gestureTypeSchema.nullable(),
   gestureThreshold: z.number().int().min(0).max(100).nullable(),
   gestureCooldownMs: z.number().int().min(0).max(5000).nullable(),
+  reacquisitionPointerBehavior: reacquisitionPointerBehaviorSchema.default("keep_position"),
   reducedMotion: z.boolean()
 });
 
@@ -116,6 +118,7 @@ export const provisionalAccessibilityProfile: AccessibilityProfile = {
   gestureType: null,
   gestureThreshold: null,
   gestureCooldownMs: null,
+  reacquisitionPointerBehavior: "keep_position",
   reducedMotion: false
 };
 

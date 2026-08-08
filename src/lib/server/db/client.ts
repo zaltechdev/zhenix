@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS accessibility_profiles (
   gesture_type text,
   gesture_threshold integer,
   gesture_cooldown_ms integer,
+  reacquisition_pointer_behavior text DEFAULT 'keep_position' NOT NULL,
   reduced_motion integer DEFAULT 0 NOT NULL,
   calibrated_at integer,
   created_at integer NOT NULL,

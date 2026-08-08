@@ -132,6 +132,9 @@ export const accessibilityProfiles = sqliteTable(
     gestureType: text("gesture_type"),
     gestureThreshold: integer("gesture_threshold"),
     gestureCooldownMs: integer("gesture_cooldown_ms"),
+    reacquisitionPointerBehavior: text("reacquisition_pointer_behavior")
+      .notNull()
+      .default("keep_position"),
     reducedMotion: integer("reduced_motion").notNull().default(0),
     calibratedAt: integer("calibrated_at", { mode: "number" }),
     createdAt: integer("created_at", { mode: "number" }).notNull(),
