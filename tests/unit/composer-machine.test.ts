@@ -180,6 +180,28 @@ describe("submission honesty", () => {
     expect(state.understanding).toBeNull();
   });
 
+  it("keeps local intent execution separate from server task state", () => {
+    const executed = reduce([
+      { type: "submit_started" },
+      { type: "local_intent_result", intent: "NAV_GMAIL", source: "deterministic" }
+    ]);
+    expect(executed.localIntent).toEqual({
+      outcome: "executed",
+      intent: "NAV_GMAIL",
+      source: "deterministic"
+    });
+    expect(executed.task).toBeNull();
+    expect(displayedTaskState(executed)).toBe("idle");
+
+    const unknown = reduce([
+      { type: "submit_started" },
+      { type: "local_intent_unknown" }
+    ]);
+    expect(unknown.localIntent).toEqual({ outcome: "unknown", source: "unknown" });
+    expect(unknown.error).toBeNull();
+    expect(unknown.task).toBeNull();
+  });
+
   it("tracks a real server task and offers cancel only when the server allows it", () => {
     const state = reduce([
       { type: "submit_started" },

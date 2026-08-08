@@ -1,6 +1,7 @@
 import { COMMAND_TEXT_MAX_LENGTH, type CommandResult, type CommandSource, type CommandUnderstanding } from "@/lib/contracts/command";
 import type { AksaError } from "@/lib/contracts/errors";
 import type { CancellationResult, Task, TaskState } from "@/lib/contracts/task";
+import type { AksaIntent } from "@/lib/contracts/voice-intent";
 
 /**
  * Composer state machine.
@@ -25,8 +26,13 @@ export type ComposerStatus =
 export type ComposerAnnouncement =
   | { kind: "task_state"; state: TaskState }
   | { kind: "command_unavailable" }
+  | { kind: "intent_result"; outcome: "executed" | "unknown" }
   | { kind: "cancellation"; outcome: CancellationResult["outcome"] }
   | null;
+
+export type LocalIntentResult =
+  | { outcome: "executed"; intent: AksaIntent; source: "deterministic" | "semantic" }
+  | { outcome: "unknown"; source: "unknown" };
 
 export type ComposerState = {
   status: ComposerStatus;
@@ -39,6 +45,8 @@ export type ComposerState = {
   error: AksaError | null;
   /** Only ever set from a server-returned task. */
   task: Task | null;
+  /** A local allowlisted command result, never a server task. */
+  localIntent: LocalIntentResult | null;
   cancellationOutcome: CancellationResult["outcome"] | null;
   voice: VoiceStatus;
   announcement: ComposerAnnouncement;
@@ -52,6 +60,7 @@ export const initialComposerState: ComposerState = {
   understanding: null,
   error: null,
   task: null,
+  localIntent: null,
   cancellationOutcome: null,
   voice: "unknown",
   announcement: null
@@ -68,6 +77,8 @@ export type ComposerAction =
   | { type: "voice_denied" }
   | { type: "voice_failed" }
   | { type: "submit_started" }
+  | { type: "local_intent_result"; intent: AksaIntent; source: "deterministic" | "semantic" }
+  | { type: "local_intent_unknown" }
   | { type: "submit_result"; result: CommandResult }
   | { type: "dismiss_result" }
   | { type: "cancel_requested" }
@@ -80,7 +91,12 @@ function trim(text: string): string {
 export function composerReducer(state: ComposerState, action: ComposerAction): ComposerState {
   switch (action.type) {
     case "set_text":
-      return { ...state, text: trim(action.text), status: state.status === "idle" ? "idle" : state.status };
+      return {
+        ...state,
+        text: trim(action.text),
+        localIntent: null,
+        status: state.status === "idle" ? "idle" : state.status
+      };
 
     case "insert_example":
       /** An example fills the box only. It never submits and never runs. */
@@ -105,6 +121,7 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         transcript: null,
         error: null,
         understanding: null,
+        localIntent: null,
         announcement: { kind: "task_state", state: "listening" }
       };
 
@@ -115,6 +132,7 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         source: "voice",
         transcript: trim(action.transcript),
         text: trim(action.transcript),
+        localIntent: null,
         announcement: { kind: "task_state", state: "transcribing" }
       };
 
@@ -139,8 +157,35 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         error: null,
         understanding: null,
         task: null,
+        localIntent: null,
         cancellationOutcome: null,
         announcement: { kind: "task_state", state: "understanding" }
+      };
+
+    case "local_intent_result":
+      return {
+        ...state,
+        status: "idle",
+        understanding: null,
+        error: null,
+        task: null,
+        localIntent: {
+          outcome: "executed",
+          intent: action.intent,
+          source: action.source
+        },
+        announcement: { kind: "intent_result", outcome: "executed" }
+      };
+
+    case "local_intent_unknown":
+      return {
+        ...state,
+        status: "idle",
+        understanding: null,
+        error: null,
+        task: null,
+        localIntent: { outcome: "unknown", source: "unknown" },
+        announcement: { kind: "intent_result", outcome: "unknown" }
       };
 
     case "submit_result": {
@@ -187,6 +232,7 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         understanding: null,
         error: null,
         task: null,
+        localIntent: null,
         cancellationOutcome: null,
         announcement: null
       };

@@ -7,11 +7,13 @@ import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import type { CommandResult } from "@/lib/contracts/command";
 import { createCommandId, commandResultSchema } from "@/lib/contracts/command";
+import { matchAksaIntent, resolveAksaIntent } from "@/lib/voice/intent-router";
 import { createAksaError } from "@/lib/contracts/errors";
 import { takePendingCommand } from "@/lib/client/state/pending-command";
 import { displayedTaskState, isCancellable } from "@/lib/client/state/composer-machine";
 import { errorCopy, taskStateCopy } from "@/lib/i18n/copy";
 import { useCommandContext } from "@/components/workspace/command-context";
+import { useOptionalAksaActions } from "@/components/workspace/aksa-action-context";
 import { StatusChip } from "@/components/workspace/status-chip";
 import {
   createRecognition,
@@ -32,6 +34,11 @@ function announcementCopy(
   }
   if (announcement.kind === "command_unavailable") {
     return m.composer_voice_unsupported({}, options);
+  }
+  if (announcement.kind === "intent_result") {
+    return announcement.outcome === "executed"
+      ? m.voice_command_executed({}, options)
+      : m.voice_unknown_command({}, options);
   }
   if (announcement.kind === "cancellation") {
     return m.cancel_requested({}, options);
@@ -98,9 +105,11 @@ export function CommandComposer({
   mode?: "welcome" | "docked";
 }) {
   const { state, dispatch } = useCommandContext();
+  const aksaActions = useOptionalAksaActions();
   const inputId = useId();
   const hintId = useId();
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceSubmissionRef = useRef(false);
   const options = { locale };
 
   useEffect(() => {
@@ -121,6 +130,30 @@ export function CommandComposer({
 
   const announcement = announcementCopy(state.announcement, locale);
 
+  const executeVoiceIntent = useCallback(
+    async (transcript: string) => {
+      if (!aksaActions) return;
+
+      const commandLocale = locale === "id" ? "id" : "en";
+      const resolution = await resolveAksaIntent({
+        locale: commandLocale,
+        transcript
+      });
+      if (resolution.intent === "UNKNOWN") {
+        dispatch({ type: "local_intent_unknown" });
+        return;
+      }
+
+      aksaActions.executeAksaIntent(resolution.intent);
+      dispatch({
+        type: "local_intent_result",
+        intent: resolution.intent,
+        source: resolution.source === "semantic" ? "semantic" : "deterministic"
+      });
+    },
+    [aksaActions, dispatch, locale]
+  );
+
   const startListening = useCallback(() => {
     const recognition = createRecognition(locale === "id" ? "id" : "en");
     if (recognition === null) {
@@ -133,6 +166,14 @@ export function CommandComposer({
       const transcript = transcriptFromEvent(event);
       if (transcript !== "") {
         dispatch({ type: "transcript_updated", transcript });
+        const hasFinalResult = Array.from({ length: event.results.length }).some(
+          (_, index) => event.results[index]?.isFinal === true
+        );
+        if (hasFinalResult && aksaActions) {
+          voiceSubmissionRef.current = true;
+          dispatch({ type: "submit_started" });
+          void executeVoiceIntent(transcript);
+        }
       }
     };
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
@@ -142,7 +183,11 @@ export function CommandComposer({
       }
       dispatch({ type: "voice_failed" });
     };
-    recognition.onend = () => dispatch({ type: "listening_stopped" });
+    recognition.onend = () => {
+      const submitted = voiceSubmissionRef.current;
+      voiceSubmissionRef.current = false;
+      if (!submitted) dispatch({ type: "listening_stopped" });
+    };
 
     recognitionRef.current = recognition;
     try {
@@ -150,7 +195,7 @@ export function CommandComposer({
     } catch {
       dispatch({ type: "voice_failed" });
     }
-  }, [dispatch, locale]);
+  }, [aksaActions, dispatch, executeVoiceIntent, locale]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -162,6 +207,23 @@ export function CommandComposer({
     }
 
     dispatch({ type: "submit_started" });
+
+    const commandLocale = locale === "id" ? "id" : "en";
+    const deterministicIntent = matchAksaIntent(state.text, commandLocale);
+    if (aksaActions && deterministicIntent !== null) {
+      aksaActions.executeAksaIntent(deterministicIntent);
+      dispatch({
+        type: "local_intent_result",
+        intent: deterministicIntent,
+        source: "deterministic"
+      });
+      return;
+    }
+
+    if (aksaActions && state.source === "voice") {
+      await executeVoiceIntent(state.text);
+      return;
+    }
 
     try {
       const response = await fetch("/api/commands", {
@@ -190,13 +252,17 @@ export function CommandComposer({
         result: { outcome: "rejected", error: createAksaError("unavailable") }
       });
     }
-  }, [dispatch, locale, state]);
+  }, [aksaActions, dispatch, executeVoiceIntent, locale, state]);
 
   const taskState = displayedTaskState(state);
   const listening = state.status === "listening" || state.status === "transcribing";
   const submitting = state.status === "submitting";
   const offerVoice = shouldOfferVoiceControl(state);
-  const hasContent = state.text !== "" || state.understanding !== null || state.error !== null;
+  const hasContent =
+    state.text !== "" ||
+    state.understanding !== null ||
+    state.error !== null ||
+    state.localIntent !== null;
   const isNonIdle = taskState !== "idle";
 
   const pathname = usePathname();
@@ -356,6 +422,12 @@ export function CommandComposer({
       ) : state.error !== null ? (
         <p className="aksa-notice" role="alert">
           {errorCopy(state.error.category, locale)}
+        </p>
+      ) : state.localIntent !== null ? (
+        <p className="aksa-notice" role="status">
+          {state.localIntent.outcome === "executed"
+            ? m.voice_command_executed({}, options)
+            : m.voice_unknown_command({}, options)}
         </p>
       ) : null}
 
