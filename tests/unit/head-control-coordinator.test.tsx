@@ -8,7 +8,7 @@ import {
 import { getCachedProfile, setCachedProfile, clearCachedProfile } from "@/lib/client/vision/profile-cache";
 import { GestureDetector } from "@/lib/client/vision/gesture-detector";
 import { DwellController } from "@/lib/client/vision/dwell-controller";
-import { CalibrationEngine } from "@/lib/client/vision/calibration";
+import { CALIBRATION_CONFIG, CalibrationEngine } from "@/lib/client/vision/calibration";
 import {
   mapCameraPoseToScreenDelta,
   smoothCoordinates
@@ -797,21 +797,27 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
         visionFrame(1400, { lifecycleState: "tracking_lost", faceDetected: false, pose })
       );
     });
-    expect(result.current.calibrationState.status).toBe("capturing");
+    expect(result.current.calibrationState.status).toBe("failed");
     expect(result.current.calibrationState.samplesCount).toBe(0);
+    expect(result.current.calibrationState.errorMessage).toBe("tracking_lost");
 
     act(() => {
       for (let index = 1; index <= 5; index += 1) {
         engine.emit(visionFrame(1400 + index * 100, { pose }));
       }
+      engine.emit(visionFrame(2000, { pose }));
+    });
+    expect(result.current.lifecycleState).toBe("active");
+    act(() => {
+      result.current.startCalibration();
       for (let index = 1; index <= 19; index += 1) {
-        engine.emit(visionFrame(1900 + index * 100, { pose }));
+        engine.emit(visionFrame(2000 + index * 100, { pose }));
       }
     });
     expect(result.current.calibrationState.status).toBe("capturing");
     expect(result.current.calibrationState.samplesCount).toBe(19);
 
-    act(() => engine.emit(visionFrame(3900, { pose })));
+    act(() => engine.emit(visionFrame(4000, { pose })));
     expect(result.current.calibrationState.status).toBe("completed");
     expect(result.current.calibrationState.samplesCount).toBe(0);
     expect(result.current.neutralBaseline).toEqual(pose);
@@ -830,6 +836,46 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(state.status).toBe("completed");
     expect(state.baseline).toEqual({ yaw: -2, pitch: 4, roll: 0 });
     expect(state.samplesCount).toBe(0); // Raw sample array cleared
+  });
+
+  it("fails a calibration attempt with no accepted frames by its bounded timeout", async () => {
+    vi.useFakeTimers();
+    const engine = createControllableEngine();
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <HeadControlProvider engineFactory={engine.factory} initialProfile={SETTINGS_OFF} userId="test-user">
+        {children}
+      </HeadControlProvider>
+    );
+    const rendered = renderHook(() => useHeadControl(), { wrapper });
+
+    try {
+      await act(async () => {
+        expect(
+          await rendered.result.current.startCamera(
+            document.createElement("video"),
+            createMockStream().stream
+          )
+        ).toBe(true);
+      });
+      act(() => {
+        for (let index = 1; index <= 6; index += 1) {
+          engine.emit(visionFrame(index * 100));
+        }
+      });
+      expect(rendered.result.current.lifecycleState).toBe("active");
+
+      act(() => rendered.result.current.startCalibration());
+      act(() => vi.advanceTimersByTime(CALIBRATION_CONFIG.timeoutMs));
+
+      expect(rendered.result.current.calibrationState).toMatchObject({
+        status: "failed",
+        samplesCount: 0,
+        errorMessage: "timeout"
+      });
+    } finally {
+      rendered.unmount();
+      vi.useRealTimers();
+    }
   });
 
   it("stops the acquired stream and removes the hidden video when model startup fails", async () => {

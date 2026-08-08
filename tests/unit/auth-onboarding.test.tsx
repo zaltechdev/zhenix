@@ -160,6 +160,22 @@ describe("onboarding", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("lets every sidebar phase navigate directly without locking future steps", () => {
+    render(<OnboardingFlow locale="en" />);
+
+    const phaseButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".aksa-onboarding-rail__button")
+    );
+    expect(phaseButtons).toHaveLength(4);
+    expect(phaseButtons.every((button) => !button.hasAttribute("disabled"))).toBe(true);
+
+    fireEvent.click(phaseButtons[3]);
+    expect(
+      screen.getByRole("heading", { name: m.onboarding_first_task_title({}, { locale: "en" }) })
+    ).toBeInTheDocument();
+    expect(phaseButtons[3]).toHaveAttribute("aria-current", "step");
+  });
+
   it("does not create text selection when programmatically focusing headings on phase transition", () => {
     render(<OnboardingFlow locale="en" />);
     advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));
@@ -199,7 +215,7 @@ describe("onboarding", () => {
     expect(card).toHaveTextContent(m.onboarding_calibration_tracking_required({}, { locale: "en" }));
     expect(card).toHaveTextContent(m.onboarding_head_setup_detail({}, { locale: "en" }));
     expect(card?.querySelector("button")).toBe(
-      screen.getByRole("button", { name: m.onboarding_calibration_start({}, { locale: "en" }) })
+      screen.getByRole("button", { name: m.a11y_start_head_control({}, { locale: "en" }) })
     );
     expect(
       screen.getAllByRole("button", { name: m.onboarding_skip_head({}, { locale: "en" }) })

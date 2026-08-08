@@ -3,6 +3,7 @@ import { Host_Grotesk, Inter } from "next/font/google";
 import { cookies } from "next/headers";
 import { m } from "@/paraglide/messages.js";
 import { getRequestLocale } from "@/lib/i18n/request";
+import { HeadControlProvider } from "@/lib/client/vision/head-control-context";
 import "./globals.css";
 
 const hostGrotesk = Host_Grotesk({
@@ -62,7 +63,7 @@ export default async function RootLayout({
         >
           {m.skip_to_content({}, { locale })}
         </a>
-        {children}
+        <HeadControlProvider>{children}</HeadControlProvider>
       </body>
     </html>
   );

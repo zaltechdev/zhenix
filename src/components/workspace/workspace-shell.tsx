@@ -29,7 +29,7 @@ const WORK_SURFACES = [
 ];
 
 import type { AccessibilityProfile } from "@/lib/contracts/auth";
-import { HeadControlProvider } from "@/lib/client/vision/head-control-context";
+import { HeadControlRuntimeBoundary } from "@/lib/client/vision/head-control-context";
 
 export function WorkspaceShell({
   locale,
@@ -114,7 +114,7 @@ export function WorkspaceShell({
   }, [closeDrawer, drawerOpen]);
 
   return (
-    <HeadControlProvider initialProfile={initialProfile} userId={userId}>
+    <HeadControlRuntimeBoundary initialProfile={initialProfile} userId={userId}>
       <CommandProvider>
         <div className="aksa-shell" data-drawer-open={drawerOpen}>
         <a className="aksa-skip-link" href="#main-content">
@@ -182,7 +182,7 @@ export function WorkspaceShell({
           ) : null}
         </div>
       </div>
-    </CommandProvider>
-  </HeadControlProvider>
+      </CommandProvider>
+    </HeadControlRuntimeBoundary>
   );
 }

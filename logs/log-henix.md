@@ -1,4 +1,4 @@
----
+﻿---
 ### Timestamp: [2026-08-06 23:09:12]
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `use smooth transition or animated progress, not sudden jump, remvoe the notice`
@@ -536,4 +536,25 @@ DO NOT START PHASE III.
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/head-control-coordinator.test.tsx`
   - `tests/unit/rest-lock.test.ts`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-08 09:33:21
+* **Model used**: GPT-5.6
+* **Human Prompt**: `continue with this, cam prev green now`
+* **TLDR AI agents done**: Reworked scoped onboarding profile autosave, calibration attempt safety, direct sidebar navigation, camera preview playback, and shared head-control runtime continuity. Verified unit, accessibility E2E, type, lint, and production build gates.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/layout.tsx`
+  - `src/app/workspace.css`
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/components/workspace/accessibility-controls.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `src/lib/client/vision/calibration.ts`
+  - `src/lib/client/vision/head-control-context.tsx`
+  - `tests/unit/accessibility-controls.test.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/calibration.test.ts`
+  - `tests/unit/head-control-coordinator.test.tsx`
   - `logs/log-henix.md`

@@ -34,7 +34,11 @@ import {
   type VisionFrameData,
   type VisionLifecycleState
 } from "./vision-engine";
-import { CalibrationEngine, CalibrationState } from "./calibration";
+import {
+  CALIBRATION_CONFIG,
+  CalibrationEngine,
+  CalibrationState
+} from "./calibration";
 import { AksaPointer } from "@/components/workspace/aksa-pointer";
 import { getCachedProfile, setCachedProfile } from "./profile-cache";
 
@@ -61,6 +65,10 @@ export interface HeadControlContextValue {
   disableControl: () => void;
   setNeutralBaseline: (baseline: NeutralBaseline) => void;
   updateProfile: (profile: AccessibilityProfile) => void;
+  configureRuntime: (configuration: {
+    userId: string | null;
+    initialProfile?: AccessibilityProfile | null;
+  }) => void;
 }
 
 export interface HeadControlEngine {
@@ -99,7 +107,8 @@ const DEFAULT_CALIBRATION: CalibrationState = {
   progressRatio: 0,
   samplesCount: 0,
   baseline: null,
-  errorMessage: null
+  errorMessage: null,
+  attemptId: 0
 };
 
 const STABLE_REACQUISITION_FRAMES_REQUIRED = 5;
@@ -115,19 +124,10 @@ export function HeadControlProvider({
   initialProfile?: AccessibilityProfile | null;
   engineFactory?: HeadControlEngineFactory;
 }) {
-  const initialProfileKey = initialProfile ? JSON.stringify(initialProfile) : "cache";
-  const profileScope = `${userId ?? "anonymous"}:${initialProfileKey}`;
-  const [profileState, setProfileState] = useState<{
-    scope: string;
-    value: AccessibilityProfile;
-  }>(() => ({
-    scope: profileScope,
-    value: initialProfile ?? provisionalAccessibilityProfile
-  }));
-  const profile =
-    profileState.scope === profileScope
-      ? profileState.value
-      : initialProfile ?? provisionalAccessibilityProfile;
+  const [runtimeUserId, setRuntimeUserId] = useState<string | null>(userId);
+  const [profile, setProfileState] = useState<AccessibilityProfile>(
+    initialProfile ?? provisionalAccessibilityProfile
+  );
   const [lifecycleState, setLifecycleState] = useState<VisionLifecycleState>("idle");
   const [errorCategory, setErrorCategory] = useState<VisionFailureCategory | null>(null);
   const [pointerPosition, setPointerPosition] = useState<Vector2D>(() =>
@@ -148,7 +148,9 @@ export function HeadControlProvider({
   const engineRef = useRef<HeadControlEngine | null>(null);
   const dwellRef = useRef<DwellController | null>(null);
   const gestureRef = useRef<GestureDetector | null>(null);
-  const calibrationEngineRef = useRef<CalibrationEngine>(new CalibrationEngine(20));
+  const calibrationEngineRef = useRef<CalibrationEngine>(new CalibrationEngine());
+  const calibrationAttemptRef = useRef(0);
+  const calibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentPosRef = useRef<Vector2D>(pointerPosition);
   const reacquisitionCountRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
@@ -158,6 +160,9 @@ export function HeadControlProvider({
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
   const activeModalRef = useRef<Element | null>(null);
   const startupCancelledRef = useRef(false);
+  const runtimeUserIdRef = useRef<string | null>(userId);
+  const runtimeConfiguredRef = useRef(false);
+  const profileChangedBeforeIdentityRef = useRef(false);
 
   const removeBackgroundVideo = useCallback(() => {
     if (backgroundVideoRef.current) {
@@ -204,24 +209,6 @@ export function HeadControlProvider({
     setActivationFeedbackKey((current) => current + 1);
   }, []);
 
-  // Server data wins. Without it, reset before loading only the current user's cache.
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!initialProfile && userId) {
-      void getCachedProfile(userId).then((cached) => {
-        if (!cancelled && cached) {
-          setProfileState({ scope: profileScope, value: cached });
-          profileRef.current = cached;
-        }
-      });
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [initialProfile, profileScope, userId]);
-
   // Synchronize controllers with current profile settings
   useEffect(() => {
     if (!dwellRef.current) {
@@ -264,10 +251,12 @@ export function HeadControlProvider({
   // Synchronize live profile settings & write to user-scoped cache
   const updateProfile = useCallback(
     (newProfile: AccessibilityProfile) => {
-      setProfileState({ scope: profileScope, value: newProfile });
+      setProfileState(newProfile);
       profileRef.current = newProfile;
-      if (userId) {
-        void setCachedProfile(newProfile, userId);
+      if (!runtimeUserIdRef.current) {
+        profileChangedBeforeIdentityRef.current = true;
+      } else {
+        void setCachedProfile(newProfile, runtimeUserIdRef.current);
       }
 
       if (dwellRef.current) {
@@ -285,8 +274,58 @@ export function HeadControlProvider({
         });
       }
     },
-    [dispatchHeadSelection, profileScope, userId]
+    [dispatchHeadSelection]
   );
+
+  const configureRuntime = useCallback(
+    ({
+      userId: nextUserId,
+      initialProfile: nextInitialProfile
+    }: {
+      userId: string | null;
+      initialProfile?: AccessibilityProfile | null;
+    }) => {
+      const previousUserId = runtimeUserIdRef.current;
+      const changedUser = previousUserId !== nextUserId;
+      const isInitialConfiguration = !runtimeConfiguredRef.current;
+      runtimeConfiguredRef.current = true;
+      runtimeUserIdRef.current = nextUserId;
+      if (changedUser) {
+        setRuntimeUserId(nextUserId);
+      }
+
+      // Preserve the active anonymous onboarding draft when entering the workspace.
+      // A genuine account switch receives its own server or cached profile instead.
+      const shouldApplyServerProfile =
+        Boolean(nextInitialProfile) &&
+        (!profileChangedBeforeIdentityRef.current || Boolean(previousUserId));
+
+      if (changedUser && shouldApplyServerProfile && nextInitialProfile) {
+        setProfileState(nextInitialProfile);
+        profileRef.current = nextInitialProfile;
+      }
+
+      if ((changedUser || isInitialConfiguration) && nextUserId && !nextInitialProfile) {
+        const configuredUserId = nextUserId;
+        if (changedUser) {
+          setProfileState(provisionalAccessibilityProfile);
+          profileRef.current = provisionalAccessibilityProfile;
+        }
+        void getCachedProfile(configuredUserId).then((cached) => {
+          if (runtimeUserIdRef.current === configuredUserId && cached) {
+            setProfileState(cached);
+            profileRef.current = cached;
+          }
+        });
+      }
+    },
+    []
+  );
+
+  // Direct provider consumers retain the same configuration contract as the root bridge.
+  useEffect(() => {
+    configureRuntime({ userId, initialProfile });
+  }, [configureRuntime, initialProfile, userId]);
 
   const setNeutralBaseline = useCallback((baseline: NeutralBaseline) => {
     setNeutralBaselineState(baseline);
@@ -299,12 +338,29 @@ export function HeadControlProvider({
     }
   }, []);
 
+  const clearCalibrationTimeout = useCallback(() => {
+    if (calibrationTimeoutRef.current !== null) {
+      clearTimeout(calibrationTimeoutRef.current);
+      calibrationTimeoutRef.current = null;
+    }
+  }, []);
+
   // Calibration triggers
   const startCalibration = useCallback(() => {
     if (lifecycleState !== "active") {
       return;
     }
-    calibrationEngineRef.current.start();
+    clearCalibrationTimeout();
+    const attemptId = calibrationEngineRef.current.start();
+    calibrationAttemptRef.current = attemptId;
+    calibrationTimeoutRef.current = setTimeout(() => {
+      if (calibrationAttemptRef.current !== attemptId) {
+        return;
+      }
+      const state = calibrationEngineRef.current.fail("timeout", attemptId);
+      setCalibrationState(state);
+      calibrationTimeoutRef.current = null;
+    }, CALIBRATION_CONFIG.timeoutMs);
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
     if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     restLockRef.current.reset();
@@ -314,12 +370,14 @@ export function HeadControlProvider({
     setDwellProgress(DEFAULT_DWELL);
     setGestureStatus(DEFAULT_GESTURE);
     setCalibrationState(calibrationEngineRef.current.getState());
-  }, [lifecycleState]);
+  }, [clearCalibrationTimeout, lifecycleState]);
 
   const cancelCalibration = useCallback(() => {
+    clearCalibrationTimeout();
+    calibrationAttemptRef.current += 1;
     calibrationEngineRef.current.cancel();
     setCalibrationState(calibrationEngineRef.current.getState());
-  }, []);
+  }, [clearCalibrationTimeout]);
 
   const prepareForSafeReacquisition = useCallback(() => {
     reacquisitionCountRef.current = 0;
@@ -332,13 +390,15 @@ export function HeadControlProvider({
     if (dwellRef.current) dwellRef.current.requireFreshCycle();
     if (gestureRef.current) gestureRef.current.disarmUntilRelease();
     if (calibrationEngineRef.current.getState().status === "capturing") {
-      calibrationEngineRef.current.clearSamples();
+      clearCalibrationTimeout();
+      calibrationAttemptRef.current += 1;
+      calibrationEngineRef.current.fail("tracking_lost");
       setCalibrationState(calibrationEngineRef.current.getState());
     }
     setActiveTarget(null);
     setDwellProgress(DEFAULT_DWELL);
     setGestureStatus(DEFAULT_GESTURE);
-  }, []);
+  }, [clearCalibrationTimeout]);
 
   // Frame processing callback reading CURRENT profileRef.current
   const handleFrame = useCallback(
@@ -360,7 +420,9 @@ export function HeadControlProvider({
         if (dwellRef.current) dwellRef.current.requireFreshCycle();
         if (gestureRef.current) gestureRef.current.disarmUntilRelease();
         if (calibrationEngineRef.current.getState().status === "capturing") {
-          calibrationEngineRef.current.clearSamples();
+          clearCalibrationTimeout();
+          calibrationAttemptRef.current += 1;
+          calibrationEngineRef.current.fail("tracking_lost");
           setCalibrationState(calibrationEngineRef.current.getState());
         }
         setDwellProgress(DEFAULT_DWELL);
@@ -416,10 +478,17 @@ export function HeadControlProvider({
       const calibrationWasCapturing =
         calibrationEngineRef.current.getState().status === "capturing";
       if (calibrationWasCapturing) {
-        const state = calibrationEngineRef.current.addSample(data.pose);
+        const state = calibrationEngineRef.current.addSample(
+          data.pose,
+          data.timestampMs,
+          calibrationAttemptRef.current
+        );
         setCalibrationState(state);
         if (state.status === "completed" && state.baseline) {
+          clearCalibrationTimeout();
           setNeutralBaseline(state.baseline);
+        } else if (state.status === "failed") {
+          clearCalibrationTimeout();
         }
       }
 
@@ -527,7 +596,7 @@ export function HeadControlProvider({
         setGestureStatus(DEFAULT_GESTURE);
       }
     },
-    [setNeutralBaseline]
+    [clearCalibrationTimeout, setNeutralBaseline]
   );
 
   const startCamera = useCallback(
@@ -573,6 +642,17 @@ export function HeadControlProvider({
         videoElement.srcObject = stream;
       } catch {
         return failStartup("camera_unavailable");
+      }
+
+      const playPreview = () => {
+        void videoElement.play().catch(() => {
+          // The engine remains authoritative if a browser blocks muted playback.
+        });
+      };
+      if (videoElement.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        playPreview();
+      } else {
+        videoElement.addEventListener("loadedmetadata", playPreview, { once: true });
       }
 
       let initialized = false;
@@ -724,6 +804,8 @@ export function HeadControlProvider({
     setIsRestLocked(false);
     targetAssistRef.current.clear();
     activeModalRef.current = null;
+    clearCalibrationTimeout();
+    calibrationAttemptRef.current += 1;
     calibrationEngineRef.current.cancel();
     setCalibrationState(calibrationEngineRef.current.getState());
     setActiveTarget(null);
@@ -732,7 +814,7 @@ export function HeadControlProvider({
     removeBackgroundVideo();
     setErrorCategory(null);
     setLifecycleState("disabled");
-  }, [removeBackgroundVideo]);
+  }, [clearCalibrationTimeout, removeBackgroundVideo]);
 
   // Provider unmount teardown effect
   useEffect(() => {
@@ -741,16 +823,17 @@ export function HeadControlProvider({
       if (engineRef.current) {
         engineRef.current.disable();
       }
+      clearCalibrationTimeout();
       removeBackgroundVideo();
     };
-  }, [removeBackgroundVideo]);
+  }, [clearCalibrationTimeout, removeBackgroundVideo]);
 
   const isPaused = lifecycleState === "paused";
 
   return (
     <HeadControlContext.Provider
       value={{
-        userId,
+        userId: runtimeUserId,
         lifecycleState,
         errorCategory,
         pointerPosition,
@@ -771,7 +854,8 @@ export function HeadControlProvider({
         resumeControl,
         disableControl,
         setNeutralBaseline,
-        updateProfile
+        updateProfile,
+        configureRuntime
       }}
     >
       {children}
@@ -794,4 +878,58 @@ export function useHeadControl(): HeadControlContextValue {
     throw new Error("useHeadControl must be used within a HeadControlProvider");
   }
   return context;
+}
+
+/** Configures the shared runtime when authenticated workspace data becomes available. */
+export function HeadControlRuntimeConfigurator({
+  userId,
+  initialProfile
+}: {
+  userId: string | null;
+  initialProfile?: AccessibilityProfile | null;
+}) {
+  const { configureRuntime } = useHeadControl();
+
+  useEffect(() => {
+    configureRuntime({ userId, initialProfile });
+  }, [configureRuntime, initialProfile, userId]);
+
+  return null;
+}
+
+/**
+ * Uses the app-level runtime when present and supplies an isolated provider for
+ * independently rendered shells and focused component tests.
+ */
+export function HeadControlRuntimeBoundary({
+  children,
+  engineFactory,
+  initialProfile,
+  userId
+}: {
+  children: ReactNode;
+  engineFactory?: HeadControlEngineFactory;
+  initialProfile?: AccessibilityProfile | null;
+  userId: string | null;
+}) {
+  const existingRuntime = useContext(HeadControlContext);
+
+  if (existingRuntime) {
+    return (
+      <>
+        <HeadControlRuntimeConfigurator initialProfile={initialProfile} userId={userId} />
+        {children}
+      </>
+    );
+  }
+
+  return (
+    <HeadControlProvider
+      engineFactory={engineFactory}
+      initialProfile={initialProfile}
+      userId={userId}
+    >
+      {children}
+    </HeadControlProvider>
+  );
 }

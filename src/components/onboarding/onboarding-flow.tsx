@@ -23,7 +23,7 @@ import { AccessibilityControls } from "@/components/workspace/accessibility-cont
 import { StatusChip } from "@/components/workspace/status-chip";
 
 import {
-  HeadControlProvider,
+  HeadControlRuntimeBoundary,
   useHeadControl,
   type HeadControlEngineFactory
 } from "@/lib/client/vision/head-control-context";
@@ -66,14 +66,14 @@ function getPhaseRadialProgress(phaseId: OnboardingPhase, currentPhase: Onboardi
   return 100;
 }
 
-function getNestedPartLabel(phaseId: OnboardingPhase, substepIndex: number): string | null {
+function getNestedPart(phaseId: OnboardingPhase, substepIndex: number): "1" | "2" | null {
   if (phaseId === 2) {
-    if (substepIndex <= 5) return "Part 1 of 2";
-    return "Part 2 of 2";
+    if (substepIndex <= 5) return "1";
+    return "2";
   }
   if (phaseId === 3) {
-    if (substepIndex <= 8) return "Part 1 of 2";
-    return "Part 2 of 2";
+    if (substepIndex <= 8) return "1";
+    return "2";
   }
   return null;
 }
@@ -86,9 +86,9 @@ export function OnboardingFlow({
   engineFactory?: HeadControlEngineFactory;
 }) {
   return (
-    <HeadControlProvider engineFactory={engineFactory}>
-      <OnboardingFlowContent locale={locale} />
-    </HeadControlProvider>
+    <HeadControlRuntimeBoundary engineFactory={engineFactory} userId={null}>
+    <OnboardingFlowContent locale={locale} />
+    </HeadControlRuntimeBoundary>
   );
 }
 
@@ -120,6 +120,12 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraAttemptRef = useRef(0);
+  const phaseSubstepRef = useRef<Record<OnboardingPhase, number>>({
+    1: 0,
+    2: 2,
+    3: 7,
+    4: 10
+  });
   const options = { locale };
 
   // Calculate current visible phase (1 to 4)
@@ -128,6 +134,10 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   else if (substepIndex >= 2 && substepIndex <= 6) currentPhase = 2;
   else if (substepIndex >= 7 && substepIndex <= 9) currentPhase = 3;
   else currentPhase = 4;
+
+  useEffect(() => {
+    phaseSubstepRef.current[currentPhase] = substepIndex;
+  }, [currentPhase, substepIndex]);
 
   const browserVoiceSupported = useBrowserValue(isSpeechRecognitionSupported, false);
   const voiceSupported = browserVoiceSupported && !recognitionFailed;
@@ -141,11 +151,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
   const stopCamera = useCallback(() => {
     cameraAttemptRef.current += 1;
-    headControl.disableControl();
-    streamRef.current = null;
-    if (videoRef.current !== null) {
-      videoRef.current.srcObject = null;
-    }
+    headControl.pauseControl();
     setCameraOutcome("paused");
     setCameraFailure(null);
   }, [headControl]);
@@ -153,7 +159,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   useEffect(() => {
     return () => {
       cameraAttemptRef.current += 1;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      // The shared provider owns the stream so head control survives workspace navigation.
     };
   }, []);
 
@@ -170,9 +176,15 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
       return;
     }
 
+    if (headControl.lifecycleState === "paused") {
+      headControl.resumeControl();
+      setCameraOutcome("active");
+      setCameraFailure(null);
+      return;
+    }
+
     setCameraOutcome("starting");
     setCameraFailure(null);
-    headControl.disableControl();
     const attempt = cameraAttemptRef.current + 1;
     cameraAttemptRef.current = attempt;
 
@@ -194,9 +206,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
       const operational = await headControl.startCamera(videoElement, stream);
       if (cameraAttemptRef.current !== attempt) {
-        if (operational) {
-          headControl.disableControl();
-        }
         return;
       }
       if (operational) {
@@ -245,21 +254,23 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   const calibrationProgress = Math.round(
     headControl.calibrationState.progressRatio * 100
   );
-  const calibrationCopy =
-    headControl.calibrationState.status === "completed"
+  const calibrationStatus = headControl.calibrationState.status;
+  const calibrationCopy = !canCalibrate
+    ? m.onboarding_calibration_tracking_required({}, options)
+    : calibrationStatus === "completed"
       ? m.onboarding_calibration_complete({}, options)
-      : !canCalibrate && headControl.calibrationState.status === "capturing"
-        ? m.onboarding_calibration_tracking_interrupted({}, options)
-        : !canCalibrate
-          ? m.onboarding_calibration_tracking_required({}, options)
-          : headControl.calibrationState.status === "capturing"
-            ? m.onboarding_calibration_capturing(
-                { progress: calibrationProgress },
-                options
-              )
-            : headControl.calibrationState.status === "failed"
-              ? m.onboarding_calibration_failed({}, options)
-              : m.onboarding_calibration_idle({}, options);
+      : calibrationStatus === "capturing"
+        ? m.onboarding_calibration_capturing({ progress: calibrationProgress }, options)
+        : calibrationStatus === "failed"
+          ? headControl.calibrationState.errorMessage === "tracking_lost"
+            ? m.onboarding_calibration_tracking_interrupted({}, options)
+            : m.onboarding_calibration_failed({}, options)
+          : m.onboarding_calibration_idle({}, options);
+  const calibrationHelper = !canCalibrate
+    ? m.onboarding_head_setup_detail({}, options)
+    : calibrationStatus === "capturing"
+      ? m.onboarding_calibration_capturing({ progress: calibrationProgress }, options)
+      : m.onboarding_head_setup_detail({}, options);
 
   const requestMicrophone = useCallback(async () => {
     if (typeof navigator.mediaDevices?.getUserMedia !== "function") {
@@ -317,10 +328,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
   // Phase navigation
   const goToPhase = (targetPhase: OnboardingPhase) => {
-    if (targetPhase === 1) setSubstepIndex(0);
-    else if (targetPhase === 2) setSubstepIndex(2);
-    else if (targetPhase === 3) setSubstepIndex(7);
-    else setSubstepIndex(10);
+    setSubstepIndex(phaseSubstepRef.current[targetPhase]);
   };
 
   const skipPhase2 = () => {
@@ -366,9 +374,9 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
             {PHASES.map((p, idx) => {
               const isActive = currentPhase === p.id;
               const isCompleted = currentPhase > p.id;
-              const isAvailable = isCompleted || isActive;
               const progressPercentage = getPhaseRadialProgress(p.id, currentPhase, substepIndex);
-              const partLabel = getNestedPartLabel(p.id, substepIndex);
+              const part = getNestedPart(p.id, substepIndex);
+              const partLabel = part ? m.onboarding_phase_part({ part }, options) : null;
               const CIRCUMFERENCE = 75.398;
               const dashOffset = CIRCUMFERENCE - (progressPercentage / 100) * CIRCUMFERENCE;
 
@@ -378,9 +386,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                   <button
                     aria-current={isActive ? "step" : undefined}
                     className={`aksa-onboarding-rail__button ${isActive ? "is-active" : ""} ${isCompleted ? "is-completed" : ""}`}
-                    disabled={!isAvailable}
                     onClick={() => goToPhase(p.id)}
-                    tabIndex={isAvailable ? 0 : -1}
                     type="button"
                   >
                     <span className="aksa-onboarding-rail__badge">
@@ -409,7 +415,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                     </span>
                     <span className="aksa-onboarding-rail__label">
                       {m[p.titleKey]({}, options)}
-                      {isActive && partLabel ? (
+                      {isActive && part ? (
                         <span className="aksa-onboarding-rail__optional-tag">
                           {" · "}{partLabel}
                         </span>
@@ -610,7 +616,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
                   {effectiveCameraOutcome === "paused" ? (
                     <div className="aksa-onboarding-preview-box">
-                      <p className="aksa-hint">Camera paused.</p>
+                      <p className="aksa-hint">{m.a11y_camera_paused_status({}, options)}</p>
                       <button className="aksa-button aksa-button--primary" onClick={() => void requestCamera()} type="button">
                         <Camera aria-hidden="true" className="aksa-icon" />
                         <span>{m.onboarding_resume_camera({}, options)}</span>
@@ -661,9 +667,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                         <h2 className="aksa-onboarding-calibration-card__title" id="onboarding-calibration-title">
                           {calibrationCopy}
                         </h2>
-                        <p className="aksa-onboarding-calibration-card__helper">
-                          {m.onboarding_head_setup_detail({}, options)}
-                        </p>
+                        <p className="aksa-onboarding-calibration-card__helper">{calibrationHelper}</p>
                       </div>
                     </div>
 
@@ -683,19 +687,39 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                       </div>
                     ) : null}
 
-                    <button
-                      className="aksa-button aksa-button--primary"
-                      disabled={!canCalibrate || headControl.calibrationState.status === "capturing"}
-                      onClick={handleStartCalibration}
-                      type="button"
-                    >
-                      <Sparkles aria-hidden="true" className="aksa-icon" size={16} />
-                      <span>
-                        {headControl.calibrationState.status === "completed"
-                          ? m.onboarding_calibration_restart({}, options)
-                          : m.onboarding_calibration_start({}, options)}
-                      </span>
-                    </button>
+                    {calibrationStatus === "capturing" ? (
+                      <button
+                        className="aksa-button aksa-button--secondary aksa-onboarding-calibration-card__action"
+                        onClick={headControl.cancelCalibration}
+                        type="button"
+                      >
+                        {m.confirmation_cancel({}, options)}
+                      </button>
+                    ) : !canCalibrate ? (
+                      <button
+                        className="aksa-button aksa-button--primary aksa-onboarding-calibration-card__action"
+                        onClick={() => void requestCamera()}
+                        type="button"
+                      >
+                        <Camera aria-hidden="true" className="aksa-icon" size={16} />
+                        <span>{m.a11y_start_head_control({}, options)}</span>
+                      </button>
+                    ) : (
+                      <button
+                        className="aksa-button aksa-button--primary aksa-onboarding-calibration-card__action"
+                        onClick={handleStartCalibration}
+                        type="button"
+                      >
+                        <Sparkles aria-hidden="true" className="aksa-icon" size={16} />
+                        <span>
+                          {calibrationStatus === "completed"
+                            ? m.onboarding_calibration_restart({}, options)
+                            : calibrationStatus === "failed"
+                              ? m.action_retry({}, options)
+                              : m.onboarding_calibration_start({}, options)}
+                        </span>
+                      </button>
+                    )}
                   </section>
                 </div>
               ) : null}
