@@ -176,6 +176,17 @@ describe("onboarding", () => {
     expect(phaseButtons[3]).toHaveAttribute("aria-current", "step");
   });
 
+  it("opens Head Control at Part 1 even after another phase was visited", () => {
+    window.sessionStorage.setItem("aksa-onboarding-step", "6");
+    render(<OnboardingFlow locale="en" />);
+
+    fireEvent.click(document.querySelectorAll<HTMLButtonElement>(".aksa-onboarding-rail__button")[1]);
+
+    expect(
+      screen.getByRole("heading", { name: m.onboarding_head_explanation_title({}, { locale: "en" }) })
+    ).toBeInTheDocument();
+  });
+
   it("does not create text selection when programmatically focusing headings on phase transition", () => {
     render(<OnboardingFlow locale="en" />);
     advanceTo(m.onboarding_head_explanation_title({}, { locale: "en" }));

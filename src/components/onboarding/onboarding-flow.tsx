@@ -328,7 +328,8 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
   // Phase navigation
   const goToPhase = (targetPhase: OnboardingPhase) => {
-    setSubstepIndex(phaseSubstepRef.current[targetPhase]);
+    // Entering Head Control always starts with its explanation before calibration/tuning.
+    setSubstepIndex(targetPhase === 2 ? 2 : phaseSubstepRef.current[targetPhase]);
   };
 
   const skipPhase2 = () => {
