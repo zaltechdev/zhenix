@@ -28,6 +28,7 @@
     "pretest": "bun run i18n:compile"
   },
   "dependencies": {
+    "@ai-sdk/google-vertex": "^5.0.47",
     "@icons-pack/react-simple-icons": "^13.13.0",
     "@libsql/client": "0.17.4",
     "@mediapipe/tasks-vision": "1.0.1",

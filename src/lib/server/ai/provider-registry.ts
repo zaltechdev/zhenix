@@ -5,6 +5,7 @@ import {
   fallbackProviderStatus,
   googleAiStudioStatus,
   primaryProviderStatus,
+  vertexStatus,
   type ConfigurationStatus
 } from "@/lib/server/config/runtime-config";
 import type { AksaError } from "@/lib/contracts/errors";
@@ -90,22 +91,22 @@ function readTimeoutConfig(): TimeoutConfig {
 export function providerRegistry(): ProviderRegistry {
   return {
     resolve(role) {
-      const googleAi = googleAiStudioStatus();
-      if (googleAi.configured) {
+      const vertex = vertexStatus();
+      if (vertex.configured) {
         return {
           status: "ready",
-          providerId: "google_ai_studio",
+          providerId: "vertex_ai",
           role,
           retry: readRetryConfig(),
           timeouts: readTimeoutConfig()
         };
       }
 
-      const primary = primaryProviderStatus();
-      if (primary.configured) {
+      const googleAi = googleAiStudioStatus();
+      if (googleAi.configured) {
         return {
           status: "ready",
-          providerId: "vertex_ai",
+          providerId: "google_ai_studio",
           role,
           retry: readRetryConfig(),
           timeouts: readTimeoutConfig()
@@ -131,7 +132,7 @@ export function providerRegistry(): ProviderRegistry {
       return {
         status: "not_configured",
         error: createAksaError("not_configured"),
-        missingKeys: primary.missingKeys
+        missingKeys: vertex.missingKeys
       };
     },
 

@@ -65,7 +65,13 @@ export function authStatus(): ConfigurationStatus {
 }
 
 export function googleStatus(): ConfigurationStatus {
-  return statusFor(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
+  return statusFor([
+    "AUTH_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_REDIRECT_URI",
+    "OAUTH_TOKEN_ENCRYPTION_KEY"
+  ]);
 }
 
 export function googleApiConfig() {
@@ -95,20 +101,20 @@ export function googleAiStudioClassifierConfig(): { apiKey: string; model: strin
 }
 
 export function primaryProviderStatus(): ConfigurationStatus {
-  const googleAi = googleAiStudioStatus();
-  if (googleAi.configured) {
-    return { configured: true, missingKeys: [] };
-  }
+  const vertex = vertexStatus();
+  if (vertex.configured) return vertex;
+  return googleAiStudioStatus();
+}
 
-  const base = statusFor(["VERTEX_AI_PROJECT_ID", "VERTEX_AI_LOCATION", "VERTEX_AI_MODEL"]);
-  /**
-   * The repository installs AI SDK Core but no Vertex provider package, so
-   * provider execution is unavailable even with credentials present.
-   */
-  return {
-    configured: false,
-    missingKeys: [...base.missingKeys, "VERTEX_AI_PROVIDER_PACKAGE"]
-  };
+export function vertexStatus(): ConfigurationStatus {
+  return statusFor(["VERTEX_AI_PROJECT_ID", "VERTEX_AI_LOCATION", "VERTEX_AI_MODEL"]);
+}
+
+export function vertexConfig(): { project: string; location: string; model: string } | null {
+  const project = readSecret("VERTEX_AI_PROJECT_ID");
+  const location = readSecret("VERTEX_AI_LOCATION");
+  const model = readSecret("VERTEX_AI_MODEL");
+  return project && location && model ? { project, location, model } : null;
 }
 
 export function fallbackProviderStatus(): ConfigurationStatus {

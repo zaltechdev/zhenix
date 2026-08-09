@@ -136,6 +136,21 @@ export async function getConnectedEmail(userId: string): Promise<string | null> 
   return connection?.status === "active" ? connection.providerEmail : null;
 }
 
+export async function getGrantedGoogleScopes(userId: string): Promise<string[]> {
+  const connection = await db.query.oauthConnections.findFirst({
+    where: and(eq(oauthConnections.userId, userId), eq(oauthConnections.provider, "google"))
+  });
+  if (!connection?.grantedScopes) return [];
+  try {
+    const parsed: unknown = JSON.parse(connection.grantedScopes);
+    return Array.isArray(parsed)
+      ? parsed.filter((scope): scope is string => typeof scope === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getGoogleConnectionState(
   userId: string
 ): Promise<"not_connected" | "connected" | "needs_reconnect" | "revoked"> {

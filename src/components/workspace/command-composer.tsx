@@ -323,9 +323,9 @@ export function CommandComposer({
     }
 
     try {
-      const contextDocumentId = typeof window === "undefined"
+      const contextDocumentId = state.result?.documentId ?? (typeof window === "undefined"
         ? null
-        : new URLSearchParams(window.location.search).get("id");
+        : new URLSearchParams(window.location.search).get("id"));
       const response = await fetch("/api/commands", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -2,6 +2,7 @@ import { assertServerOnly } from "@/lib/server/server-guard";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { fetchGoogleJson } from "@/lib/server/google/http";
+import { googleApiConfig } from "@/lib/server/config/runtime-config";
 
 assertServerOnly("src/lib/server/google/oauth.ts");
 
@@ -52,6 +53,8 @@ export function googleOAuthConfig() {
 export function isGoogleOAuthConfigured(): boolean {
   try {
     googleOAuthConfig();
+    requireEnv("AUTH_SECRET");
+    requireEnv("OAUTH_TOKEN_ENCRYPTION_KEY");
     return true;
   } catch {
     return false;
@@ -195,7 +198,8 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokens>
       client_secret: config.clientSecret,
       redirect_uri: config.redirectUri,
       grant_type: "authorization_code"
-    })
+    }),
+    signal: AbortSignal.timeout(googleApiConfig().timeoutMs)
   });
 
   if (!response.ok) {
@@ -234,7 +238,8 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
       client_id: config.clientId,
       client_secret: config.clientSecret,
       grant_type: "refresh_token"
-    })
+    }),
+    signal: AbortSignal.timeout(googleApiConfig().timeoutMs)
   });
 
   if (!response.ok) {
@@ -287,7 +292,8 @@ export async function revokeToken(token: string): Promise<boolean> {
   try {
     const response = await fetch(`${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(token)}`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      signal: AbortSignal.timeout(googleApiConfig().timeoutMs)
     });
     return response.ok;
   } catch {

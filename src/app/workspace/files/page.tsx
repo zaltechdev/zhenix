@@ -11,13 +11,11 @@ export default async function FilesPage(props: {
   const locale = await getRequestLocale();
   const searchParams = await props.searchParams;
   const query = typeof searchParams.q === "string" ? searchParams.q : "";
+  const pageToken = typeof searchParams.pageToken === "string" ? searchParams.pageToken : null;
   const options = { locale };
 
   const gateway = googleGateway();
-  const [listing, picker] = await Promise.all([
-    gateway.searchDrive({ query }),
-    gateway.readPickerCapability()
-  ]);
+  const listing = await gateway.searchDrive({ query, pageToken });
 
   return (
     <div className="aksa-surface">
@@ -32,7 +30,7 @@ export default async function FilesPage(props: {
               </h2>
               <FilesSearchForm defaultQuery={query} locale={locale} />
             </section>
-            <FilesSurface listing={data} locale={locale} picker={picker} />
+            <FilesSurface listing={data} locale={locale} />
           </>
         )}
       </SurfaceState>

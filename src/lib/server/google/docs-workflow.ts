@@ -19,9 +19,10 @@ import {
   GoogleApiError,
   type GoogleDocsGetResponse
 } from "@/lib/server/google/docs-api";
-import { getGoogleDriveItem, listGoogleDocuments } from "@/lib/server/google/drive-api";
+import { getGoogleDriveItem, listGoogleDocuments, listGoogleDriveItems } from "@/lib/server/google/drive-api";
 import {
   getGoogleConnectionState,
+  getGrantedGoogleScopes,
   getValidAccessToken,
   markGoogleNeedsReconnect
 } from "@/lib/server/google/token-store";
@@ -109,7 +110,10 @@ function errorFromGoogle(error: unknown): AksaError {
   return createAksaError("internal_error");
 }
 
-async function accessTokenOrError(userId: string): Promise<{ token: string } | { error: AksaError }> {
+async function accessTokenOrError(
+  userId: string,
+  required: "drive_read" | "docs_read" | "docs_write"
+): Promise<{ token: string } | { error: AksaError }> {
   if (!googleStatus().configured) {
     return { error: createAksaError("not_configured") };
   }
@@ -121,6 +125,19 @@ async function accessTokenOrError(userId: string): Promise<{ token: string } | {
   if (connectionState !== "connected") {
     return { error: createAksaError("connection_required") };
   }
+
+  const scopes = await getGrantedGoogleScopes(userId);
+  const hasScope = required === "docs_write"
+    ? scopes.includes("https://www.googleapis.com/auth/documents")
+    : required === "docs_read"
+      ? scopes.includes("https://www.googleapis.com/auth/documents") ||
+        scopes.includes("https://www.googleapis.com/auth/documents.readonly")
+      : scopes.some((scope) => [
+          "https://www.googleapis.com/auth/drive",
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.metadata.readonly"
+        ].includes(scope));
+  if (!hasScope) return { error: createAksaError("scope_required") };
 
   const token = await getValidAccessToken(userId);
   if (!token) {
@@ -304,7 +321,7 @@ export async function listDocumentsForUser(
   query = "",
   pageToken: string | null = null
 ): Promise<ResourceState<DriveListing>> {
-  const access = await accessTokenOrError(context.userId);
+  const access = await accessTokenOrError(context.userId, "drive_read");
   if ("error" in access) return blockedResource(access.error);
 
   try {
@@ -320,11 +337,32 @@ export async function listDocumentsForUser(
   }
 }
 
+export async function listDriveItemsForUser(
+  context: WorkflowContext,
+  query = "",
+  pageToken: string | null = null
+): Promise<ResourceState<DriveListing>> {
+  const access = await accessTokenOrError(context.userId, "drive_read");
+  if ("error" in access) return blockedResource(access.error);
+
+  try {
+    const listing = await listGoogleDriveItems(access.token, query, pageToken);
+    return listing.items.length === 0 && !listing.nextPageToken
+      ? emptyResource("no_results")
+      : readyResource(listing);
+  } catch (error) {
+    if (error instanceof GoogleApiError && error.isUnauthorized) {
+      await markGoogleNeedsReconnect(context.userId);
+    }
+    return blockedResource(errorFromGoogle(error));
+  }
+}
+
 export async function readDriveItemForUser(
   context: WorkflowContext,
   itemId: string
 ): Promise<ResourceState<DriveItem>> {
-  const access = await accessTokenOrError(context.userId);
+  const access = await accessTokenOrError(context.userId, "drive_read");
   if ("error" in access) return blockedResource(access.error);
 
   try {
@@ -342,7 +380,7 @@ export async function readDocumentForUser(
   documentId: string
 ): Promise<ResourceState<AksaDocumentModel>> {
   const item = affectedDocument(documentId, "Google document");
-  const access = await accessTokenOrError(context.userId);
+  const access = await accessTokenOrError(context.userId, "docs_read");
   if ("error" in access) {
     return blockedResource(access.error);
   }
@@ -379,7 +417,7 @@ export async function readDocumentSnapshotForUser(
   context: WorkflowContext,
   documentId: string
 ): Promise<ResourceState<AksaDocumentModel>> {
-  const access = await accessTokenOrError(context.userId);
+  const access = await accessTokenOrError(context.userId, "docs_read");
   if ("error" in access) return blockedResource(access.error);
 
   try {
@@ -403,7 +441,7 @@ export async function readDocumentForAgent(
   documentId: string
 ): Promise<AgentDocumentReadResult> {
   const item = affectedDocument(documentId, "Google document");
-  const access = await accessTokenOrError(context.userId);
+  const access = await accessTokenOrError(context.userId, "docs_read");
   if ("error" in access) return { outcome: "blocked", error: access.error };
 
   const record = await beginTask(
@@ -475,7 +513,7 @@ export async function proposeDocumentAppend(
   const parsed = appendRequestSchema.safeParse(input);
   if (!parsed.success) return { outcome: "blocked", error: createAksaError("validation_failed") };
 
-  const access = await accessTokenOrError(context.userId);
+  const access = await accessTokenOrError(context.userId, "docs_write");
   if ("error" in access) return { outcome: "blocked", error: access.error };
 
   let raw: GoogleDocsGetResponse;
@@ -616,7 +654,7 @@ async function taskForUser(taskId: string, context: WorkflowContext): Promise<Ta
 
   return {
     id: task.id,
-    title: task.intent === "edit_document" ? "Update a Google Doc" : "Read a Google Doc",
+    title: task.commandText || (task.intent === "edit_document" ? "Update a Google Doc" : "Read a Google Doc"),
     intentCategory: intentCategorySchema.safeParse(task.intent).success
       ? (task.intent as Task["intentCategory"])
       : null,
@@ -904,7 +942,7 @@ export async function respondToDocumentConfirmation(
 
   const reviewItem = item;
   await insertActivity(context, row.taskId, "confirmation_approved", "documents_activity_review", [reviewItem], null);
-  const access = await accessTokenOrError(context.userId);
+  const access = await accessTokenOrError(context.userId, "docs_write");
   if ("error" in access) {
     const task = await finishMutation(context, row.taskId, access.error, reviewItem, false);
     return { outcome: "failed", error: access.error, task };

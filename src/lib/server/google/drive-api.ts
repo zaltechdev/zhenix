@@ -7,6 +7,9 @@ assertServerOnly("src/lib/server/google/drive-api.ts");
 
 const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const GOOGLE_DOC_MIME = "application/vnd.google-apps.document";
+const GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder";
+const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
+const GOOGLE_SLIDES_MIME = "application/vnd.google-apps.presentation";
 
 type GoogleDriveFile = {
   id?: unknown;
@@ -46,7 +49,19 @@ function toDriveItem(file: GoogleDriveFile): DriveItem | null {
     id: file.id,
     name: file.name,
     mimeType: file.mimeType,
-    category: file.mimeType === GOOGLE_DOC_MIME ? "document" : "other",
+    category: file.mimeType === GOOGLE_FOLDER_MIME
+      ? "folder"
+      : file.mimeType === GOOGLE_DOC_MIME
+        ? "document"
+        : file.mimeType === GOOGLE_SHEET_MIME
+          ? "spreadsheet"
+          : file.mimeType === GOOGLE_SLIDES_MIME
+            ? "presentation"
+            : file.mimeType === "application/pdf"
+              ? "pdf"
+              : file.mimeType.startsWith("image/")
+                ? "image"
+                : "other",
     parentId: Array.isArray(file.parents) && typeof file.parents[0] === "string" ? file.parents[0] : null,
     parentName: null,
     modifiedAt: typeof file.modifiedTime === "string" ? Date.parse(file.modifiedTime) || null : null,
@@ -58,13 +73,14 @@ function toDriveItem(file: GoogleDriveFile): DriveItem | null {
   };
 }
 
-export async function listGoogleDocuments(
+async function listDriveFiles(
   accessToken: string,
-  query = "",
-  pageToken: string | null = null
+  driveQuery: string,
+  query: string,
+  pageToken: string | null
 ): Promise<DriveListing> {
   const params = new URLSearchParams({
-    q: `mimeType='${GOOGLE_DOC_MIME}' and trashed=false${query.trim() ? ` and name contains '${escapeDriveQuery(query.trim())}'` : ""}`,
+    q: driveQuery,
     pageSize: String(contentLimits().drivePageSize),
     orderBy: "modifiedTime desc",
     spaces: "drive",
@@ -74,23 +90,46 @@ export async function listGoogleDocuments(
 
   const raw = await fetchGoogleJson<GoogleDriveListResponse>(
     `${DRIVE_FILES_URL}?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json"
-      }
-    },
+    { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } },
     "drive.files.list"
   );
-
-  const items = (raw.files ?? []).map(toDriveItem).filter((item): item is DriveItem => item !== null);
-
   return {
-    items,
+    items: (raw.files ?? []).map(toDriveItem).filter((item): item is DriveItem => item !== null),
     nextPageToken: typeof raw.nextPageToken === "string" ? raw.nextPageToken : null,
     incompleteSearch: raw.incompleteSearch === true,
     query: query.trim() || null
   };
+}
+
+export async function listGoogleDriveItems(
+  accessToken: string,
+  query = "",
+  pageToken: string | null = null
+): Promise<DriveListing> {
+  const driveQuery = `trashed=false${query.trim() ? ` and name contains '${escapeDriveQuery(query.trim())}'` : ""}`;
+  return listDriveFiles(accessToken, driveQuery, query, pageToken);
+}
+
+export async function listGoogleDocuments(
+  accessToken: string,
+  query = "",
+  pageToken: string | null = null
+): Promise<DriveListing> {
+  const driveQuery = `mimeType='${GOOGLE_DOC_MIME}' and trashed=false${query.trim() ? ` and name contains '${escapeDriveQuery(query.trim())}'` : ""}`;
+  return listDriveFiles(accessToken, driveQuery, query, pageToken);
+}
+
+export async function getGoogleDriveOpenUrl(accessToken: string, itemId: string): Promise<string> {
+  const params = new URLSearchParams({ fields: "id,webViewLink" });
+  const raw = await fetchGoogleJson<GoogleDriveFile>(
+    `${DRIVE_FILES_URL}/${encodeURIComponent(itemId)}?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } },
+    "drive.files.get"
+  );
+  if (typeof raw.webViewLink !== "string" || !raw.webViewLink.startsWith("https://")) {
+    throw new GoogleApiError(404, "drive.files.get");
+  }
+  return raw.webViewLink;
 }
 
 export async function getGoogleDriveItem(accessToken: string, itemId: string): Promise<DriveItem> {

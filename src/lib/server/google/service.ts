@@ -10,9 +10,9 @@ import type {
   WriteProposal
 } from "@/lib/server/google/gateway";
 import { readSessionState } from "@/lib/server/auth/service";
-import { getConnectedEmail, getGoogleConnectionState, getValidAccessToken } from "@/lib/server/google/token-store";
+import { getConnectedEmail, getGoogleConnectionState, getGrantedGoogleScopes, getValidAccessToken } from "@/lib/server/google/token-store";
 import {
-  listDocumentsForUser,
+  listDriveItemsForUser,
   proposeDocumentAppend,
   readDocumentForUser,
   readDriveItemForUser,
@@ -67,11 +67,25 @@ function createRealGoogleGateway(): GoogleWorkspaceGateway {
         }
       }
       const email = await getConnectedEmail(session.session.userId);
+      const scopes = state === "connected" ? await getGrantedGoogleScopes(session.session.userId) : [];
+      const hasDocsWrite = scopes.includes("https://www.googleapis.com/auth/documents");
+      const hasDocsRead = hasDocsWrite || scopes.includes("https://www.googleapis.com/auth/documents.readonly");
+      const hasDriveRead = scopes.some((scope) => [
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/drive.metadata.readonly"
+      ].includes(scope));
 
       return {
         state,
         accountEmail: state === "connected" || state === "needs_reconnect" ? email : null,
-        grantedCapabilities: state === "connected" ? ["docs_read", "docs_write", "drive_read"] : [],
+        grantedCapabilities: state === "connected"
+          ? [
+              ...(hasDocsRead ? ["docs_read" as const] : []),
+              ...(hasDocsWrite ? ["docs_write" as const] : []),
+              ...(hasDriveRead ? ["drive_read" as const] : [])
+            ]
+          : [],
         checkedAt: Date.now()
       };
     },
@@ -79,7 +93,7 @@ function createRealGoogleGateway(): GoogleWorkspaceGateway {
     async searchDrive(input) {
       const session = await readSessionState();
       if (session.status !== "authenticated") return blocked();
-      return listDocumentsForUser(session.session, input.query, input.pageToken ?? null);
+      return listDriveItemsForUser(session.session, input.query, input.pageToken ?? null);
     },
     async readDriveItem(itemId) {
       const session = await readSessionState();
