@@ -14,8 +14,10 @@ import type { AksaDocumentModel } from "@/lib/contracts/aksa-document";
 import { undoRecordSchema } from "@/lib/contracts/undo";
 import { SurfaceState } from "@/components/workspace/state-panel";
 import { FilesSurface } from "@/components/workspace/files-surface";
-import { SheetSurface } from "@/components/workspace/sheet-surface";
+import { SheetPreviewSurface, SheetSurface } from "@/components/workspace/sheet-surface";
 import { MailSurface } from "@/components/workspace/mail-surface";
+import { SearchSurface } from "@/components/workspace/search-surface";
+import { SurfaceHeader } from "@/components/workspace/surface-layout";
 import { DocumentSurface } from "@/components/workspace/document-surface";
 import { SlidesSurface } from "@/components/workspace/slides-surface";
 import { ArtifactView } from "@/components/workspace/artifact-view";
@@ -23,13 +25,91 @@ import { ActivityList } from "@/components/workspace/activity-list";
 import { UndoPanel } from "@/components/workspace/undo-panel";
 import { CapabilitySummary } from "@/components/workspace/capability-summary";
 import { capabilitySnapshotSchema } from "@/lib/contracts/capability";
+import {
+  createPreviewMailInbox,
+  createPreviewSearchResult,
+  createPreviewSheetRange
+} from "@/lib/preview/workspace";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/workspace",
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() })
 }));
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe("preview surface contract", () => {
+  it("labels preview content and keeps live headers unlabelled", () => {
+    const { rerender } = render(
+      <SurfaceHeader heading="Sheets" intro="Explore a range" locale="en" mode="preview" />
+    );
+
+    expect(screen.getByText(m.illustrative_label({}, { locale: "en" }))).toBeInTheDocument();
+    expect(screen.getByText(m.illustrative_note({}, { locale: "en" }))).toBeInTheDocument();
+
+    rerender(<SurfaceHeader heading="Docs" intro="Read a document" locale="en" mode="live" />);
+    expect(screen.queryByText(m.illustrative_label({}, { locale: "en" }))).not.toBeInTheDocument();
+  });
+
+  it("keeps spreadsheet preview interactions local and explicit", () => {
+    render(<SheetPreviewSurface locale="en" range={createPreviewSheetRange("en")} />);
+
+    fireEvent.change(screen.getByLabelText(m.sheets_preview_prompt_label({}, { locale: "en" })), {
+      target: { value: "Summarize blockers" }
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: m.sheets_preview_prompt_submit({}, { locale: "en" }) })
+    );
+
+    expect(screen.getByText(m.sheets_preview_result({}, { locale: "en" }))).toBeInTheDocument();
+  });
+
+  it("creates only a local preview draft", () => {
+    render(<MailSurface inbox={createPreviewMailInbox("en")} locale="en" preview />);
+
+    fireEvent.change(screen.getByLabelText(m.mail_draft_to({}, { locale: "en" })), {
+      target: { value: "reviewer@example.com" }
+    });
+    fireEvent.change(screen.getByLabelText(m.mail_draft_subject({}, { locale: "en" })), {
+      target: { value: "Demo review" }
+    });
+    fireEvent.change(screen.getByLabelText(m.mail_draft_body({}, { locale: "en" })), {
+      target: { value: "Please check the flow." }
+    });
+    fireEvent.click(screen.getByRole("button", { name: m.mail_draft_create({}, { locale: "en" }) }));
+
+    expect(screen.getByText(m.mail_preview_draft_ready({}, { locale: "en" }))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /send/i })).not.toBeInTheDocument();
+  });
+
+  it("runs preview search without calling the live endpoint", async () => {
+    const result = createPreviewSearchResult("en");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    render(
+      <SearchSurface
+        initialState={{ status: "ready", data: result }}
+        locale="en"
+        mode="preview"
+        previewResult={result}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(m.search_query_label({}, { locale: "en" })), {
+      target: { value: "accessible teamwork" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: m.search_submit({}, { locale: "en" }) }));
+
+    expect(
+      await screen.findByText(
+        m.search_preview_query({ query: "accessible teamwork" }, { locale: "en" })
+      )
+    ).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
 
 describe("surface state envelope", () => {
   function renderState(state: ResourceState<{ label: string }>, locale: "en" | "id" = "en") {
