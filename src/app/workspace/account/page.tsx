@@ -6,6 +6,7 @@ import { createAksaError } from "@/lib/contracts/errors";
 import { Panel, SurfaceHeader } from "@/components/workspace/surface-layout";
 import { BlockedState } from "@/components/workspace/state-panel";
 import { StatusChip } from "@/components/workspace/status-chip";
+import { signOutAction } from "@/app/(auth)/actions";
 
 export default async function AccountPage() {
   const locale = await getRequestLocale();
@@ -27,7 +28,7 @@ export default async function AccountPage() {
               tone="ready"
               value={m.workspace_session_signed_in({ email: session.session.email }, options)}
             />
-            <form action="/sign-in" method="get">
+            <form action={signOutAction}>
               <button className="aksa-button aksa-button--secondary" type="submit">
                 {m.auth_sign_out({}, options)}
               </button>

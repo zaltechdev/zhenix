@@ -1,45 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-
-function createContentSecurityPolicy(nonce: string) {
-  const developmentScriptSource = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
-
-  return [
-    "default-src 'self'",
-    `script-src 'self'${developmentScriptSource} 'wasm-unsafe-eval' 'nonce-${nonce}' 'strict-dynamic'`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
-    "font-src 'self' data:",
-    "connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com",
-    "worker-src 'self' blob:",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'"
-  ].join("; ");
-}
+import { NextResponse, type NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
-  const nonce = crypto.randomUUID().replaceAll("-", "");
-  const contentSecurityPolicy = createContentSecurityPolicy(nonce);
-  const requestHeaders = new Headers(request.headers);
+  const hasSessionCookie = request.cookies.getAll().some(({ name, value }) =>
+    value.length > 0 && (
+      name === "better-auth.session_token" ||
+      name === "better-auth-session_token" ||
+      name === "__Secure-better-auth.session_token"
+    )
+  );
 
-  requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
+  if (!hasSessionCookie) {
+    return NextResponse.redirect(new URL("/sign-in", request.url));
+  }
 
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders
-    }
-  });
-
-  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)"
-    }
-  ]
+  matcher: ["/workspace/:path*"]
 };

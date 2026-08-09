@@ -8,6 +8,7 @@ import {
   type AuthResult
 } from "@/lib/contracts/auth";
 import { authGateway } from "@/lib/server/auth/service";
+import { redirect } from "next/navigation";
 
 /**
  * Account form actions.
@@ -84,4 +85,9 @@ export async function signUpAction(
 
 export async function passwordMinimumLength(): Promise<number> {
   return PASSWORD_MIN_LENGTH;
+}
+
+export async function signOutAction(): Promise<never> {
+  await authGateway().signOut();
+  redirect("/sign-in");
 }

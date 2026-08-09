@@ -1,14 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState } from "react";
-import { SiGoogle } from "@icons-pack/react-simple-icons";
+import { useActionState, useEffect, useId, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import { PASSWORD_MIN_LENGTH, type AuthFieldError, type AuthResult } from "@/lib/contracts/auth";
 import { BlockedState } from "@/components/workspace/state-panel";
-import { createAksaError } from "@/lib/contracts/errors";
 import { Button } from "@/components/shared/button";
-import { Divider } from "@/components/shared/divider";
 import { FormField } from "@/components/shared/form-field";
 import { TextInput } from "@/components/shared/text-input";
 
@@ -41,8 +39,8 @@ export function AuthForm({
   links?: React.ReactNode;
   workspaceNote?: React.ReactNode;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState<AuthResult | null, FormData>(action, null);
-  const [googleState, setGoogleState] = useState<AuthResult | null>(null);
 
   const emailId = useId();
   const passwordId = useId();
@@ -60,29 +58,15 @@ export function AuthForm({
     }
   }, [fieldErrors.length]);
 
-  function handleGoogleClick() {
-    // Honest boundary status when OAuth backend is unconfigured
-    setGoogleState({
-      outcome: "unavailable",
-      error: createAksaError("not_configured")
-    });
-  }
+  useEffect(() => {
+    if (state?.outcome === "authenticated") {
+      router.replace("/workspace");
+      router.refresh();
+    }
+  }, [router, state]);
 
   return (
     <div className="aksa-auth-form-wrapper">
-      <div className="aksa-oauth-section">
-        <Button className="aksa-oauth-button" onClick={handleGoogleClick} size="md" type="button" variant="primary">
-          <SiGoogle aria-hidden="true" className="aksa-oauth-icon" size={18} />
-          <span>{m.auth_continue_google({}, options)}</span>
-        </Button>
-      </div>
-
-      <Divider label={m.auth_or({}, options)} />
-
-      {googleState !== null && (googleState.outcome === "unavailable" || googleState.outcome === "rejected") ? (
-        <BlockedState error={googleState.error} locale={locale} />
-      ) : null}
-
       <form action={formAction} className="aksa-auth-form" noValidate>
         <input name="locale" type="hidden" value={locale} />
 

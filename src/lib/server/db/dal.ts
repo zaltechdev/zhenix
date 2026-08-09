@@ -48,7 +48,7 @@ export async function bootstrapUserWorkspaceAndProfile(
       workspaceId = existingWs.id;
     } else {
       const newWsId = `ws_${userId.slice(0, 12)}_${now}`;
-      const wsName = userDisplayName ? `${userDisplayName}'s Workspace` : "Default Workspace";
+      const wsName = userDisplayName ? `${userDisplayName}'s Workspace` : "Workspace";
 
       await db.insert(workspaces).values({
         id: newWsId,

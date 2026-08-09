@@ -105,7 +105,7 @@ function createRealAuthGateway(): AuthGateway {
           body: {
             email: parsed.data.email,
             password: parsed.data.password,
-            name: parsed.data.displayName || parsed.data.email.split("@")[0]
+            name: parsed.data.displayName || parsed.data.email
           },
           headers: reqHeaders
         });
@@ -186,12 +186,8 @@ function createRealAuthGateway(): AuthGateway {
     },
 
     async signOut(): Promise<void> {
-      try {
-        const reqHeaders = await headers();
-        await auth.api.signOut({ headers: reqHeaders });
-      } catch {
-        // Sign-out is best-effort
-      }
+      const reqHeaders = await headers();
+      await auth.api.signOut({ headers: reqHeaders });
     },
 
     async readAccessibilityProfile(): Promise<AccessibilityProfile | null> {
