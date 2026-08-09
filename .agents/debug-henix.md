@@ -233,3 +233,19 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Lint, typecheck, 370 unit tests, 45 focused Playwright tests, and the production build passed. Browser checks covered desktop, mobile, EN/ID continuity, Controls, onboarding, sidebar collapse, composer placement, and automated accessibility. Physical head movement was not verifiable because no live face input was available.
 - Prevention: Keep stationary-noise, physical-release hysteresis, recovery-origin, isolated-spike, and fresh-selection regressions in the focused coordinator suite.
 - Commit or PR: `d074d18`.
+
+## 2026-08-10 00:08 - Floating accessibility control was removed from every surface
+
+- Status: fixed
+- Owner: Henix
+- Area: global accessibility controls and application layout
+- Symptoms: The floating Accessibility button was absent from the landing, authentication, onboarding, and Workspace surfaces although its component and styles still existed.
+- Reproduction: Open any application route and inspect the bottom viewport edge or accessibility tree.
+- Expected: One fixed Accessibility button remains available across every route.
+- Actual: No route mounted `AccessibilityWidget`, so the control could not render.
+- Root cause: Commit `62cf484` removed every route-specific widget mount during unrelated product-state cleanup.
+- Fix: Mounted `AccessibilityWidget` once inside the root preference and head-control providers. Permanent fix.
+- Files changed: `src/app/layout.tsx`, `tests/unit/accessibility-widget.test.tsx`
+- Verification: Focused unit tests passed 2/2. Typecheck and lint passed. Browser inspection confirmed the visible fixed button and its accessible name on the landing page.
+- Prevention: Root-layout regression coverage requires the global widget mount.
+- Commit or PR: `2d3085f`.

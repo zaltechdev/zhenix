@@ -1818,3 +1818,14 @@ Then STOP.
   - `tests/unit/auth-onboarding.test.tsx`
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 00:08:24
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `a11y floating button dissapeared`
+* **TLDR AI agents done**: Restored the floating Accessibility control globally, added regression coverage, and verified its visible and semantic presence in the browser.
+* **file changed**:
+  - `.agents/debug-henix.md`
+  - `src/app/layout.tsx`
+  - `tests/unit/accessibility-widget.test.tsx`
+  - `logs/log-henix.md`
