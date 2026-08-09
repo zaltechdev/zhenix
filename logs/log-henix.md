@@ -1888,3 +1888,15 @@ Then STOP.
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/loading-skeleton.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 01:02:43
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Continue with Google should be main CTA`
+* **TLDR AI agents done**: Promoted Continue with Google to the large primary action while retaining email sign-in as the secondary path.
+* **file changed**:
+  - `.agents/features/auth-onboarding.md`
+  - `src/app/workspace.css`
+  - `src/components/auth/google-sign-in-button.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`

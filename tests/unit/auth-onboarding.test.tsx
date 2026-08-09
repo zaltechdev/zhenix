@@ -51,6 +51,10 @@ describe("account form", () => {
       name: m.auth_continue_google({}, { locale: "en" })
     });
     expect(googleButton).toHaveAttribute("aria-haspopup", "dialog");
+    expect(googleButton).toHaveClass("aksa-button--primary", "aksa-button--lg");
+    expect(
+      screen.getByRole("button", { name: m.auth_submit_sign_in({}, { locale: "en" }) })
+    ).toHaveClass("aksa-button--secondary");
     expect(authClientMocks.oneTap).not.toHaveBeenCalled();
 
     fireEvent.click(googleButton);

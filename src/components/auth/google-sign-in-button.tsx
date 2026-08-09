@@ -59,9 +59,9 @@ export function GoogleSignInButton({
         disabled={!authClient || pending}
         loading={pending}
         onClick={openGoogleDialog}
-        size="md"
+        size="lg"
         type="button"
-        variant="secondary"
+        variant="primary"
       >
         <SiGoogle aria-hidden="true" className="aksa-oauth-icon" size={20} />
         {m.auth_continue_google({}, options)}

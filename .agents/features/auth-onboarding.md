@@ -83,7 +83,7 @@ Owner: Henix.
 
 - Route structure for landing, sign up, sign in, onboarding steps, and workspace entry.
 - Sign-up and sign-in forms with persistent labels, autofill support, inline field errors linked to inputs, and a form-level error summary that receives focus on failure.
-- Google sign-in control that opens the Google Identity Services prompt in-page, without a new tab, plus pending, unavailable, and failed states.
+- Google sign-in is the primary authentication CTA. It opens the Google Identity Services prompt in-page, without a new tab, and exposes pending, unavailable, and failed states.
 - Loading state that prevents duplicate submission without shifting layout.
 - Onboarding step shell with visible progress, back, skip, and resume.
 - Consent screens that explain purpose before any permission request.
