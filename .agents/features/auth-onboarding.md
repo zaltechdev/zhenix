@@ -10,6 +10,7 @@ Get a new user from the landing page to a workspace where head control and voice
 
 - As a visitor, I create an account with email and password so my calibration is saved.
 - As a returning user, I sign in and my head control settings load without setup.
+- As a visitor, I can continue with Google when I prefer provider-managed authentication.
 - As a new user, I learn what the camera is used for before I am asked to allow it.
 - As a user who cannot grant camera access, I still reach the workspace and use keyboard or mouse.
 - As a user with limited hand movement, I complete the entire sign-up form without a pointer.
@@ -19,6 +20,7 @@ Get a new user from the landing page to a workspace where head control and voice
 ## Scope
 
 - Sign up with email and password.
+- Sign up and sign in with Google through Better Auth OAuth.
 - Sign in, sign out, session persistence.
 - One workspace created automatically on first sign in.
 - Onboarding: purpose explanation, camera consent, pointer test, calibration, microphone consent, voice test, first guided command.
@@ -30,7 +32,7 @@ Get a new user from the landing page to a workspace where head control and voice
 
 ## Non-Goals
 
-- Social sign in, magic links, and multi-factor authentication.
+- Additional social providers, magic links, and multi-factor authentication.
 - Password reset by email, deferred to Future Scope in `.agents/prd.md` section 25.
 - Team invitations and workspace sharing.
 - Guest access, tracked as OQ-9.
@@ -40,8 +42,8 @@ Get a new user from the landing page to a workspace where head control and voice
 
 | Step | User | Aksa |
 | --- | --- | --- |
-| 1 | Selects `Try Aksa` on the landing page | Opens sign in with a link to sign up |
-| 2 | Creates an account or signs in | Establishes a session, creates the first workspace on first sign in |
+| 1 | Selects `Try Aksa` on the landing page | Opens sign in with email, password, and Google choices plus a link to sign up |
+| 2 | Creates an account or signs in | Establishes a session, creates the first workspace on first sign in, then sends new users to onboarding |
 | 3 | Arrives in onboarding | Explains head control, what is processed, what is stored, and the skip path |
 | 4 | Chooses `Allow camera` or `Skip` | Requests camera permission only after the explanation, records consent either way |
 | 5 | Moves head | Shows the Aksa pointer following head pose, distinct from browser focus |
@@ -81,6 +83,7 @@ Owner: Henix.
 
 - Route structure for landing, sign up, sign in, onboarding steps, and workspace entry.
 - Sign-up and sign-in forms with persistent labels, autofill support, inline field errors linked to inputs, and a form-level error summary that receives focus on failure.
+- Google sign-in control with pending, unavailable, and failed states.
 - Loading state that prevents duplicate submission without shifting layout.
 - Onboarding step shell with visible progress, back, skip, and resume.
 - Consent screens that explain purpose before any permission request.
@@ -101,6 +104,7 @@ The frontend never decides whether a session is valid. It renders the session st
 Owner: Zaltech.
 
 - Authentication library integration for sign up, sign in, sign out, and session lifecycle.
+- Better Auth Google provider configuration with encrypted provider tokens and validated callback destinations.
 - Session cookie configuration, rotation on sign in, revocation on sign out, absolute and idle expiry.
 - Sign-in rate limiting per account and per address, with identical responses for existing and non-existing accounts.
 - Workspace creation on first sign in, plus the single `owner` row in `workspace_members`.
@@ -137,6 +141,7 @@ Never stored: camera frames, landmark coordinates, blendshape series, calibratio
 Requirements from `.agents/security.md` sections 1 and 7.
 
 - Established authentication library. No custom password hashing or session cryptography.
+- Google sign-in uses Better Auth's state-protected authorization code flow and its provider callback route.
 - HTTP-only, `Secure`, `SameSite=Lax` session cookie. No token in `localStorage` or a URL.
 - Session rotation on sign in. Server-side revocation on sign out.
 - Account enumeration prevented on sign in and any future reset flow.
@@ -188,7 +193,7 @@ Every recovery path keeps the user signed in. No failure in onboarding blocks wo
 
 ## Acceptance Criteria
 
-1. A new visitor creates an account, signs in, and reaches the workspace using only the keyboard.
+1. A new visitor creates an account with email and password or Google, then reaches onboarding using only the keyboard.
 2. A returning user's accessibility profile loads on sign in without reconfiguration.
 3. Camera consent is requested only after the purpose explanation is shown.
 4. Camera and microphone consent are recorded as separate rows with a policy version.

@@ -104,7 +104,7 @@ Aksa will not do these in MVP or in any later version described here.
 | Area | MVP capability |
 | --- | --- |
 | Landing | Public marketing page with the primary call to action |
-| Account | Email and password sign up, sign in, sign out, session |
+| Account | Email and password or Google sign up, sign in, sign out, session |
 | Onboarding | Camera consent, head pointer test, calibration, microphone consent, voice test, first guided command |
 | Head control | Head-pose pointer with sensitivity, dead zone, smoothing, pause |
 | Selection | Dwell selection and one facial gesture selection, both configurable |
@@ -194,8 +194,8 @@ Every failure flow keeps prior work, states what happened, and offers one clear 
 
 | ID | Requirement |
 | --- | --- |
-| FR-A1 | A visitor can create an account with email and password |
-| FR-A2 | A returning user can sign in and sign out |
+| FR-A1 | A visitor can create an account with email and password or Google |
+| FR-A2 | A returning user can sign in with email and password or Google, then sign out |
 | FR-A3 | A session persists across page reloads until expiry or sign out |
 | FR-A4 | Onboarding explains camera use and privacy before requesting camera access |
 | FR-A5 | Onboarding can be skipped and resumed later without losing account state |

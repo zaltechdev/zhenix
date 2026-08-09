@@ -4,6 +4,7 @@ import { getRequestLocale } from "@/lib/i18n/request";
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthFormLayout } from "@/components/auth/auth-split-layout";
 import { signUpAction } from "@/app/(auth)/actions";
+import { googleSignInStatus } from "@/lib/server/config/runtime-config";
 
 export default async function SignUpPage() {
   const locale = await getRequestLocale();
@@ -16,6 +17,7 @@ export default async function SignUpPage() {
     >
       <AuthForm
         action={signUpAction}
+        googleSignInEnabled={googleSignInStatus().configured}
         links={
           <div className="aksa-auth-card__links">
             <Link className="aksa-link" href="/sign-in">

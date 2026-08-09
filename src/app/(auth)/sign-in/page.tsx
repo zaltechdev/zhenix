@@ -4,9 +4,15 @@ import { getRequestLocale } from "@/lib/i18n/request";
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthFormLayout } from "@/components/auth/auth-split-layout";
 import { signInAction } from "@/app/(auth)/actions";
+import { googleSignInStatus } from "@/lib/server/config/runtime-config";
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams
+}: {
+  searchParams: Promise<{ oauth_error?: string }>;
+}) {
   const locale = await getRequestLocale();
+  const query = await searchParams;
   const options = { locale };
 
   return (
@@ -16,13 +22,12 @@ export default async function SignInPage() {
     >
       <AuthForm
         action={signInAction}
+        googleSignInEnabled={googleSignInStatus().configured}
+        googleSignInFailed={query.oauth_error === "google"}
         links={
           <div className="aksa-auth-card__links">
             <Link className="aksa-link" href="/sign-up">
               {m.auth_switch_to_sign_up({}, options)}
-            </Link>
-            <Link className="aksa-link" href="/onboarding">
-              {m.auth_open_workspace({}, options)}
             </Link>
           </div>
         }

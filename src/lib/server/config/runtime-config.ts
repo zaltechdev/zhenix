@@ -64,6 +64,15 @@ export function authStatus(): ConfigurationStatus {
   return statusFor(["AUTH_SECRET"]);
 }
 
+export function googleSignInStatus(): ConfigurationStatus {
+  return statusFor([
+    "AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET"
+  ]);
+}
+
 export function googleStatus(): ConfigurationStatus {
   return statusFor([
     "AUTH_SECRET",

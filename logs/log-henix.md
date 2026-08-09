@@ -74,7 +74,7 @@
 
 ---
 ### Timestamp: [2026-08-07 09:28:42]
-* **Model used**: Codex
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Use Chrome/computer to set up cloud-console OAuth, Vertex, and related credentials. Do not log sensitive values. Review the pasted setup guide first.`
 * **TLDR AI agents done**: Enabled Drive, Docs, Picker, and Vertex AI APIs in the existing project; verified billing and project identifiers; completed user-led ADC login; saved narrow OAuth scopes; verified no OAuth client or test user exists yet; typecheck passed. Browser credential creation remains pending explicit confirmation.
 * **file changed**:
@@ -82,7 +82,7 @@
 
 ---
 ### Timestamp: [2026-08-07 10:22:41]
-* **Model used**: Codex
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Continue working toward the active Google OAuth verification and safe runtime setup goal.`
 * **TLDR AI agents done**: Completed the Google verification handoff, confirmed Aksa's Documents page reports Google connected, and started a transient runtime with OAuth, Vertex, project-number, and Picker configuration without creating a local secret file. Picker iframe parameters contain the expected runtime credentials, but Chrome renders the embedded Google Picker as a blank frame; typecheck, lint, and diff checks pass.
 * **file changed**:
@@ -90,7 +90,7 @@
 
 ---
 ### Timestamp: [2026-08-07 09:49:46]
-* **Model used**: Codex
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Continue cloud-console OAuth, Vertex, and related credential setup without logging sensitive values.`
 * **TLDR AI agents done**: Configured narrow OAuth scopes, added the test user, created the local Web OAuth client, created a Picker API key restricted to Google Picker API and localhost, wired Picker key delivery, verified ADC login, removed the local secret file per repository policy, and passed typecheck, lint, tests, and production build. The local OAuth redirect reached Google's verification step but was not completed.
 * **file changed**:
@@ -101,7 +101,7 @@
 
 ---
 ### Timestamp: [2026-08-07 10:16:41]
-* **Model used**: Codex
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Continue autonomously with granted access; user will be away for hours.`
 * **TLDR AI agents done**: Added a replacement OAuth secret in Cloud Console without exposing its value, completed and verified a fresh Aksa Google OAuth callback with the transient runtime, confirmed the Documents page shows Google connected, and validated typecheck, lint, and diff checks. A later fresh authorization now requires phone or Authenticator verification; no credentials were logged or persisted locally.
 * **file changed**:
@@ -120,7 +120,7 @@
 
 ---
 ### Timestamp: [2026-08-07 21:13:46]
-* **Model used**: GPT-5.6 SOL (xhigh)
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**:
 ````text
 # GPT-5.6 SOL XHIGH - PHASE II ADVERSARIAL AUDIT + FIX
@@ -524,7 +524,7 @@ DO NOT START PHASE III.
 ---
 
 ### Timestamp: 2026-08-07 22:52:19
-* **Model used**: GPT-5 (High)
+* **Model used**: GPT-5.6 Terra (High)
 * **Human Prompt**: `Fix only the floating navbar frosted-glass effect. Preserve navbar layout, scroll behavior, sizing, and animation; use a semi-transparent dark design surface with backdrop-filter and -webkit-backdrop-filter; keep foreground controls sharp; inspect compositing if needed; verify visually in the browser.`
 * **TLDR AI agents done**: Reordered backdrop-filter declarations so Chromium receives the unprefixed blur, matched the design blur and dark surface tokens, verified sharp foreground and visible diffusion in light and dark browser states, and passed lint plus typecheck.
 * **file changed**:
@@ -533,7 +533,7 @@ DO NOT START PHASE III.
 
 ---
 ### Timestamp: 2026-08-08 08:37:36
-* **Model used**: GPT-5 (High)
+* **Model used**: GPT-5.6 Terra (High)
 * **Human Prompt**: `The current morph is better, but there is still a BAD intermediate frame where the navbar suddenly becomes a harsh full-width dark rectangle before reaching the floating glass state. Remove that intermediate state completely. Requirements: ONE navbar element only. ONE continuous animation timeline from top state to floating state. Tie animation progress directly to scroll progress. If scrolling stops at 40%, the navbar stays exactly 40% morphed. Interpolate width, top offset, border-radius, padding, border, shadow, and glass opacity continuously. Frosted glass layer stays mounted the whole time. Never switch through a full-width opaque rectangle. No .scrolled geometry toggle. No display, position, background or width value suddenly changing at a threshold. No spring, bounce, overshoot, or snap. The current version clearly shows the bug: wide frosted navbar to sudden harsh black rectangle to floating navbar. Delete that middle visual state entirely. Final motion should simply feel like the wide navbar is physically shrinking inward, rounding, and lifting away from the page in one uninterrupted motion. Do not modify the existing frost appearance.`
 * **TLDR AI agents done**: Added a later continuous surface/filter ramp so intermediate frames remain subtle, verified dark/light midpoint and endpoint visuals, exact stopped midpoint persistence, one navbar node, no scroll class, and lint.
 * **file changed**:
@@ -543,7 +543,7 @@ DO NOT START PHASE III.
 
 ---
 ### Timestamp: 2026-08-08 08:15:55
-* **Model used**: GPT-5 (High)
+* **Model used**: GPT-5.6 Terra (High)
 * **Human Prompt**: `Make the continuous navbar morph a bit slower and smoother.`
 * **TLDR AI agents done**: Added gentle non-bouncy exponential progress smoothing so the navbar follows scroll more softly, settles at the exact stopped progress, preserves continuous geometry and frost, and passed browser visual checks plus lint.
 * **file changed**:
@@ -552,7 +552,7 @@ DO NOT START PHASE III.
 
 ---
 ### Timestamp: 2026-08-08 08:12:10
-* **Model used**: GPT-5 (High)
+* **Model used**: GPT-5.6 Terra (High)
 * **Human Prompt**: `Remove the binary isScrolled navbar geometry. Drive one persistent navbar continuously from normalized scroll progress 0 to 1 across scrollY 0 to 80, interpolating width, offset, radius, padding, shadow, border, glass opacity, and near-constant height. Keep the frost effect and verify halfway stopping plus repeated slow scrolling.`
 * **TLDR AI agents done**: Removed the binary scroll class and state, added requestAnimationFrame-driven normalized progress, continuously interpolated all navbar geometry and visual opacity values, made the top offset visible without transforms, and verified halfway persistence, repeated reversals, one DOM node, browser frames, and lint.
 * **file changed**:
@@ -562,7 +562,7 @@ DO NOT START PHASE III.
 
 ---
 ### Timestamp: 2026-08-07 23:14:09
-* **Model used**: GPT-5 (High)
+* **Model used**: GPT-5.6 Terra (High)
 * **Human Prompt**: `The navbar still flashes when morphing; make the morph smooth but slower.`
 * **TLDR AI agents done**: Stabilized the navbar's layout slot, made background and border interpolation explicit, kept the existing frosted-glass filter unchanged, slowed the morph to 420ms, and verified forward and reverse browser transitions visually.
 * **file changed**:
@@ -571,7 +571,7 @@ DO NOT START PHASE III.
 
 ---
 ### Timestamp: 2026-08-07 23:04:16
-* **Model used**: GPT-5 (High)
+* **Model used**: GPT-5.6 Terra (High)
 * **Human Prompt**: `Refine only the navbar morph. Keep the existing frosted-glass effect unchanged; widen the desktop floating navbar, preserve comfortable padding and height, remove flash or snap, use one persistent navbar with a 260ms cubic-bezier(0.22, 1, 0.36, 1) transition, and test slow scrolling in both directions.`
 * **TLDR AI agents done**: Widened the scrolled navbar to 920px, increased horizontal padding to 28px, kept 64px scrolled height, added explicit transitions for all morph properties, removed redundant filter priority changes, and verified smooth forward and reverse interpolation in browser frames.
 * **file changed**:
@@ -580,7 +580,7 @@ DO NOT START PHASE III.
 
 ---
 ### Timestamp: 2026-08-07 23:23:36
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Real webcam testing proves Aksa head control now functions, but pointer control is unstable and horizontal direction is reversed. Do NOT refactor Phase II or touch agent/backend/UI scope. Fix only physical head-pointer ergonomics. First reproduce with the real webcam. Physical head turn RIGHT must move the Aksa pointer RIGHT and LEFT must move LEFT; fix this at the pose to pointer mapping boundary, not by mirroring MediaPipe input. Camera preview may be visually mirrored independently. Audit the current yaw sign using dev-only pose diagnostics, then remove diagnostics. Stabilize pointer motion by clamping implausible yaw/pitch input, rejecting single-frame pose spikes, adding dead-zone hysteresis, and using adaptive low-latency smoothing (prefer One Euro/adaptive EMA) so stationary head = stable pointer while intentional motion remains responsive. Do not create laggy heavy averaging. Preserve comfortable small head movement and prevent edge slamming. Re-test neutral stability, slow precision movement, fast movement, all four screen regions, tracking loss/reacquisition, and sensitivity/dead-zone/smoothing controls with a PHYSICAL webcam. Add deterministic tests for horizontal direction, spike rejection, stationary jitter, and clamp behavior. Run typecheck/lint/tests/build, atomic commit, push dev. Stop after this tuning fix. Follow-up: tracker still unstable, looking right moves the cursor left, and the tracker status overlaps its guidance.`
 * **TLDR AI agents done**: Updated only client head-pointer ergonomics: corrected the pose-to-pointer horizontal contract, added clamp, spike rejection, hysteresis, adaptive pose and pointer EMA smoothing, soft edge limits, deterministic coverage, and a minimal tracker-status wrapping repair. User webcam feedback reproduced the inverse and instability. A temporary dev-only pose diagnostic was removed. Post-change physical direction verification could not complete because the dev browser returned tracking loss after refresh.
 * **file changed**:
@@ -593,7 +593,7 @@ DO NOT START PHASE III.
 
 ---
 ### Timestamp: 2026-08-09 00:06:19
-* **Model used**: GPT-5 Codex
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**:
 ```text
 # AKSA HEAD CONTROL - LAST CHANCE HARD FIX
@@ -1158,7 +1158,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 08:00:12
-* **Model used**: GPT-5 (High)
+* **Model used**: GPT-5.6 Terra (High)
 * **Human Prompt**: `The navbar morph still looks quirky. Keep the glass effect unchanged and fix only the continuous morph with explicit numeric dimensions, 300ms easing, near-constant height, and repeated slow threshold testing.`
 * **TLDR AI agents done**: Replaced auto-to-fixed sizing with explicit wide and floating widths, matched shadow-list interpolation, preserved the existing frost filter, reduced height change, restored an integrated zero-radius top endpoint, and verified repeated forward/reverse morph frames with one navbar node.
 * **file changed**:
@@ -1167,7 +1167,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 08:58:48
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Read attached terra.md, execute, only execute in terra.md scope.`
 * **TLDR AI agents done**: Added centralized Rest Lock hysteresis after filtered mapping, preserved Target Assist precedence, mirrored only the presented onboarding preview, improved logo-pointer contrast, and consolidated calibration setup. Full unit, type, lint, build, and scoped browser checks passed. Webcam stream startup and teardown were observed; physical head-movement verification was not possible without an operator.
 * **file changed**:
@@ -1190,7 +1190,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 09:33:21
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `continue with this, cam prev green now`
 * **TLDR AI agents done**: Reworked scoped onboarding profile autosave, calibration attempt safety, direct sidebar navigation, camera preview playback, and shared head-control runtime continuity. Verified unit, accessibility E2E, type, lint, and production build gates.
 * **file changed**:
@@ -1211,7 +1211,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 13:18:13
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `# AKSA - REAL DASHBOARD CALIBRATION + COLLAPSIBLE SIDEBAR + DETERMINISTIC VOICE CORE. Repository github.com/zaltechdev/zhenix, branch dev. Implement real shared guided dashboard calibration with active-camera reuse and safety boundaries; add accessible persistent responsive sidebar collapse; add deterministic EN/ID canonical voice intents with shared action dispatch, optional semantic fallback, offline behavior, and tests. Do not mix backend work, redesign unrelated UI, or start Phase III.`
 * **TLDR AI agents done**: Connected Workspace recalibration to the shared MediaPipe guided engine, added safe active-stream overlay behavior, added persistent accessible sidebar collapse, and added deterministic voice routing with one dispatcher and semantic fallback boundary.
 * **file changed**:
@@ -1242,7 +1242,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 09:42:54
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Head control why jump to part 2? should be part 1 first add bahasa indonesia lingusitic support for voice command`
 * **TLDR AI agents done**: Head Control now always enters through Part 1. Indonesian speech recognition uses `id-ID`, ranks browser alternatives by confidence, and keeps selected speech verbatim.
 * **file changed**:
@@ -1254,7 +1254,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 09:53:48
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Onboarding flow still have flaws: If dwell mouse deactivate -> turn off, it for real (it stuck and still clicking which stuck) When onboarding, if the a11y option (camera/voice) deactivate, skip the step think about state management also where is the accessibility floating button, it dissapear on onboarding readiness chip should on top of camera pv, not fighting in button card`
 * **TLDR AI agents done**: Disabled selection now clears dwell and gesture interaction immediately. Onboarding skips deselected input methods, keeps the accessibility launcher available, and places camera readiness on the preview.
 * **file changed**:
@@ -1267,7 +1267,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 09:59:59
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `dont mirror the chip. stop goofing`
 * **TLDR AI agents done**: Scoped the camera mirror transform to the video alone so the readiness chip remains readable.
 * **file changed**:
@@ -1277,7 +1277,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 10:01:57
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `instead of stuck in center, keep the camera control on`
 * **TLDR AI agents done**: Kept a separate camera-processing video mounted across onboarding phases while retaining an optional mirrored preview.
 * **file changed**:
@@ -1288,7 +1288,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 10:08:10
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `if head mouse control active, keep it active on all pages.`
 * **TLDR AI agents done**: Moved camera processing ownership into the app-level head-control provider so visual previews and route changes cannot detach active tracking.
 * **file changed**:
@@ -1298,7 +1298,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 11:02:00
-* **Model used**: GPT-5.6
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Read attached terra3.md and work.`
 * **TLDR AI agents done**: Replaced split onboarding calibration with guided directional calibration, applied session-only asymmetric ranges to pointer mapping, and added a localized deterministic English/Indonesian voice practice task with read-only recognition feedback.
 * **file changed**:
@@ -1318,7 +1318,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 12:25:13
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Files mentioned: C:/Users/henix/Downloads/voice_improve (1).md. Request: execute the prompt in md.`
 * **TLDR AI agents done**: Replaced generic voice options with localized Aksa project demo, hybrid intent routing, Gemini fallback, strict validation, server rate limiting, timeout recovery, and focused tests.
 * **file changed**:
@@ -1342,7 +1342,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 12:27:50
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Files mentioned: C:/Users/henix/Downloads/continuestalled.md. Request: execute the prompt in md.`
 * **TLDR AI agents done**: Resumed Phase II head control recovery with embedded calibration guidance, resilient samples, localized labels, compact pointer feel, route continuity coverage, and focused verification.
 * **file changed**:
@@ -1359,7 +1359,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 14:47:00
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Referenced Phase I runtime-reliability specification. Implement Phase I, verify it, and log a TLDR instead of the long Markdown prompt.`
 * **TLDR AI agents done**: Stabilized head-control neutral acquisition and stale-frame handling, separated dictation from idempotent Live Voice commands, added authenticated structured Gemini fallback, preserved camera and recognition across locale refreshes, fixed dark readout contrast and MediaPipe console severity, then passed 357 unit tests, production build, and 24 Workspace browser tests. Physical camera startup worked, but no face was available for movement acceptance checks.
 * **file changed**:
@@ -1390,7 +1390,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 15:13:08
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**: `Implement Phase II Controls IA from phase2_controls_ia.md, then log a TLDR because the Markdown prompt is long.`
 * **TLDR AI agents done**: Added dedicated Controls navigation and page, moved head-control tuning from Accessibility, added dynamic Auto, Standard, Low light, and Custom presets, wired real head on/off and calibration, added persistent voice language and mode settings that govern the real composer, added a microphone command test, localized EN/ID copy, and verified lint, typecheck, unit tests, focused Controls/Accessibility E2E, and production build.
 * **file changed**:
@@ -1412,7 +1412,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 15:32:40
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**: `Implement the intended prompt of phase III, check attached prompt, log TLDR prompt because MD is very long.`
 * **TLDR AI agents done**: Rebuilt the sidebar into a compact accessible rail, removed duplicate header destinations, clarified Send, Dictate, and Live Voice states, condensed camera and voice onboarding without changing real pipelines, added concise EN/ID privacy and AI-disclaimer copy, and verified localization, lint, typecheck, 362 unit tests, focused accessibility/sidebar/composer/onboarding/locale E2E, and production build.
 * **file changed**:
@@ -1433,7 +1433,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 19:40:48
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**: `/goal Implement the attached prompt, do not mix Henix/Zaltech log`
 * **TLDR AI agents done**: Completed the corrective pass without overwriting unrelated dirty work. Reworked head-pointer rest, recovery origin, and target-assist hysteresis; added deterministic EN/ID Controls voice commands; kept Send rightmost; fixed selected-card contrast; verified desktop, mobile, locale continuity, Controls, sidebar, onboarding, and accessibility. Lint, typecheck, 370 unit tests, 45 focused E2E tests, and production build passed. Physical head movement was not verifiable without live face input.
 * **file changed**:
@@ -1459,7 +1459,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-08 23:11:12
-* **Model used**: GPT-5 Codex
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**: `Resume the CURRENT dirty worktree after the interrupted Opus 4.6 Head Control hard-fix pass. Do NOT reset, replan, or rewrite the architecture. Preserve the existing relative-velocity controller, calibrated per-axis dead zones, rebuilt calibration, disabled Target Assist default, and all valid Opus changes. Your job only: 1. Inspect git status/diff and the 7 changed Head Control files. 2. Fix compile/type/runtime/test issues caused by this pass. 3. Do not touch unrelated files/features. 4. Run focused Head Control tests first. 5. Then run ONCE: bun run i18n:compile; bun run typecheck; bun run lint; bun run test; bun run build. 6. Do not weaken tests. 7. Commit atomically and push dev if green. 8. Never claim physical success from automated tests. Final response under 15 lines: changed files; focused test result; full gates; commit SHA; remote SHA; HARDWARE VERIFICATION REQUIRED. Then STOP.`
 * **TLDR AI agents done**: Preserved relative-velocity Head Control, calibrated per-axis dead zones, rebuilt calibration, and disabled Target Assist. Fixed topmost direct-hit targeting, partial calibration cleanup, asymmetric limited-movement calibration compatibility, weak trajectory assertions, and static issues. Verified 86 focused Head Control tests, 383 full tests, localization, typecheck, lint, and production build. Physical camera behavior remains unverified.
 * **file changed**:
@@ -1474,7 +1474,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-09 02:49:09
-* **Model used**: GPT-5 Codex
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**:
   ```
   Use this as a tight UI + persistence corrective pass:
@@ -1606,7 +1606,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-09 08:19:41
-* **Model used**: GPT-5 Codex
+* **Model used**: GPT-5.6 Luna Max
 * **Human Prompt**: `atomic commit and push (urgent for another pc handoff)`
 * **TLDR AI agents done**: Verified, atomically committed, and pushed the cohesive frontend UI changes for cross-device handoff; excluded runtime database artifacts.
 * **file changed**:
@@ -1652,7 +1652,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-09 02:57:31
-* **Model used**: GPT-5 Codex
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**:
   ```
   Files mentioned by the user:
@@ -1675,7 +1675,7 @@ Then STOP.
 
 ---
 ### Timestamp: 2026-08-09 03:42:35
-* **Model used**: GPT-5 Codex
+* **Model used**: GPT-5.6 Sol xhigh
 * **Human Prompt**:
   ```
   Execute AKSA CORE MVP PHASE 1 REAL GOOGLE OAUTH + REAL DOCS.
@@ -1770,3 +1770,51 @@ Then STOP.
   - `src/app/workspace.css`
   - `src/components/shared/accessibility-widget.tsx`
   - `tests/unit/accessibility-widget.test.tsx`
+
+---
+### Timestamp: 2026-08-09 23:33:27
+* **Model used**: GPT-5.6 Sol (Low)
+* **Human Prompt**: `/goal change the illogical model used on the log, especially GPT 5 (WRONG) should be Sol or Luna or Terra , i forget what reasoning level but THOSE model IDENTIFIED AS GPT 5 WHICH IS BIG MISTAKE , check both zaltech and henix log`
+* **TLDR AI agents done**: Audited Henix and Zaltech model labels, replaced generic Codex and GPT-5 labels with evidence-based GPT-5.6 Terra, Sol, or Luna families, and preserved only reasoning levels supported by existing entries.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-09 23:43:15
+* **Model used**: GPT-5.6 Sol (Low)
+* **Human Prompt**: `some effort level are blank`
+* **TLDR AI agents done**: Filled every blank GPT-5.6 reasoning level using model defaults: Terra Medium and Sol Low.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 00:03:44
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Pull and sync progress from another PC; restore real Google sign-in; redact all supplied credentials; use .env.local instead of .env; darken the authentication background; use the monochrome logo; remove Open workspace; remove stale prompt, implementation-gap, and handoff Markdown files without removing AGENTS.md or .agents/. [All credential values redacted.]`
+* **TLDR AI agents done**: Restored Google sign-in through Better Auth, registered local and production provider callbacks in Google Cloud, improved the sign-in presentation, removed the authentication bypass and selected stale planning files, preserved canonical guidance, verified remote parity, and passed lint, type checking, 426 tests, production build, and visual review.
+* **file changed**:
+  - `.agents/features/auth-onboarding.md`
+  - `.agents/prd.md`
+  - `.env.example`
+  - `HANDOFF_LUNA.md`
+  - `docs/foundation-handoff.md`
+  - `implementation_gap_report.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `opus2_prompt.md`
+  - `playwright.config.ts`
+  - `poc_docs_prompt.md`
+  - `src/app/(auth)/sign-in/page.tsx`
+  - `src/app/(auth)/sign-up/page.tsx`
+  - `src/app/workspace.css`
+  - `src/components/auth/auth-form.tsx`
+  - `src/components/auth/google-sign-in-button.tsx`
+  - `src/lib/client/auth/auth-client.ts`
+  - `src/lib/server/auth/better-auth.ts`
+  - `src/lib/server/config/runtime-config.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`

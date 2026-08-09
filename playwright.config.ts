@@ -13,6 +13,8 @@ export default defineConfig({
   webServer: {
     command: "bun run dev",
     env: {
+      AUTH_SECRET: "aksa-e2e-auth-secret-that-is-at-least-32-characters",
+      BETTER_AUTH_URL: "http://localhost:3000",
       TURSO_AUTH_TOKEN: "aksa-e2e-local",
       TURSO_DATABASE_URL: "file:aksa-e2e.db"
     },

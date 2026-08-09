@@ -8,12 +8,23 @@ import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import type { HeadControlEngineFactory } from "@/lib/client/vision/head-control-context";
 import { CAMERA_YAW_TO_SCREEN_DIRECTION } from "@/lib/client/vision/pointer-mapping";
 
+const navigationMocks = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
+const authClientMocks = vi.hoisted(() => ({ social: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/onboarding",
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() })
+  useRouter: () => ({ ...navigationMocks, push: vi.fn() })
+}));
+
+vi.mock("@/lib/client/auth/auth-client", () => ({
+  authClient: { signIn: { social: authClientMocks.social } }
 }));
 
 beforeEach(() => {
+  navigationMocks.replace.mockClear();
+  navigationMocks.refresh.mockClear();
+  authClientMocks.social.mockReset();
+  authClientMocks.social.mockResolvedValue({ data: { redirect: true }, error: null });
   window.sessionStorage.clear();
   Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
   Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
@@ -22,6 +33,73 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("account form", () => {
+  it("starts Google sign-in through Better Auth with bounded callback routes", async () => {
+    render(
+      <AuthForm
+        action={async () => ({ outcome: "unavailable", error: createAksaError("not_configured") })}
+        googleSignInEnabled
+        locale="en"
+        mode="sign_in"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: m.auth_continue_google({}, { locale: "en" }) }));
+
+    await waitFor(() => {
+      expect(authClientMocks.social).toHaveBeenCalledWith({
+        provider: "google",
+        callbackURL: "/workspace",
+        newUserCallbackURL: "/onboarding",
+        errorCallbackURL: "/sign-in?oauth_error=google"
+      });
+    });
+  });
+
+  it("keeps Google sign-in visible but disabled when deployment configuration is incomplete", () => {
+    render(
+      <AuthForm
+        action={async () => ({ outcome: "unavailable", error: createAksaError("not_configured") })}
+        locale="en"
+        mode="sign_in"
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: m.auth_continue_google({}, { locale: "en" }) })
+    ).toBeDisabled();
+    expect(screen.getByText(m.auth_google_unavailable({}, { locale: "en" }))).toBeInTheDocument();
+  });
+
+  it("routes new accounts through onboarding after authentication", async () => {
+    render(
+      <AuthForm
+        action={async () => ({
+          outcome: "authenticated",
+          session: {
+            userId: "user-new",
+            email: "new@example.com",
+            displayName: null,
+            workspaceId: "workspace-new",
+            locale: "en",
+            expiresAt: Date.now() + 60_000
+          }
+        })}
+        locale="en"
+        mode="sign_up"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(m.auth_email_label({}, { locale: "en" })), {
+      target: { value: "new@example.com" }
+    });
+    fireEvent.change(screen.getByLabelText(m.auth_password_label({}, { locale: "en" })), {
+      target: { value: "correct horse battery" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: m.auth_submit_sign_up({}, { locale: "en" }) }));
+
+    await waitFor(() => expect(navigationMocks.replace).toHaveBeenCalledWith("/onboarding"));
+  });
+
   it("uses persistent labels and autofill hints without asking for device permission", () => {
     render(
       <AuthForm

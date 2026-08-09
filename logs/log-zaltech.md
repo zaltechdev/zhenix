@@ -45,7 +45,7 @@ Zalfa Daffani Fadhillah Al Hanif (Zaltech - https://github.com/zaltechdev)
 
 ---
 ### Timestamp: 2026-08-08 08:18:00
-* **Model used**: GPT-5 (default)
+* **Model used**: GPT-5.6 Terra (default)
 * **Human Prompt**: `# AKSA HEAD POINTER - CURSOR VISUAL POLISH PASS
 
 Repository: github.com/zaltechdev/zhenix
@@ -147,7 +147,7 @@ Run bun run i18n:compile, bun run typecheck, bun run lint, bun run test, bun run
 
 ---
 ### Timestamp: 2026-08-08 07:56:11
-* **Model used**: GPT-5 (default)
+* **Model used**: GPT-5.6 Terra (default)
 * **Human Prompt**: `# AKSA HEAD CONTROL - TARGET ASSIST + STABILITY PASS
 
 Repository: github.com/zaltechdev/zhenix
@@ -175,7 +175,7 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
 
 ---
 ### Timestamp: 2026-08-08 14:47:00
-* **Model used**: GPT-5
+* **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `Referenced Phase I runtime-reliability specification. Implement Phase I, verify it, and log a TLDR instead of the long Markdown prompt.`
 * **TLDR AI agents done**: Replaced the missing semantic voice endpoint with an authenticated, rate-limited, deterministic-first Gemini classifier that accepts only structured allowlisted intents. The real route now returns HTTP 401 when unauthenticated instead of 404. All 357 unit tests, production build, and 24 Workspace browser tests passed.
 * **file changed**:
@@ -192,7 +192,7 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
 
 ---
 ### Timestamp: 2026-08-09 12:35:00
-* **Model used**: GPT-5.6 Sol
+* **Model used**: GPT-5.6 Sol (Low)
 * **Human Prompt**: `Continue the existing Aksa MVP pass without restarting: finish P0 auth, Google OAuth, Docs, bounded agent, and real History/Activity; complete the in-progress product cleanup, Appearance, and responsive layout; verify in Chrome; run final gates once; commit and push dev.`
 * **TLDR AI agents done**: Protected Workspace routes with real Aksa sessions, added real sign-out, hardened Google OAuth readiness and scope enforcement, fixed bounded two-command Docs planning, activated real Drive list/open, wired Vertex through ADC, removed internal and fabricated product states, removed the public Accessibility widget, added visual System/Light/Dark and contrast preferences, widened desktop surfaces, isolated Playwright from the live database, and fixed navigation-safe preference persistence. Full i18n, typecheck, lint, 419 tests, and production build passed. Focused Playwright auth, appearance persistence, and 1366/1440/1920 layout checks passed 3/3. Existing Chrome session, EN/ID continuity, and real Appearance persistence were verified. Live Google OAuth and Docs remain blocked by Cloud OAuth secret rotation and scope saving, which require action-time approval and a human paste of the new secret into ignored local configuration.
 * **file changed**:
@@ -235,4 +235,52 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
 * **TLDR AI agents done**: Created and verified the separate replacement Web OAuth client with both approved origins and callbacks while leaving the original client and every old secret untouched. Reached the authenticated local Workspace. Added Drive metadata, Docs, openid, and email to the Google Auth Platform draft with truthful usage justifications. Google requires a real YouTube demo URL before the restricted-scope draft can be saved. The credential and scope screens remain open for the operator; only the manual ignored `.env.local` paste and real demo URL are pending. No credential was read, logged, committed, or shown.
 * **file changed**:
   - `HANDOFF_LUNA.md`
+  - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-09 23:33:27
+* **Model used**: GPT-5.6 Sol (Low)
+* **Human Prompt**: `/goal change the illogical model used on the log, especially GPT 5 (WRONG) should be Sol or Luna or Terra , i forget what reasoning level but THOSE model IDENTIFIED AS GPT 5 WHICH IS BIG MISTAKE , check both zaltech and henix log`
+* **TLDR AI agents done**: Audited Henix and Zaltech model labels, replaced generic Codex and GPT-5 labels with evidence-based GPT-5.6 Terra, Sol, or Luna families, and preserved only reasoning levels supported by existing entries.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-09 23:43:15
+* **Model used**: GPT-5.6 Sol (Low)
+* **Human Prompt**: `some effort level are blank`
+* **TLDR AI agents done**: Filled every blank GPT-5.6 reasoning level using model defaults: Terra Medium and Sol Low.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 00:03:44
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Pull and sync progress from another PC; restore real Google sign-in; redact all supplied credentials; use .env.local instead of .env; darken the authentication background; use the monochrome logo; remove Open workspace; remove stale prompt, implementation-gap, and handoff Markdown files without removing AGENTS.md or .agents/. [All credential values redacted.]`
+* **TLDR AI agents done**: Restored Google sign-in through Better Auth, registered local and production provider callbacks in Google Cloud, improved the sign-in presentation, removed the authentication bypass and selected stale planning files, preserved canonical guidance, verified remote parity, and passed lint, type checking, 426 tests, production build, and visual review.
+* **file changed**:
+  - `.agents/features/auth-onboarding.md`
+  - `.agents/prd.md`
+  - `.env.example`
+  - `HANDOFF_LUNA.md`
+  - `docs/foundation-handoff.md`
+  - `implementation_gap_report.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `opus2_prompt.md`
+  - `playwright.config.ts`
+  - `poc_docs_prompt.md`
+  - `src/app/(auth)/sign-in/page.tsx`
+  - `src/app/(auth)/sign-up/page.tsx`
+  - `src/app/workspace.css`
+  - `src/components/auth/auth-form.tsx`
+  - `src/components/auth/google-sign-in-button.tsx`
+  - `src/lib/client/auth/auth-client.ts`
+  - `src/lib/server/auth/better-auth.ts`
+  - `src/lib/server/config/runtime-config.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`
   - `logs/log-zaltech.md`

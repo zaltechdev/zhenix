@@ -88,7 +88,10 @@ test.describe("primary path", () => {
     /** Account entry never asks for a camera or a microphone. */
     await expect(page.getByText(/camera and microphone/i)).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Open workspace" }).click();
+    await page.getByRole("link", { name: "Don't have an account? Sign up" }).click();
+    await page.getByLabel("Email").fill(`aksa-e2e-landing-${Date.now()}@example.com`);
+    await page.getByLabel("Password").fill("AksaE2E!2026");
+    await page.getByRole("button", { name: "Create account" }).click();
     await expect(page).toHaveURL(/\/onboarding$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Choose optional input methods" })

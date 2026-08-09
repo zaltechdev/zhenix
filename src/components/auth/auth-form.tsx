@@ -9,6 +9,7 @@ import { BlockedState } from "@/components/workspace/state-panel";
 import { Button } from "@/components/shared/button";
 import { FormField } from "@/components/shared/form-field";
 import { TextInput } from "@/components/shared/text-input";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
 type Mode = "sign_in" | "sign_up";
 
@@ -30,7 +31,9 @@ export function AuthForm({
   action,
   notice,
   links,
-  workspaceNote
+  workspaceNote,
+  googleSignInEnabled = false,
+  googleSignInFailed = false
 }: {
   mode: Mode;
   locale: Locale;
@@ -38,6 +41,8 @@ export function AuthForm({
   notice?: React.ReactNode;
   links?: React.ReactNode;
   workspaceNote?: React.ReactNode;
+  googleSignInEnabled?: boolean;
+  googleSignInFailed?: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<AuthResult | null, FormData>(action, null);
@@ -60,13 +65,22 @@ export function AuthForm({
 
   useEffect(() => {
     if (state?.outcome === "authenticated") {
-      router.replace("/workspace");
+      router.replace(mode === "sign_up" ? "/onboarding" : "/workspace");
       router.refresh();
     }
-  }, [router, state]);
+  }, [mode, router, state]);
 
   return (
     <div className="aksa-auth-form-wrapper">
+      <GoogleSignInButton enabled={googleSignInEnabled} locale={locale} />
+      {googleSignInFailed ? (
+        <p className="aksa-hint" role="alert">
+          {m.auth_google_failed({}, options)}
+        </p>
+      ) : null}
+      <div aria-hidden="true" className="aksa-auth-divider">
+        <span>{m.auth_or({}, options)}</span>
+      </div>
       <form action={formAction} className="aksa-auth-form" noValidate>
         <input name="locale" type="hidden" value={locale} />
 
