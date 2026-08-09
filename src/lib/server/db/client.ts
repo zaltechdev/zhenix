@@ -302,6 +302,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 `;
 
 const LOCAL_SCHEMA_UPGRADES = [
+  "ALTER TABLE accessibility_profiles ADD COLUMN reacquisition_pointer_behavior text DEFAULT 'keep_position' NOT NULL",
   "ALTER TABLE accessibility_profiles ADD COLUMN ui_preferences text"
 ];
 
