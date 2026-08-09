@@ -1946,7 +1946,10 @@ a {
   bottom: calc(100% + var(--space-2));
   left: 0;
   z-index: 60;
-  min-width: 280px;
+  width: min(320px, calc(100vw - 2rem));
+  min-width: 0;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -2000,6 +2003,7 @@ a {
   display: flex;
   width: 100%;
   min-height: 44px;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   border: 1px solid transparent;
@@ -2025,13 +2029,17 @@ a {
 }
 
 .landing-a11y-option--field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   cursor: default;
   gap: var(--space-3);
 }
 
 .landing-a11y-option__select {
   min-height: 40px;
-  max-width: 132px;
+  width: 132px;
+  min-width: 108px;
+  max-width: 44%;
   border: 1px solid var(--color-aksa-line);
   border-radius: var(--radius-sm);
   background: var(--color-aksa-cloud);
@@ -2042,16 +2050,24 @@ a {
 
 .landing-a11y-option__motion-icon {
   display: inline-flex;
+  flex: 0 0 20px;
   width: 20px;
+  height: 20px;
+  align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
   line-height: 1;
 }
 
 .landing-a11y-option__info {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: var(--space-2);
+}
+
+.landing-a11y-option__info > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .landing-icon--sm {

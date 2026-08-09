@@ -56,10 +56,11 @@ function NavigationLinks({
 
 export function MarketingHeader({ locale }: { locale: Locale }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [activeHref, setActiveHref] = useState("");
+  const navigationRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const navigationInnerRef = useRef<HTMLDivElement>(null);
   const messageOptions = { locale };
   const links: NavigationLink[] = [
     { href: "#features", label: m.navigation_features({}, messageOptions) },
@@ -68,9 +69,36 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
   ];
 
   useEffect(() => {
-    function handleScroll() {
-      const scrollY = window.scrollY;
-      setIsScrolled(scrollY > 72);
+    let frameId: number | null = null;
+    let targetProgress = 0;
+    let displayedProgress = 0;
+    const smoothingFactor = 0.12;
+
+    function updateNavigation(progress: number) {
+      frameId = null;
+
+      const inner = navigationInnerRef.current;
+      if (!inner) {
+        return;
+      }
+
+      const availableWidth = Math.max(0, document.documentElement.clientWidth - 32);
+      const wideWidth = Math.min(1280, availableWidth);
+      const floatingWidth = Math.min(960, availableWidth);
+      const widePadding = window.innerWidth >= 1024 ? 48 : window.innerWidth >= 768 ? 32 : 24;
+      const surfaceProgress = progress * progress * progress * progress;
+      const filterProgress = surfaceProgress * surfaceProgress;
+      const interpolate = (from: number, to: number) => from + (to - from) * progress;
+
+      navigationRef.current?.style.setProperty("--landing-navigation-top-offset", `${interpolate(0, 12)}px`);
+      inner.style.setProperty("--landing-navigation-progress", progress.toFixed(4));
+      inner.style.setProperty("--landing-navigation-surface-progress", surfaceProgress.toFixed(4));
+      inner.style.setProperty("--landing-navigation-filter-progress", filterProgress.toFixed(4));
+      inner.style.setProperty("--landing-navigation-width", `${interpolate(wideWidth, floatingWidth)}px`);
+      inner.style.setProperty("--landing-navigation-padding-block", `${interpolate(8, 6)}px`);
+      inner.style.setProperty("--landing-navigation-padding-inline", `${interpolate(widePadding, 28)}px`);
+      inner.style.setProperty("--landing-navigation-radius", `${interpolate(0, 24)}px`);
+      inner.style.setProperty("--landing-navigation-min-height", `${interpolate(72, 68)}px`);
 
       const sectionIds = ["features", "how-it-works", "faq"];
       let current = "";
@@ -84,12 +112,42 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
           }
         }
       }
-      setActiveHref(current);
+      setActiveHref((prev) => (prev !== current ? current : prev));
     }
 
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    function animateNavigation() {
+      frameId = null;
+      displayedProgress += (targetProgress - displayedProgress) * smoothingFactor;
+
+      if (Math.abs(targetProgress - displayedProgress) < 0.001) {
+        displayedProgress = targetProgress;
+      }
+
+      updateNavigation(displayedProgress);
+
+      if (displayedProgress !== targetProgress) {
+        frameId = window.requestAnimationFrame(animateNavigation);
+      }
+    }
+
+    function requestNavigationUpdate() {
+      targetProgress = Math.min(1, Math.max(0, window.scrollY / 80));
+
+      if (frameId === null) {
+        frameId = window.requestAnimationFrame(animateNavigation);
+      }
+    }
+
+    requestNavigationUpdate();
+    window.addEventListener("scroll", requestNavigationUpdate, { passive: true });
+    window.addEventListener("resize", requestNavigationUpdate);
+    return () => {
+      window.removeEventListener("scroll", requestNavigationUpdate);
+      window.removeEventListener("resize", requestNavigationUpdate);
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -141,8 +199,8 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
   }
 
   return (
-    <header className={`landing-navigation ${isScrolled ? "is-scrolled" : ""}`} data-scrolled={isScrolled}>
-      <div className="landing-navigation__inner">
+    <header className="landing-navigation" ref={navigationRef}>
+      <div className="landing-navigation__inner" ref={navigationInnerRef}>
         <a className="landing-navigation__brand" href="#top">
           <Image
             alt={m.navigation_home_label({}, messageOptions)}

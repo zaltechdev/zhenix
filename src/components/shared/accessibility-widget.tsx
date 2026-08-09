@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Accessibility, Check, Eye, Type, X } from "lucide-react";
+import { Accessibility, Check, Eye, Type, Waves, X } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import { useOptionalAppPreferences } from "@/lib/client/preferences/preference-context";
@@ -142,7 +142,7 @@ export function AccessibilityWidget({ locale = "en" }: { locale?: Locale }) {
               type="button"
             >
               <div className="landing-a11y-option__info">
-                <span aria-hidden="true" className="landing-a11y-option__motion-icon">≈</span>
+                <Waves aria-hidden="true" className="landing-icon landing-a11y-option__motion-icon" />
                 <span>{m.accessibility_reduce_motion({}, messageOptions)}</span>
               </div>
               {activeReducedMotion ? <Check aria-hidden="true" className="landing-icon landing-icon--check" /> : null}

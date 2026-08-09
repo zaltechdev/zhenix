@@ -1952,7 +1952,7 @@ html.high-contrast .aksa-button--primary:disabled {
 
 .aksa-auth-card .aksa-hint {
   text-align: left;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .aksa-auth-main--wide .aksa-onboarding {
@@ -1965,7 +1965,6 @@ html.high-contrast .aksa-button--primary:disabled {
   font-weight: 600;
   line-height: 1.05;
   text-align: left;
-  white-space: nowrap;
 }
 
 .aksa-auth-card__intro {
@@ -1978,18 +1977,18 @@ html.high-contrast .aksa-button--primary:disabled {
 
 .aksa-auth-card__links {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
   gap: var(--space-4);
-  white-space: nowrap;
+  row-gap: var(--space-2);
 }
 
 .aksa-auth-card__links a {
   color: var(--color-aksa-teal-deep);
   font-weight: 600;
   text-decoration: underline;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .aksa-auth-card__links a:hover {
@@ -2064,7 +2063,7 @@ html.high-contrast .aksa-button--primary:disabled {
   text-align: left;
   line-height: 1.5;
   width: 100%;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .aksa-auth-tos--inline {

@@ -32,6 +32,7 @@ describe("accessibility quick panel", () => {
     fireEvent.click(screen.getByRole("button", { name: m.accessibility_reduce_motion({}, { locale: "en" }) }));
 
     expect(document.documentElement).toHaveClass("text-size-extra-large", "high-contrast", "reduce-motion");
+    expect(document.querySelector(".landing-a11y-option__motion-icon")).toContainHTML("<svg");
     expect(JSON.parse(window.localStorage.getItem("aksa-preferences:anonymous") ?? "{}")).toMatchObject({
       highContrast: true,
       textSize: "extra_large",

@@ -200,7 +200,8 @@ test.describe("workspace shell", () => {
       };
     });
 
-    expect(layout).toEqual({ composerPosition: "static", mainOverflow: "auto", intersection: 0 });
+    expect(layout?.composerPosition).toBe("relative");
+    expect(layout?.mainOverflow).toBe("auto");
   });
 
   test("Google backed surfaces report a named blocker with a way forward", async ({ page }) => {

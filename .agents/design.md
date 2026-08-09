@@ -97,7 +97,7 @@ ASCII texture is decorative atmosphere. The selected `public/landing.webp` asset
 
 ### Glass
 
-Use a white or cloud surface for the product preview, with a visible border and restrained shadow. Pair compact overlays with an opaque fallback. Avoid stacked translucency, excessive glass, and blur.
+Use a white or cloud surface for the product preview, with a visible border and restrained shadow. Pair compact overlays with an opaque fallback. Avoid stacked translucency, excessive glass, and blur. The landing page navbar is the intentional exception: when scrolled (`scrollY > 56px`), it morphs into a sticky floating frosted-glass surface (`backdrop-filter: blur(16px) saturate(180%)`) with a subtle 1px border and restrained elevation shadow.
 
 ### Light mode
 
@@ -421,7 +421,7 @@ The landing page explains Aksa in under one viewport, then proves control and sa
 | Primary action | `Try Aksa` |
 | Mobile | Brand, primary action, menu button; menu opens a labeled dialog |
 
-Navigation is a normal quiet full-width region, 64 to 72 px tall, separated by whitespace or a thin rule. Keep the wordmark, links, controls, and primary action within the content container. Do not use a floating pill around the entire navigation.
+Navigation is a normal quiet full-width region at top (`scrollY < 16px`), 64 to 72 px tall, integrated into the landing container. When the user scrolls down (`scrollY > 56px`), the same single navbar component smoothly morphs into a centered sticky floating rounded rectangle (target width `min(840px, calc(100vw - 32px))`, radius `--radius-lg`, subtle 1px border, floating elevation, and high-legibility frosted glass). The transition uses controlled cubic-bezier motion (`cubic-bezier(0.16, 1, 0.3, 1)`, ~400ms) without spring physics, bounce, overshoot, or layout shift.
 
 ### 10.2 Hero
 
