@@ -15,7 +15,7 @@ export const users = sqliteTable(
     email: text("email").notNull().unique(),
     emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
     name: text("name"),
-    imageUrl: text("image_url"),
+    image: text("image_url"),
     defaultWorkspaceId: text("default_workspace_id"),
     locale: text("locale").default("en"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),

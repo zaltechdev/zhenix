@@ -284,3 +284,20 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `tests/unit/auth-onboarding.test.tsx`
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 00:32:11
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Make Google sign-in genuinely available locally and fix account selection doing nothing. Keep production deployment and DNS untouched. [All credentials and sensitive environment values redacted.]`
+* **TLDR AI agents done**: Fixed Better Auth's user-image schema mapping, supplied a safe local base URL fallback, and verified a real Google callback and authenticated Workspace response.
+* **file changed**:
+  - `.agents/debug-zaltech.md`
+  - `.agents/features/auth-onboarding.md`
+  - `.agents/security.md`
+  - `.env.example`
+  - `src/lib/config/public-google.ts`
+  - `src/lib/server/auth/better-auth.ts`
+  - `src/lib/server/config/runtime-config.ts`
+  - `src/lib/server/db/schema.ts`
+  - `tests/unit/auth-schema.test.ts`
+  - `logs/log-zaltech.md`

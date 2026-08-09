@@ -32,7 +32,7 @@ export function AuthForm({
   notice,
   links,
   workspaceNote,
-  googleSignInEnabled = false,
+  googleClientId = null,
   googleSignInFailed = false
 }: {
   mode: Mode;
@@ -41,7 +41,7 @@ export function AuthForm({
   notice?: React.ReactNode;
   links?: React.ReactNode;
   workspaceNote?: React.ReactNode;
-  googleSignInEnabled?: boolean;
+  googleClientId?: string | null;
   googleSignInFailed?: boolean;
 }) {
   const router = useRouter();
@@ -72,7 +72,7 @@ export function AuthForm({
 
   return (
     <div className="aksa-auth-form-wrapper">
-      <GoogleSignInButton enabled={googleSignInEnabled} locale={locale} />
+      <GoogleSignInButton clientId={googleClientId} locale={locale} mode={mode} />
       {googleSignInFailed ? (
         <p className="aksa-hint" role="alert">
           {m.auth_google_failed({}, options)}

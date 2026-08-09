@@ -82,3 +82,19 @@ A security-relevant issue follows the same template with three additions.
 - Verification: Server classifier tests accepted only allowlisted structured output and rejected malformed output. Real Playwright HTTP verification now returns authenticated-boundary HTTP 401 with `{ intent: "UNKNOWN" }`, not 404. Localization, typecheck, lint, 357 unit tests, production build, and 24 Workspace Playwright tests passed.
 - Prevention: Unit tests cover deterministic independence, structured provider output, malformed output, and request limits. Workspace E2E asserts that the route exists and enforces authentication.
 - Commit or PR: `c188994`.
+
+## 2026-08-10 00:32 - Google sign-in callback rejected a valid account
+
+- Status: fixed
+- Owner: Zaltech
+- Area: Better Auth, Google sign-in, Drizzle schema
+- Symptoms: The Google account chooser completed, but the user remained on sign in.
+- Reproduction: Select an account through the official Google button on local development. The callback returned HTTP 401.
+- Expected: Better Auth verifies the ID token, creates the user and session, then opens the authenticated Workspace.
+- Actual: Better Auth rejected persistence because its required `user.image` schema property was absent.
+- Root cause: Drizzle exposed the existing `image_url` column as `imageUrl`, while Better Auth writes the logical field named `image`.
+- Fix: Remapped the existing column to `users.image`, added a local development base URL fallback, and retained production configuration requirements. No database migration was required because the physical column name stayed unchanged. Permanent fix.
+- Files changed: `src/lib/server/db/schema.ts`, `src/lib/server/auth/better-auth.ts`, `tests/unit/auth-schema.test.ts`
+- Verification: The real Google callback returned HTTP 200, `/workspace` returned HTTP 200, and Chrome loaded the authenticated Workspace. The full Vitest suite passed 428/428; lint and the production build passed.
+- Prevention: A schema regression test requires Better Auth's logical `image` field to map to `image_url`.
+- Commit or PR: pending.

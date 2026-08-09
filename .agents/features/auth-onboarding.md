@@ -20,7 +20,7 @@ Get a new user from the landing page to a workspace where head control and voice
 ## Scope
 
 - Sign up with email and password.
-- Sign up and sign in with Google through Better Auth OAuth.
+- Sign up and sign in with Google Identity Services, verified server-side by Better Auth.
 - Sign in, sign out, session persistence.
 - One workspace created automatically on first sign in.
 - Onboarding: purpose explanation, camera consent, pointer test, calibration, microphone consent, voice test, first guided command.
@@ -104,7 +104,7 @@ The frontend never decides whether a session is valid. It renders the session st
 Owner: Zaltech.
 
 - Authentication library integration for sign up, sign in, sign out, and session lifecycle.
-- Better Auth Google provider configuration with encrypted provider tokens and validated callback destinations.
+- Better Auth One Tap verification for Google ID tokens and validated post-sign-in destinations.
 - Session cookie configuration, rotation on sign in, revocation on sign out, absolute and idle expiry.
 - Sign-in rate limiting per account and per address, with identical responses for existing and non-existing accounts.
 - Workspace creation on first sign in, plus the single `owner` row in `workspace_members`.
@@ -141,7 +141,8 @@ Never stored: camera frames, landmark coordinates, blendshape series, calibratio
 Requirements from `.agents/security.md` sections 1 and 7.
 
 - Established authentication library. No custom password hashing or session cryptography.
-- Google sign-in uses Better Auth's state-protected authorization code flow and its provider callback route.
+- Google sign-in uses the official Google Identity Services button and server-side ID-token verification.
+- Google Workspace authorization remains a separate state-protected authorization-code flow with encrypted provider tokens.
 - HTTP-only, `Secure`, `SameSite=Lax` session cookie. No token in `localStorage` or a URL.
 - Session rotation on sign in. Server-side revocation on sign out.
 - Account enumeration prevented on sign in and any future reset flow.
@@ -250,7 +251,7 @@ Prepared fallback: if the presenter's camera or microphone fails, deny the permi
 
 | ID | Question | Blocks |
 | --- | --- | --- |
-| AOQ-1 | Which authentication library is selected, Better Auth or Auth.js? Tracked as DQ-1 in `.agents/db_schema.md`. | Backend responsibilities |
+| AOQ-1 | Better Auth is selected. Revisit only if a verified implementation blocker appears. | Backend responsibilities |
 | AOQ-2 | Is guest or demo access offered, and how is its data isolated and expired? Tracked as OQ-9. | Scope |
 | AOQ-3 | Default sensitivity, dead zone, smoothing, and dwell duration values. Tracked as OQ-5. | Step 7 and 8 |
 | AOQ-4 | Which facial gesture is the default selection trigger? Tracked as OQ-4. | Step 8 |

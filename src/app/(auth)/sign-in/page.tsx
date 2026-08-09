@@ -4,7 +4,7 @@ import { getRequestLocale } from "@/lib/i18n/request";
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthFormLayout } from "@/components/auth/auth-split-layout";
 import { signInAction } from "@/app/(auth)/actions";
-import { googleSignInStatus } from "@/lib/server/config/runtime-config";
+import { googleSignInClientId } from "@/lib/server/config/runtime-config";
 
 export default async function SignInPage({
   searchParams
@@ -22,7 +22,7 @@ export default async function SignInPage({
     >
       <AuthForm
         action={signInAction}
-        googleSignInEnabled={googleSignInStatus().configured}
+        googleClientId={googleSignInClientId()}
         googleSignInFailed={query.oauth_error === "google"}
         links={
           <div className="aksa-auth-card__links">

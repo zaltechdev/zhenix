@@ -69,7 +69,8 @@
       rgba(248, 250, 252, 0.1) 65%,
       rgba(248, 250, 252, 0.4) 100%);
   --landing-copy-max-width: 800px;
-  --landing-preview-max-width: 1280px;
+  --landing-hero-copy-max-width: 1080px;
+  --landing-preview-max-width: 1400px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -260,12 +261,13 @@ body {
   --landing-navigation-progress: 0;
   --landing-navigation-surface-progress: 0;
   --landing-navigation-filter-progress: 0;
-  --landing-navigation-width: min(1280px, calc(100vw - 32px));
+  --landing-navigation-width: min(1472px, calc(100vw - 32px));
   --landing-navigation-padding-block: 8px;
   --landing-navigation-padding-inline: 48px;
   --landing-navigation-radius: 0px;
   --landing-navigation-min-height: 72px;
   pointer-events: auto;
+  position: relative;
   display: flex;
   width: var(--landing-navigation-width);
   max-width: var(--landing-navigation-width);
@@ -649,13 +651,13 @@ body {
   position: relative;
   z-index: 1;
   display: flex;
-  width: min(100%, var(--landing-copy-max-width));
+  width: min(100%, var(--landing-hero-copy-max-width));
   flex-direction: column;
   align-items: center;
 }
 
 .landing-hero__heading {
-  max-width: var(--landing-copy-max-width);
+  max-width: var(--landing-hero-copy-max-width);
   margin: 0;
   color: var(--color-aksa-ink);
   font-family: var(--font-host-grotesk), sans-serif;
@@ -667,11 +669,11 @@ body {
 }
 
 .landing-hero__heading span {
-  display: block;
+  display: inline;
 }
 
 .landing-hero__description {
-  max-width: 640px;
+  max-width: 800px;
   margin: var(--space-4) 0 0;
   color: var(--color-aksa-ink);
   font-size: clamp(1.1rem, 1.5vw, 1.3rem);
@@ -691,7 +693,7 @@ body {
 .landing-preview {
   position: relative;
   z-index: 1;
-  width: min(100%, 1280px);
+  width: min(100%, var(--landing-preview-max-width));
   margin: clamp(1.5rem, 3vw, 2.25rem) auto 0;
   color: var(--color-aksa-ink);
   text-align: left;
@@ -1625,9 +1627,12 @@ body {
 
   .landing-navigation__desktop-links {
     display: flex;
-    flex: 1 1 auto;
+    position: absolute;
+    left: 50%;
+    flex: 0 0 auto;
     justify-content: center;
     gap: var(--space-1);
+    transform: translateX(-50%);
   }
 
   .landing-navigation__utilities {

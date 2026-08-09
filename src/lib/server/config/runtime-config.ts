@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { assertServerOnly } from "@/lib/server/server-guard";
+import { GOOGLE_SIGN_IN_CLIENT_ID } from "@/lib/config/public-google";
 
 assertServerOnly("src/lib/server/config/runtime-config.ts");
 
@@ -61,16 +62,19 @@ export function databaseStatus(): ConfigurationStatus {
 }
 
 export function authStatus(): ConfigurationStatus {
+  if (process.env.NODE_ENV === "development") {
+    return { configured: true, missingKeys: [] };
+  }
   return statusFor(["AUTH_SECRET"]);
 }
 
 export function googleSignInStatus(): ConfigurationStatus {
-  return statusFor([
-    "AUTH_SECRET",
-    "BETTER_AUTH_URL",
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET"
-  ]);
+  return authStatus();
+}
+
+export function googleSignInClientId(): string | null {
+  if (!googleSignInStatus().configured) return null;
+  return readSecret("GOOGLE_CLIENT_ID") ?? GOOGLE_SIGN_IN_CLIENT_ID;
 }
 
 export function googleStatus(): ConfigurationStatus {

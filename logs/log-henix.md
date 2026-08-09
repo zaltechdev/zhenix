@@ -1622,6 +1622,14 @@ Then STOP.
   - `logs/log-henix.md`
 
 ---
+### Timestamp: 2026-08-10 00:19:25
+* **Model used**: GPT-5 Codex
+* **Human Prompt**: `innacurate, try again.`
+* **TLDR AI agents done**: Verified repository dependencies and implementation boundaries for an accurate technology stack table.
+* **file changed**:
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: 2026-08-09 07:35:00
 * **Model used**: GPT-5.6 Luna Max
 * **Human Prompt**: `AKSA CORE MVP PHASE 2 - BOUNDED AGENT CORE`
@@ -1829,3 +1837,33 @@ Then STOP.
   - `src/app/layout.tsx`
   - `tests/unit/accessibility-widget.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 00:32:11
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Fix and improve the supplied landing and authentication screenshots; keep Google sign-in available and real locally; authorized local and production origins and callbacks were supplied; do not deploy or change production; fix account selection doing nothing; retain AGENTS.md and .agents/ while removing named stale prompt, gap, and handoff Markdown files. [All credentials and sensitive environment values redacted.]`
+* **TLDR AI agents done**: Corrected responsive landing and authentication composition, restored the official Google control, fixed the callback schema mismatch, verified authenticated Workspace access, preserved production, and removed the final stale prompt document.
+* **file changed**:
+  - `.agents/archive/opus_prompt.md`
+  - `.agents/debug-henix.md`
+  - `.agents/debug-zaltech.md`
+  - `.agents/features/auth-onboarding.md`
+  - `.agents/security.md`
+  - `.env.example`
+  - `src/app/(auth)/sign-in/page.tsx`
+  - `src/app/(auth)/sign-up/page.tsx`
+  - `src/app/globals.css`
+  - `src/app/workspace.css`
+  - `src/components/auth/auth-form.tsx`
+  - `src/components/auth/google-sign-in-button.tsx`
+  - `src/components/landing/landing-navigation.tsx`
+  - `src/components/landing/landing-page.tsx`
+  - `src/lib/client/auth/auth-client.ts`
+  - `src/lib/config/public-google.ts`
+  - `src/lib/server/auth/better-auth.ts`
+  - `src/lib/server/config/runtime-config.ts`
+  - `src/lib/server/db/schema.ts`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/auth-schema.test.ts`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`

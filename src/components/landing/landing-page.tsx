@@ -38,6 +38,7 @@ export function LandingPage({ locale }: { locale: Locale }) {
           <div className="landing-hero__content">
             <h1 className="landing-hero__heading" id="hero-heading">
               <span>{m.hero_headline_first({}, messageOptions)}</span>
+              {" "}
               <span>{m.hero_headline_second({}, messageOptions)}</span>
             </h1>
 

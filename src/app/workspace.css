@@ -2085,7 +2085,8 @@ html.high-contrast .aksa-button--primary:disabled {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
+  text-align: center;
   gap: var(--space-4);
   row-gap: var(--space-2);
 }
@@ -2117,6 +2118,18 @@ html.high-contrast .aksa-button--primary:disabled {
 
 .aksa-oauth-button {
   width: 100%;
+}
+
+.aksa-google-button-host {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.aksa-google-button-host iframe {
+  max-width: 100% !important;
 }
 
 .aksa-oauth-icon {

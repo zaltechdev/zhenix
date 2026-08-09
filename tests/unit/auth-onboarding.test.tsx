@@ -9,7 +9,7 @@ import type { HeadControlEngineFactory } from "@/lib/client/vision/head-control-
 import { CAMERA_YAW_TO_SCREEN_DIRECTION } from "@/lib/client/vision/pointer-mapping";
 
 const navigationMocks = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
-const authClientMocks = vi.hoisted(() => ({ social: vi.fn() }));
+const authClientMocks = vi.hoisted(() => ({ create: vi.fn(), oneTap: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/onboarding",
@@ -17,14 +17,18 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/client/auth/auth-client", () => ({
-  authClient: { signIn: { social: authClientMocks.social } }
+  createGoogleAuthClient: (clientId: string) => {
+    authClientMocks.create(clientId);
+    return { oneTap: authClientMocks.oneTap };
+  }
 }));
 
 beforeEach(() => {
   navigationMocks.replace.mockClear();
   navigationMocks.refresh.mockClear();
-  authClientMocks.social.mockReset();
-  authClientMocks.social.mockResolvedValue({ data: { redirect: true }, error: null });
+  authClientMocks.create.mockReset();
+  authClientMocks.oneTap.mockReset();
+  authClientMocks.oneTap.mockResolvedValue(undefined);
   window.sessionStorage.clear();
   Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
   Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
@@ -37,20 +41,31 @@ describe("account form", () => {
     render(
       <AuthForm
         action={async () => ({ outcome: "unavailable", error: createAksaError("not_configured") })}
-        googleSignInEnabled
+        googleClientId="google-client-id-for-tests"
         locale="en"
         mode="sign_in"
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: m.auth_continue_google({}, { locale: "en" }) }));
-
     await waitFor(() => {
-      expect(authClientMocks.social).toHaveBeenCalledWith({
-        provider: "google",
+      expect(authClientMocks.create).toHaveBeenCalledWith("google-client-id-for-tests");
+      expect(authClientMocks.oneTap).toHaveBeenCalledWith({
+        autoSelect: false,
         callbackURL: "/workspace",
-        newUserCallbackURL: "/onboarding",
-        errorCallbackURL: "/sign-in?oauth_error=google"
+        context: "signin",
+        button: {
+          container: expect.any(HTMLElement),
+          config: {
+            type: "standard",
+            locale: "en",
+            logo_alignment: "left",
+            shape: "rectangular",
+            size: "large",
+            text: "continue_with",
+            theme: "outline",
+            width: 400
+          }
+        }
       });
     });
   });

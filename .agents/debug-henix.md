@@ -249,3 +249,19 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Focused unit tests passed 2/2. Typecheck and lint passed. Browser inspection confirmed the visible fixed button and its accessible name on the landing page.
 - Prevention: Root-layout regression coverage requires the global widget mount.
 - Commit or PR: `2d3085f`.
+
+## 2026-08-10 00:32 - Authentication and landing layouts drifted from approved composition
+
+- Status: fixed
+- Owner: Henix
+- Area: responsive landing layout and authentication interface
+- Symptoms: Landing navigation and preview content were too narrow, headline fragments stacked unnaturally, the account-switch link was left-aligned, and Google sign-in displayed an unavailable state.
+- Reproduction: Open the landing page and sign-in page at the desktop and compact widths shown in the supplied screenshots.
+- Expected: Navigation remains centered independently of edge utilities, hero text wraps naturally, the preview uses the available width, account switching is centered, and the official Google control is usable.
+- Actual: Width constraints shifted navigation and preview content inward, separate headline spans could stack, and the sign-in surface did not expose a working provider control.
+- Root cause: Shared width tokens were too restrictive, navigation centering depended on neighboring content, headline spans suppressed natural whitespace, and the provider control remained gated by server-secret configuration.
+- Fix: Expanded responsive containers, centered navigation independently, restored natural headline spacing, centered account switching, rendered the official Google Identity Services button, and preserved explicit failure states. Permanent fix.
+- Files changed: `src/app/globals.css`, `src/app/workspace.css`, `src/components/landing/landing-navigation.tsx`, `src/components/landing/landing-page.tsx`, `src/components/auth/auth-form.tsx`, `src/components/auth/google-sign-in-button.tsx`
+- Verification: Browser review covered 1544x901 and 1063x512 landing layouts plus 1187x969 authentication. The Google chooser opened, the floating Accessibility control remained visible, and the authenticated Workspace loaded. The full Vitest suite passed 428/428; lint and the production build passed.
+- Prevention: Auth component tests assert the official provider setup and bounded callback route.
+- Commit or PR: pending.

@@ -83,7 +83,7 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
       }
 
       const availableWidth = Math.max(0, document.documentElement.clientWidth - 32);
-      const wideWidth = Math.min(1280, availableWidth);
+      const wideWidth = Math.min(1472, availableWidth);
       const floatingWidth = Math.min(960, availableWidth);
       const widePadding = window.innerWidth >= 1024 ? 48 : window.innerWidth >= 768 ? 32 : 24;
       const surfaceProgress = progress * progress * progress * progress;
