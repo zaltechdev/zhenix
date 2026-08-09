@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { SiGoogle } from "@icons-pack/react-simple-icons";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
@@ -18,79 +18,54 @@ export function GoogleSignInButton({
 }) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
-  const buttonHostRef = useRef<HTMLDivElement>(null);
   const options = { locale };
   const authClient = useMemo(
     () => (clientId ? createGoogleAuthClient(clientId) : null),
     [clientId]
   );
 
-  useEffect(() => {
-    const buttonHost = buttonHostRef.current;
-    if (!authClient || !buttonHost) return;
+  async function openGoogleDialog() {
+    if (!authClient || pending) return;
 
-    let cancelled = false;
-    buttonHost.replaceChildren();
     setFailed(false);
     setPending(true);
 
-    const renderTimer = window.setTimeout(() => {
-      void authClient.oneTap({
+    let promptClosed = false;
+    try {
+      await authClient.oneTap({
         autoSelect: false,
         callbackURL: mode === "sign_up" ? "/onboarding" : "/workspace",
         context: mode === "sign_up" ? "signup" : "signin",
-        button: {
-          container: buttonHost,
-          config: {
-            type: "standard",
-            locale,
-            logo_alignment: "left",
-            shape: "rectangular",
-            size: "large",
-            text: "continue_with",
-            theme: "outline",
-            width: 400
-          }
-        }
-        })
-        .then(() => {
-          if (!cancelled) setPending(false);
-        })
-        .catch(() => {
-          if (cancelled) return;
+        uxMode: "popup",
+        onPromptNotification: () => {
+          promptClosed = true;
           setFailed(true);
           setPending(false);
-        });
-    }, 0);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(renderTimer);
-      buttonHost.replaceChildren();
-    };
-  }, [authClient, locale, mode]);
+        }
+      });
+      if (!promptClosed) setPending(false);
+    } catch {
+      setFailed(true);
+      setPending(false);
+    }
+  }
 
   return (
     <div className="aksa-oauth-section">
-      {authClient && !failed ? (
-        <div
-          aria-busy={pending}
-          className="aksa-google-button-host"
-          ref={buttonHostRef}
-        />
-      ) : (
-        <Button
-          aria-describedby="google-sign-in-status"
-          className="aksa-oauth-button"
-          disabled
-          size="md"
-          type="button"
-          variant="secondary"
-        >
-          <SiGoogle aria-hidden="true" className="aksa-oauth-icon" size={20} />
-          {m.auth_continue_google({}, options)}
-        </Button>
-      )}
+      <Button
+        aria-describedby={!authClient || failed ? "google-sign-in-status" : undefined}
+        aria-haspopup="dialog"
+        className="aksa-oauth-button"
+        disabled={!authClient || pending}
+        loading={pending}
+        onClick={openGoogleDialog}
+        size="md"
+        type="button"
+        variant="secondary"
+      >
+        <SiGoogle aria-hidden="true" className="aksa-oauth-icon" size={20} />
+        {m.auth_continue_google({}, options)}
+      </Button>
       {!authClient || failed ? (
         <p className="aksa-hint" id="google-sign-in-status" role={failed ? "alert" : undefined}>
           {failed

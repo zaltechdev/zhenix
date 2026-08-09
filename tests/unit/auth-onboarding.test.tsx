@@ -47,25 +47,22 @@ describe("account form", () => {
       />
     );
 
+    const googleButton = screen.getByRole("button", {
+      name: m.auth_continue_google({}, { locale: "en" })
+    });
+    expect(googleButton).toHaveAttribute("aria-haspopup", "dialog");
+    expect(authClientMocks.oneTap).not.toHaveBeenCalled();
+
+    fireEvent.click(googleButton);
+
     await waitFor(() => {
       expect(authClientMocks.create).toHaveBeenCalledWith("google-client-id-for-tests");
       expect(authClientMocks.oneTap).toHaveBeenCalledWith({
         autoSelect: false,
         callbackURL: "/workspace",
         context: "signin",
-        button: {
-          container: expect.any(HTMLElement),
-          config: {
-            type: "standard",
-            locale: "en",
-            logo_alignment: "left",
-            shape: "rectangular",
-            size: "large",
-            text: "continue_with",
-            theme: "outline",
-            width: 400
-          }
-        }
+        onPromptNotification: expect.any(Function),
+        uxMode: "popup"
       });
     });
   });

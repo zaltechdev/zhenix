@@ -286,6 +286,7 @@ Each section starts directly with a heading (H1 or H2), followed by one short de
 | Navigation | Current page exposed with `aria-current`; mobile menu traps focus and restores it on close |
 | Status chip | Icon plus short label; no color-only meaning; never interactive unless styled as a control |
 | Card | One purpose, one-sentence description, optional clear action; whole-card click only when one destination exists |
+| Loading skeleton | Mirrors the destination layout and preserves its shell; never reuse an unrelated form or card skeleton for Workspace routes |
 | Dialog | Named title; initial focus on meaning, not danger; Escape cancels when safe; focus returns to trigger |
 | Confirmation | States action, scope, consequence, and recovery; approve, edit, cancel choices |
 | Toast | Brief nonblocking update; no critical action available only inside the toast |
@@ -338,6 +339,7 @@ Target WCAG 2.2 AA. Primary flows must not depend on fine motor control.
 ### Accessibility Tooling Strategy
 
 1. **User-Side Widget:** Stick to native, built-in UI controls for accessibility preferences (e.g., our custom floating widget). Do not use third-party runtime overlays (like Accessify or Sienna) to avoid DOM mutation and screen-reader conflicts.
+   In Workspace, keep the trigger icon-only, outside navigation, and above the persistent composer region. It must not cover sidebar destinations or development controls.
 2. **Dev-Side Auditing:** Use `eslint-plugin-jsx-a11y` (via `eslint-config-next`) for static analysis to block structurally inaccessible code in development. Use `@axe-core/playwright` in E2E tests for automated DOM runtime auditing and catching contrast violations.
 
 ### Head control calibration

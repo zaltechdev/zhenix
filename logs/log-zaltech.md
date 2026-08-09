@@ -301,3 +301,14 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `src/lib/server/db/schema.ts`
   - `tests/unit/auth-schema.test.ts`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 00:57:38
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Make local Google sign-in complete successfully and reduce the post-selection wait while keeping production untouched. [All credentials, tokens, secrets, and environment values redacted.]`
+* **TLDR AI agents done**: Deduplicated request-local session and Google connection reads, retained authentication isolation, and verified faster authenticated Workspace loading.
+* **file changed**:
+  - `.agents/debug-zaltech.md`
+  - `src/lib/server/db/dal.ts`
+  - `src/lib/server/google/service.ts`
+  - `logs/log-zaltech.md`

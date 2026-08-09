@@ -15,8 +15,11 @@ afterEach(() => cleanup());
 describe("accessibility quick panel", () => {
   it("remains mounted globally across every application surface", () => {
     const rootLayout = readFileSync("src/app/layout.tsx", "utf8");
+    const globalStyles = readFileSync("src/app/globals.css", "utf8");
 
     expect(rootLayout).toContain('<AccessibilityWidget locale={locale} />');
+    expect(globalStyles).toContain("body:has(.aksa-shell) .landing-a11y-widget");
+    expect(globalStyles).toContain("left: calc(264px + var(--space-4))");
   });
 
   it("offers configurable text size, high contrast, and reduced motion", () => {

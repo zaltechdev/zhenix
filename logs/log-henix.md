@@ -1867,3 +1867,24 @@ Then STOP.
   - `tests/unit/auth-schema.test.ts`
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 00:57:38
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Keep real Google sign-in available locally, open its account dialog on the same page, fix account selection appearing inactive, replace the generic Workspace loading card with route-specific skeletons, and prevent the floating Accessibility control from covering Workspace navigation. Synchronize progress without deploying or changing production. Preserve AGENTS.md and .agents/, remove only the named stale prompt, gap, and handoff Markdown files. [All credentials, tokens, secrets, and environment values redacted.]`
+* **TLDR AI agents done**: Added same-page Google prompting, route-aware Workspace skeletons, safe accessibility placement, verified the browser flow, and confirmed the repository was synchronized before committing.
+* **file changed**:
+  - `.agents/debug-henix.md`
+  - `.agents/design.md`
+  - `.agents/features/auth-onboarding.md`
+  - `.agents/features/virtual-workspace.md`
+  - `src/app/globals.css`
+  - `src/app/loading.tsx`
+  - `src/app/workspace.css`
+  - `src/app/workspace/loading.tsx`
+  - `src/components/auth/google-sign-in-button.tsx`
+  - `src/components/shared/route-loading.tsx`
+  - `tests/unit/accessibility-widget.test.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `tests/unit/loading-skeleton.test.tsx`
+  - `logs/log-henix.md`

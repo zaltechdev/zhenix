@@ -63,7 +63,7 @@ Navigation intents work from voice, text, keyboard, pointer, and head control eq
 
 | Surface | States |
 | --- | --- |
-| Shell | loading session, ready, offline, session expired |
+| Shell | route-aware loading skeleton, ready, offline, session expired |
 | Workspace navigation | current view indicated, view switching, view unavailable without a Google connection |
 | Document view | empty, loading, loaded read-only, edit pending confirmation, edit applied, load failed, too large to render, disconnected |
 | Files view | empty, searching, results, no results, load failed, disconnected |
@@ -190,6 +190,7 @@ No failure in one view breaks another view. The shell and the command bar remain
 - Dictation only fills the editable command field. Live Voice executes final recognized commands through the deterministic EN/ID allowlist, then uses the authenticated structured semantic fallback only after a deterministic miss.
 - The current task state announces through a polite live region, assertive for confirmation and failure.
 - Empty, loading, and failure states are announced after a meaningful delay, not on every keystroke.
+- Loading skeletons mirror the destination surface: dashboard, document editor, sheet grid, list, search, or settings. A generic centered card never represents Workspace loading.
 - No horizontal scrolling at 320 px, usable at 200 percent zoom.
 - Indonesian and English layouts tolerate longer strings without clipping.
 - Nothing in the workspace uses monospace typography.

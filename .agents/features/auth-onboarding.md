@@ -83,7 +83,7 @@ Owner: Henix.
 
 - Route structure for landing, sign up, sign in, onboarding steps, and workspace entry.
 - Sign-up and sign-in forms with persistent labels, autofill support, inline field errors linked to inputs, and a form-level error summary that receives focus on failure.
-- Google sign-in control with pending, unavailable, and failed states.
+- Google sign-in control that opens the Google Identity Services prompt in-page, without a new tab, plus pending, unavailable, and failed states.
 - Loading state that prevents duplicate submission without shifting layout.
 - Onboarding step shell with visible progress, back, skip, and resume.
 - Consent screens that explain purpose before any permission request.
@@ -141,7 +141,7 @@ Never stored: camera frames, landmark coordinates, blendshape series, calibratio
 Requirements from `.agents/security.md` sections 1 and 7.
 
 - Established authentication library. No custom password hashing or session cryptography.
-- Google sign-in uses the official Google Identity Services button and server-side ID-token verification.
+- Google sign-in opens the Google Identity Services prompt in the current page and uses server-side ID-token verification.
 - Google Workspace authorization remains a separate state-protected authorization-code flow with encrypted provider tokens.
 - HTTP-only, `Secure`, `SameSite=Lax` session cookie. No token in `localStorage` or a URL.
 - Session rotation on sign in. Server-side revocation on sign out.

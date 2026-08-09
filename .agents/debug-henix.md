@@ -264,4 +264,20 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Files changed: `src/app/globals.css`, `src/app/workspace.css`, `src/components/landing/landing-navigation.tsx`, `src/components/landing/landing-page.tsx`, `src/components/auth/auth-form.tsx`, `src/components/auth/google-sign-in-button.tsx`
 - Verification: Browser review covered 1544x901 and 1063x512 landing layouts plus 1187x969 authentication. The Google chooser opened, the floating Accessibility control remained visible, and the authenticated Workspace loaded. The full Vitest suite passed 428/428; lint and the production build passed.
 - Prevention: Auth component tests assert the official provider setup and bounded callback route.
+- Commit or PR: `5de30c9`.
+
+## 2026-08-10 00:57 - Google prompt, Workspace loading, and accessibility placement broke continuity
+
+- Status: fixed
+- Owner: Henix
+- Area: authentication interaction, Workspace loading states, global accessibility control
+- Symptoms: Google account selection appeared to do nothing, Workspace initially showed an authentication-shaped card skeleton, and the floating Accessibility control covered Settings navigation.
+- Reproduction: Select Google sign-in on `/sign-in`, navigate directly to `/workspace`, then open `/workspace/settings` at desktop width.
+- Expected: Google account selection stays in the current page, loading resembles the destination route, and accessibility controls never obscure navigation or the persistent composer.
+- Actual: The provider interaction used a provider-rendered flow, the root fallback displayed a generic card while the Workspace layout resolved, and the fixed control occupied sidebar navigation space.
+- Root cause: The Google client path was not explicitly driven through the in-page prompt API, the root loading boundary had no pathname-aware Workspace variant, and the global fixed position ignored Workspace shell geometry.
+- Fix: Replaced the provider-rendered control with a retryable in-page One Tap/FedCM prompt, added public and route-aware Workspace skeletons, and positioned the compact Workspace trigger outside the sidebar and above the composer. Permanent fix.
+- Files changed: `src/components/auth/google-sign-in-button.tsx`, `src/components/shared/route-loading.tsx`, `src/app/loading.tsx`, `src/app/workspace/loading.tsx`, `src/app/globals.css`, `src/app/workspace.css`, focused tests and guidance.
+- Verification: Chrome retained one tab and the `/sign-in` URL after invoking Google; browser inspection showed route-specific home and Settings skeletons; the loaded Settings trigger measured 44 by 44 pixels at x=280 outside the sidebar. All 431 unit tests and the production build passed.
+- Prevention: Auth tests require a dialog-capable prompt after explicit activation, loading tests assert public and Workspace destination shapes, and accessibility tests require Workspace-specific positioning.
 - Commit or PR: pending.

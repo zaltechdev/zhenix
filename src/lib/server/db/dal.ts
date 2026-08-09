@@ -1,4 +1,5 @@
 import { eq, and, isNull } from "drizzle-orm";
+import { cache } from "react";
 import { headers } from "next/headers";
 import { assertServerOnly } from "@/lib/server/server-guard";
 import { db, ensureLocalSchema } from "@/lib/server/db/client";
@@ -106,7 +107,7 @@ export async function bootstrapUserWorkspaceAndProfile(
 /**
  * Resolves the authenticated session from request headers.
  */
-export async function getSession(): Promise<Session | null> {
+async function resolveSession(): Promise<Session | null> {
   try {
     const reqHeaders = await headers();
     const sessionRes = await auth.api.getSession({
@@ -136,6 +137,9 @@ export async function getSession(): Promise<Session | null> {
     return null;
   }
 }
+
+/** Share one authenticated-session read across every Server Component in a request. */
+export const getSession = cache(resolveSession);
 
 /**
  * Reads the accessibility profile for an authenticated user.

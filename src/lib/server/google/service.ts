@@ -1,4 +1,5 @@
 import { assertServerOnly } from "@/lib/server/server-guard";
+import { cache } from "react";
 import { googleStatus } from "@/lib/server/config/runtime-config";
 import { createAksaError } from "@/lib/server/errors/aksa-error";
 import { blockedResource, type ResourceState } from "@/lib/contracts/resource-state";
@@ -144,8 +145,12 @@ export function googleGateway(): GoogleWorkspaceGateway {
   return createRealGoogleGateway();
 }
 
-export async function readGoogleConnection(): Promise<GoogleConnection> {
+const readGoogleConnectionForRequest = cache(async (): Promise<GoogleConnection> => {
   return googleGateway().readConnection();
+});
+
+export async function readGoogleConnection(): Promise<GoogleConnection> {
+  return readGoogleConnectionForRequest();
 }
 
 export function googleConfiguration() {

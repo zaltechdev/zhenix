@@ -97,4 +97,20 @@ A security-relevant issue follows the same template with three additions.
 - Files changed: `src/lib/server/db/schema.ts`, `src/lib/server/auth/better-auth.ts`, `tests/unit/auth-schema.test.ts`
 - Verification: The real Google callback returned HTTP 200, `/workspace` returned HTTP 200, and Chrome loaded the authenticated Workspace. The full Vitest suite passed 428/428; lint and the production build passed.
 - Prevention: A schema regression test requires Better Auth's logical `image` field to map to `image_url`.
+- Commit or PR: `5de30c9`.
+
+## 2026-08-10 00:57 - Workspace initialization repeated authenticated database reads
+
+- Status: fixed
+- Owner: Zaltech
+- Area: authenticated Workspace bootstrap, session and Google connection reads
+- Symptoms: After successful Google authentication, the Workspace remained on its loading state for several seconds.
+- Reproduction: Complete local Google authentication and measure the callback-to-Workspace transition while `readWorkspaceContext()` resolves its parallel services.
+- Expected: Each request resolves identical session and Google connection reads once, then shares those results across dependent services.
+- Actual: Parallel capability, task, profile, preference, and Google services independently repeated identical request-scoped reads.
+- Root cause: Session and Google connection accessors lacked request-local memoization.
+- Fix: Wrapped both accessors with React `cache`, preserving request isolation while deduplicating identical reads during one render. Permanent fix.
+- Files changed: `src/lib/server/db/dal.ts`, `src/lib/server/google/service.ts`.
+- Verification: Authenticated Workspace response time decreased from approximately 9.3 seconds to 3.6 seconds. TypeScript, lint, all 431 unit tests, and the production build passed.
+- Prevention: Keep memoization request-scoped and never promote authenticated results into shared process caches.
 - Commit or PR: pending.

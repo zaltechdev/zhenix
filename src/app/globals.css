@@ -1946,6 +1946,55 @@ a {
   text-transform: none;
 }
 
+body:has(.aksa-shell) .landing-a11y-widget,
+body:has(.aksa-workspace-loading) .landing-a11y-widget {
+  right: auto;
+  bottom: calc(180px + var(--space-4) + env(safe-area-inset-bottom));
+  left: calc(264px + var(--space-4));
+}
+
+body:has(.aksa-home-dashboard) .landing-a11y-widget,
+body:has([data-skeleton-kind="home"]) .landing-a11y-widget {
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+
+body:has(.aksa-shell[data-sidebar-collapsed="true"]) .landing-a11y-widget {
+  left: calc(72px + var(--space-4));
+}
+
+body:has(.aksa-shell) .landing-a11y-trigger,
+body:has(.aksa-workspace-loading) .landing-a11y-trigger {
+  width: 44px;
+  justify-content: center;
+  padding-inline: 0;
+}
+
+body:has(.aksa-shell) .landing-a11y-trigger__label,
+body:has(.aksa-workspace-loading) .landing-a11y-trigger__label {
+  display: none;
+}
+
+body:has(.aksa-shell) .landing-a11y-menu,
+body:has(.aksa-workspace-loading) .landing-a11y-menu {
+  right: auto;
+  left: 0;
+}
+
+@media (max-width: 1023px) {
+  body:has(.aksa-shell) .landing-a11y-widget,
+  body:has(.aksa-workspace-loading) .landing-a11y-widget {
+    right: var(--space-4);
+    bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+    left: auto;
+  }
+
+  body:has(.aksa-shell) .landing-a11y-menu,
+  body:has(.aksa-workspace-loading) .landing-a11y-menu {
+    right: 0;
+    left: auto;
+  }
+}
+
 .landing-a11y-menu {
   position: absolute;
   bottom: calc(100% + var(--space-2));
