@@ -30,6 +30,20 @@ Zalfa Daffani Fadhillah Al Hanif (Zaltech - https://github.com/zaltechdev)
   - `logs/log-zaltech.md`
 
 ---
+### Timestamp: 2026-08-09 08:37:26
+* **Model used**: GPT-5.6 Sol (Medium)
+* **Human Prompt**: `Autonomous office-PC bootstrap: inspect and install required tools, authenticate GitHub and Google Cloud, prepare dev branch, install with Bun, configure ignored local environment, verify Google APIs and Vertex, run Aksa and real auth where possible, execute all quality gates, and create a secret-free handoff. Account identifiers and all secret values redacted from this log.`
+* **TLDR AI agents done**: Installed Bun, GitHub CLI, Google Cloud SDK, and Humanize skill. Authenticated GitHub and Google Cloud, cloned and fast-forwarded dev, installed dependencies, applied Turso migrations, configured ignored local environment, verified Google AI Studio, Vertex ADC, API enablement, and push access. Fixed Better Auth cookie propagation and post-auth routing, verified real Chrome sign-in and server-restart session persistence, upgraded legacy local SQLite schema handling, serialized database test files, and passed i18n, typecheck, lint, all 419 tests, and build. The existing OAuth Web client has the correct local origin and callback, and its client ID is configured. Its saved secrets are irretrievably masked, so secret rotation remains the single action-time approval blocker.
+* **file changed**:
+  - `logs/log-zaltech.md`
+  - `src/components/auth/auth-form.tsx`
+  - `src/lib/server/auth/better-auth.ts`
+  - `src/lib/server/db/client.ts`
+  - `vitest.config.ts`
+  - `OFFICE_PC_HANDOFF.md` (local ignored handoff)
+  - `.env.local` (local ignored configuration, no values logged)
+
+---
 ### Timestamp: 2026-08-08 08:18:00
 * **Model used**: GPT-5 (default)
 * **Human Prompt**: `# AKSA HEAD POINTER - CURSOR VISUAL POLISH PASS
@@ -174,4 +188,23 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `tests/e2e/workspace.spec.ts`
   - `tests/unit/voice-intent-classifier.test.ts`
   - `tests/unit/voice-intent-router.test.ts`
+  - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-09 12:35:00
+* **Model used**: GPT-5.6 Sol
+* **Human Prompt**: `Continue the existing Aksa MVP pass without restarting: finish P0 auth, Google OAuth, Docs, bounded agent, and real History/Activity; complete the in-progress product cleanup, Appearance, and responsive layout; verify in Chrome; run final gates once; commit and push dev.`
+* **TLDR AI agents done**: Protected Workspace routes with real Aksa sessions, added real sign-out, hardened Google OAuth readiness and scope enforcement, fixed bounded two-command Docs planning, activated real Drive list/open, wired Vertex through ADC, removed internal and fabricated product states, removed the public Accessibility widget, added visual System/Light/Dark and contrast preferences, widened desktop surfaces, isolated Playwright from the live database, and fixed navigation-safe preference persistence. Full i18n, typecheck, lint, 419 tests, and production build passed. Focused Playwright auth, appearance persistence, and 1366/1440/1920 layout checks passed 3/3. Existing Chrome session, EN/ID continuity, and real Appearance persistence were verified. Live Google OAuth and Docs remain blocked by Cloud OAuth secret rotation and scope saving, which require action-time approval and a human paste of the new secret into ignored local configuration.
+* **file changed**:
+  - `src/app/(auth)/actions.ts`
+  - `src/app/workspace/`
+  - `src/components/workspace/`
+  - `src/lib/client/preferences/preference-context.tsx`
+  - `src/lib/server/auth/`
+  - `src/lib/server/google/`
+  - `src/lib/server/ai/`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/`
   - `logs/log-zaltech.md`
