@@ -35,6 +35,7 @@ build/
 coverage/
 playwright-report/
 test-results/
+aksa-e2e.db*
 src/paraglide/
 *.tsbuildinfo
 

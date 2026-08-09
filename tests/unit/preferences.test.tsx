@@ -172,7 +172,7 @@ describe("preference persistence", () => {
     expect(runtimeState).toHaveTextContent("idle:true:dark");
   });
 
-  it("coalesces rapid account saves so the latest preference wins", async () => {
+  it("submits the latest snapshot when account preferences change rapidly", async () => {
     let active = 0;
     let maxActive = 0;
     const bodies: unknown[] = [];
@@ -197,9 +197,9 @@ describe("preference persistence", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     fireEvent.click(screen.getByRole("button", { name: "Update theme and contrast" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(active).toBe(0));
-    expect(maxActive).toBe(1);
+    expect(maxActive).toBe(2);
     expect(bodies.at(-1)).toMatchObject({ theme: "dark", highContrast: true });
   });
 });

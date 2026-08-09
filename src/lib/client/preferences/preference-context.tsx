@@ -169,7 +169,8 @@ async function savePreferencesToAccount(
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(preferences)
+      body: JSON.stringify(preferences),
+      keepalive: true
     });
     const payload: unknown = await response.json();
     const parsed = userPreferencesSaveResultSchema.safeParse(payload);
@@ -190,15 +191,14 @@ export function PreferenceProvider({
   children: ReactNode;
   initialLocale?: UserPreferences["language"];
 }) {
-  const [preferences, setPreferences] = useState<UserPreferences>(() =>
-    readStoredPreferences(ANONYMOUS_KEY, initialLocale)
-  );
+  const [preferences, setPreferences] = useState<UserPreferences>(() => ({
+    ...defaultUserPreferences,
+    language: initialLocale
+  }));
   const [accountUserId, setAccountUserId] = useState<string | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
   const preferencesRef = useRef(preferences);
   const accountUserIdRef = useRef<string | null>(null);
-  const pendingAccountSaveRef = useRef<UserPreferences | null>(null);
-  const accountSaveTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
 
   const commit = useCallback((next: UserPreferences, userId: string | null) => {
@@ -228,27 +228,11 @@ export function PreferenceProvider({
   }, [preferences.theme]);
 
   const enqueueAccountSave = useCallback((next: UserPreferences) => {
-    pendingAccountSaveRef.current = next;
-    if (accountSaveTimerRef.current !== null) {
-      window.clearTimeout(accountSaveTimerRef.current);
-    }
-    accountSaveTimerRef.current = window.setTimeout(() => {
-      accountSaveTimerRef.current = null;
-      const snapshot = pendingAccountSaveRef.current;
-      pendingAccountSaveRef.current = null;
-      if (!snapshot) return;
-      void savePreferencesToAccount(
-        snapshot,
-        () => setSaveFailed(true),
-        () => setSaveFailed(false)
-      );
-    }, 180);
-  }, []);
-
-  useEffect(() => () => {
-    if (accountSaveTimerRef.current !== null) {
-      window.clearTimeout(accountSaveTimerRef.current);
-    }
+    void savePreferencesToAccount(
+      next,
+      () => setSaveFailed(true),
+      () => setSaveFailed(false)
+    );
   }, []);
 
   const updatePreferences = useCallback(

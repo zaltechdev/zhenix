@@ -12,6 +12,10 @@ export default defineConfig({
   },
   webServer: {
     command: "bun run dev",
+    env: {
+      TURSO_AUTH_TOKEN: "aksa-e2e-local",
+      TURSO_DATABASE_URL: "file:aksa-e2e.db"
+    },
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000
