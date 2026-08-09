@@ -131,7 +131,7 @@ export const accessibilityProfileSaveResultSchema = z.discriminatedUnion("outcom
 export type AccessibilityProfileSaveResult = z.infer<typeof accessibilityProfileSaveResultSchema>;
 
 export const textSizeSchema = z.enum(["default", "large", "extra_large"]);
-export const themeSchema = z.enum(["light", "dark"]);
+export const themeSchema = z.enum(["system", "light", "dark"]);
 export const headPresetSchema = z.enum(["auto", "standard", "low_light", "custom"]);
 export const voiceLanguageSchema = z.enum(["follow", "id", "en"]);
 export const voiceModeSchema = z.enum(["dictation", "commands", "both"]);
@@ -160,7 +160,7 @@ export const defaultUserPreferences: UserPreferences = {
   highContrast: false,
   textSize: "default",
   reducedMotion: false,
-  theme: "light",
+  theme: "system",
   language: "en",
   headControlEnabled: false,
   voiceControlEnabled: true,

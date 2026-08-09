@@ -71,8 +71,10 @@ function readStoredPreferences(key: string, initialLocale: UserPreferences["lang
   const legacySidebar = typeof window !== "undefined" ? window.localStorage.getItem("aksa-sidebar-collapsed") : null;
   const documentTheme =
     typeof document !== "undefined" &&
-    (document.documentElement.dataset.theme === "dark" || document.documentElement.dataset.theme === "light")
-      ? document.documentElement.dataset.theme
+    (document.documentElement.dataset.themePreference === "system" ||
+      document.documentElement.dataset.themePreference === "dark" ||
+      document.documentElement.dataset.themePreference === "light")
+      ? document.documentElement.dataset.themePreference
       : undefined;
   const scope = key === ANONYMOUS_KEY ? "anonymous" : key.replace("aksa-preferences:", "");
   const legacyVoice = readJson(`aksa-voice-controls:${scope}`);
@@ -110,7 +112,9 @@ function readStoredPreferences(key: string, initialLocale: UserPreferences["lang
     ...legacyVoicePatch,
     ...legacyHeadPatch,
     ...(stored.success ? stored.data : {}),
-    ...(legacyTheme === "dark" || legacyTheme === "light" ? { theme: legacyTheme } : {}),
+    ...(legacyTheme === "system" || legacyTheme === "dark" || legacyTheme === "light"
+      ? { theme: legacyTheme }
+      : {}),
     ...(legacySidebar === "true" || legacySidebar === "false"
       ? { sidebarCollapsed: legacySidebar === "true" }
       : {})
@@ -121,7 +125,11 @@ function applyPreferencesToDom(preferences: UserPreferences): void {
   if (typeof document === "undefined") return;
 
   const root = document.documentElement;
-  root.dataset.theme = preferences.theme;
+  const resolvedTheme = preferences.theme === "system"
+    ? window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+    : preferences.theme;
+  root.dataset.theme = resolvedTheme;
+  root.dataset.themePreference = preferences.theme;
   root.lang = preferences.language;
   root.classList.toggle("high-contrast", preferences.highContrast);
   root.classList.toggle("text-size-large", preferences.textSize === "large");
@@ -159,6 +167,7 @@ async function savePreferencesToAccount(
   try {
     const response = await fetch("/api/preferences", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(preferences)
     });
@@ -188,6 +197,8 @@ export function PreferenceProvider({
   const [saveFailed, setSaveFailed] = useState(false);
   const preferencesRef = useRef(preferences);
   const accountUserIdRef = useRef<string | null>(null);
+  const pendingAccountSaveRef = useRef<UserPreferences | null>(null);
+  const accountSaveTimerRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
 
   const commit = useCallback((next: UserPreferences, userId: string | null) => {
@@ -208,6 +219,38 @@ export function PreferenceProvider({
     applyPreferencesToDom(preferences);
   }, [preferences]);
 
+  useEffect(() => {
+    if (preferences.theme !== "system" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const syncSystemTheme = () => applyPreferencesToDom(preferencesRef.current);
+    media.addEventListener("change", syncSystemTheme);
+    return () => media.removeEventListener("change", syncSystemTheme);
+  }, [preferences.theme]);
+
+  const enqueueAccountSave = useCallback((next: UserPreferences) => {
+    pendingAccountSaveRef.current = next;
+    if (accountSaveTimerRef.current !== null) {
+      window.clearTimeout(accountSaveTimerRef.current);
+    }
+    accountSaveTimerRef.current = window.setTimeout(() => {
+      accountSaveTimerRef.current = null;
+      const snapshot = pendingAccountSaveRef.current;
+      pendingAccountSaveRef.current = null;
+      if (!snapshot) return;
+      void savePreferencesToAccount(
+        snapshot,
+        () => setSaveFailed(true),
+        () => setSaveFailed(false)
+      );
+    }, 180);
+  }, []);
+
+  useEffect(() => () => {
+    if (accountSaveTimerRef.current !== null) {
+      window.clearTimeout(accountSaveTimerRef.current);
+    }
+  }, []);
+
   const updatePreferences = useCallback(
     (patch: PreferencePatch) => {
       const next = userPreferencesSchema.parse({ ...preferencesRef.current, ...patch });
@@ -221,9 +264,9 @@ export function PreferenceProvider({
         return;
       }
 
-      void savePreferencesToAccount(next, () => setSaveFailed(true), () => setSaveFailed(false));
+      enqueueAccountSave(next);
     },
-    [commit]
+    [commit, enqueueAccountSave]
   );
 
   const reconcileAccountPreferences = useCallback(

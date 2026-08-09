@@ -350,37 +350,13 @@
   line-height: var(--line-height-body);
 }
 
-/* Developer details */
-
-.aksa-developer-details {
-  margin-top: var(--space-3);
-  font-size: 0.8125rem;
-  color: var(--color-aksa-muted);
-}
-
-.aksa-developer-details__summary {
-  cursor: pointer;
-  user-select: none;
-  font-weight: 500;
-}
-
-.aksa-developer-details__code {
-  display: inline-block;
-  margin-top: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: var(--radius-sm);
-  font-family: monospace;
-  font-size: 0.75rem;
-}
-
 /* Surfaces */
 
 .aksa-surface {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  max-width: 1040px;
+  max-width: 1280px;
   margin-inline: auto;
   width: 100%;
 }
@@ -425,6 +401,129 @@
 .aksa-panel--inset {
   border-radius: var(--radius-md);
   background: var(--color-aksa-paper);
+}
+
+.aksa-appearance {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.aksa-appearance__heading {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.aksa-theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.aksa-theme-card {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 168px;
+  border: 2px solid var(--color-aksa-line);
+  border-radius: var(--radius-md);
+  background: var(--color-aksa-cloud);
+  padding: var(--space-3);
+  color: var(--color-aksa-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.aksa-theme-card[data-selected] {
+  border-color: var(--color-aksa-teal-deep);
+  box-shadow: 0 0 0 2px var(--color-aksa-teal-soft);
+}
+
+.aksa-theme-card__preview {
+  display: grid;
+  grid-template-columns: 28% 1fr;
+  min-height: 88px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+}
+
+.aksa-theme-card[data-theme-preview="dark"] .aksa-theme-card__preview {
+  border-color: #3f3f46;
+  background: #18181b;
+}
+
+.aksa-theme-card[data-theme-preview="system"] .aksa-theme-card__preview {
+  background: linear-gradient(135deg, #f8fafc 0 50%, #18181b 50% 100%);
+}
+
+.aksa-theme-card__sidebar {
+  border-right: 1px solid rgb(19 121 108 / 35%);
+  background: rgb(19 121 108 / 20%);
+}
+
+.aksa-theme-card__surface {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 12px;
+}
+
+.aksa-theme-card__line {
+  width: 62%;
+  height: 5px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.aksa-theme-card__line--strong {
+  width: 78%;
+  background: #334155;
+}
+
+.aksa-theme-card__accent {
+  width: 36%;
+  height: 14px;
+  margin-top: auto;
+  border-radius: 999px;
+  background: var(--color-aksa-teal-deep);
+}
+
+.aksa-theme-card__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-weight: 650;
+}
+
+.aksa-theme-card__description {
+  color: var(--color-aksa-muted);
+  font-size: 0.8125rem;
+}
+
+.aksa-contrast-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.aksa-contrast-options .aksa-appearance__heading {
+  width: 100%;
+}
+
+.aksa-contrast-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border: 1px solid var(--color-aksa-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
 }
 
 .aksa-panel__header {
@@ -2316,7 +2415,8 @@ html.high-contrast .aksa-button--primary:disabled {
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-width: 960px;
+  max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -2456,7 +2556,7 @@ html.high-contrast .aksa-button--primary:disabled {
   font-size: 0.8125rem;
   font-weight: 500;
   padding: var(--space-2) var(--space-3);
-  min-height: 38px;
+  min-height: 44px;
   box-sizing: border-box;
 }
 
@@ -2469,7 +2569,13 @@ html.high-contrast .aksa-button--primary:disabled {
 
 @media (min-width: 768px) {
   .aksa-home-dashboard__grid {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.8fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .aksa-theme-options {
+    grid-template-columns: 1fr;
   }
 }
 

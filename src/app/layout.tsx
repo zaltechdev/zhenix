@@ -45,15 +45,18 @@ export default async function RootLayout({
   const locale = await getRequestLocale();
   const cookieStore = await cookies();
   const storedTheme = cookieStore.get("aksa-theme")?.value;
-  const theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : undefined;
+  const themePreference = storedTheme === "system" || storedTheme === "dark" || storedTheme === "light"
+    ? storedTheme
+    : "system";
+  const theme = themePreference === "system" ? undefined : themePreference;
 
   return (
-    <html data-theme={theme} lang={locale} suppressHydrationWarning>
+    <html data-theme={theme} data-theme-preference={themePreference} lang={locale} suppressHydrationWarning>
       <head>
         {/* Blocking script: set data-theme before paint to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var p=JSON.parse(localStorage.getItem('aksa-preferences:anonymous')||'null')||{};var t=p.theme||localStorage.getItem('aksa-theme')||(document.cookie.match(/aksa-theme=([^;]+)/)||[])[1];var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=t?t:(d?'dark':'light');var r=document.documentElement;r.dataset.theme=theme;if(p.language==='id'||p.language==='en'){r.lang=p.language;}r.classList.toggle('high-contrast',p.highContrast===true);r.classList.toggle('text-size-large',p.textSize==='large');r.classList.toggle('text-size-extra-large',p.textSize==='extra_large');r.classList.toggle('large-text',p.textSize==='large'||p.textSize==='extra_large');r.classList.toggle('reduce-motion',p.reducedMotion===true);if(t){document.cookie='aksa-theme='+t+'; path=/; max-age=31536000; SameSite=Lax';}}catch(e){}})();`
+            __html: `(function(){try{var p=JSON.parse(localStorage.getItem('aksa-preferences:anonymous')||'null')||{};var s=localStorage.getItem('aksa-theme')||(document.cookie.match(/aksa-theme=([^;]+)/)||[])[1];var t=p.theme||s||'system';if(t!=='system'&&t!=='dark'&&t!=='light'){t='system';}var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=t==='system'?(d?'dark':'light'):t;var r=document.documentElement;r.dataset.theme=theme;r.dataset.themePreference=t;if(p.language==='id'||p.language==='en'){r.lang=p.language;}r.classList.toggle('high-contrast',p.highContrast===true);r.classList.toggle('text-size-large',p.textSize==='large');r.classList.toggle('text-size-extra-large',p.textSize==='extra_large');r.classList.toggle('large-text',p.textSize==='large'||p.textSize==='extra_large');r.classList.toggle('reduce-motion',p.reducedMotion===true);document.cookie='aksa-theme='+t+'; path=/; max-age=31536000; SameSite=Lax';}catch(e){}})();`
           }}
         />
       </head>

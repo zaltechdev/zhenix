@@ -20,16 +20,18 @@ export function ThemeToggle({ locale }: { locale: Locale }) {
   const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const appPreferences = useOptionalAppPreferences();
-  const activeIsDark = appPreferences ? appPreferences.preferences.theme === "dark" : isDark;
+  const activeIsDark = appPreferences
+    ? appPreferences.preferences.theme === "dark" ||
+      (appPreferences.preferences.theme === "system" && isDark)
+    : isDark;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    if (appPreferences) return;
     const activeTheme = document.documentElement.dataset.theme;
     if (activeTheme === "dark" || activeTheme === "light") {
       setIsDark(activeTheme === "dark");
-    } else {
+    } else if (!appPreferences) {
       const storedTheme = window.localStorage.getItem("aksa-theme");
       const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
       const nextIsDark = storedTheme === "dark" || (storedTheme === null && prefersDark);

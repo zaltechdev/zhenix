@@ -27,7 +27,47 @@ async function hasHorizontalOverflow(page: Page): Promise<boolean> {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 }
 
+async function createAksaAccount(page: Page): Promise<void> {
+  const email = "aksa-e2e-mvp@example.com";
+  const password = "AksaE2E!2026";
+
+  let response = await page.request.post("/api/auth/sign-in/email", {
+    data: { email, password }
+  });
+  if (!response.ok()) {
+    response = await page.request.post("/api/auth/sign-up/email", {
+      data: { email, name: "Aksa E2E", password }
+    });
+  }
+  expect(response.ok()).toBe(true);
+
+  const current = await page.request.get("/api/preferences");
+  const payload = (await current.json()) as { preferences: Record<string, unknown> };
+  const reset = await page.request.post("/api/preferences", {
+    data: {
+      ...payload.preferences,
+      language: "en",
+      theme: "system",
+      highContrast: false,
+      headPreset: "auto",
+      reducedMotion: false,
+      sidebarCollapsed: false,
+      textSize: "default"
+    }
+  });
+  expect(reset.ok()).toBe(true);
+  await page.context().addCookies([
+    { name: "PARAGLIDE_LOCALE", value: "en", domain: "localhost", path: "/" }
+  ]);
+  await page.goto("/workspace");
+}
+
 test.describe("primary path", () => {
+  test("workspace routes require an Aksa account", async ({ page }) => {
+    await page.goto("/workspace");
+    await expect(page).toHaveURL(/\/sign-in$/);
+  });
+
   test("CSP permits only the pinned head-tracking model hosts", async ({ page }) => {
     const response = await page.goto("/workspace");
     const policy = response?.headers()["content-security-policy"] ?? "";
@@ -56,6 +96,7 @@ test.describe("primary path", () => {
   });
 
   test("onboarding is skippable and reaches the workspace", async ({ page }) => {
+    await createAksaAccount(page);
     await page.goto("/onboarding");
 
     await expect(
@@ -129,6 +170,7 @@ test.describe("primary path", () => {
   });
 
   test("onboarding teardown leads to an explicit Workspace start path", async ({ page }) => {
+    await createAksaAccount(page);
     await page.goto("/onboarding");
     await page.getByRole("link", { name: "Finish later", exact: true }).click();
 
@@ -158,6 +200,10 @@ test.describe("primary path", () => {
 });
 
 test.describe("workspace shell", () => {
+  test.beforeEach(async ({ page }) => {
+    await createAksaAccount(page);
+  });
+
   test("every surface renders with an honest state and no fabricated data", async ({ page }) => {
     for (const route of workspaceRoutes) {
       await page.goto(route);
@@ -166,14 +212,7 @@ test.describe("workspace shell", () => {
       await expect(page.getByRole("main")).toBeVisible();
       /** The composer is present on every workspace route. */
       await expect(page.locator("#command-composer")).toBeVisible();
-      await expect(
-        page.getByText("Not signed in")
-          .or(page.getByText("Accounts not configured"))
-          .or(page.getByText("Connect Google"))
-          .or(page.getByText("Google OAuth is not configured"))
-          .or(page.getByText("You are browsing the workspace without an account"))
-          .first()
-      ).toBeVisible();
+      await expect(page.getByText(/Developer details|GOOGLE_CLIENT|AUTH_SECRET/)).toHaveCount(0);
     }
   });
 
@@ -270,6 +309,45 @@ test.describe("workspace shell", () => {
     /** No activity entries exist, because nothing has executed. */
     await expect(page.getByRole("list", { name: "Activity steps" })).toHaveCount(0);
   });
+
+  test("persists visual theme and contrast preferences", async ({ page }) => {
+    await page.goto("/workspace/settings");
+
+    await expect(page.getByRole("radio", { name: /System/ })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Dark" })).toBeEnabled();
+    await expect(page.getByRole("radio", { name: "Standard" })).toBeChecked();
+    await expect(page.locator(".aksa-theme-card__preview")).toHaveCount(3);
+    await page.getByRole("radio", { name: "Dark" }).click();
+    await page.getByRole("radio", { name: "Increased contrast" }).check();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("html")).toHaveClass(/high-contrast/);
+
+    await page.reload();
+    await expect(page.getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("radio", { name: "Increased contrast" })).toBeChecked();
+  });
+
+  test("uses desktop width without awkward Home stacking", async ({ page }) => {
+    for (const width of [1366, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/workspace");
+      await expect(page.locator(".aksa-home-dashboard")).toBeVisible();
+      const geometry = await page.evaluate(() => {
+        const home = document.querySelector(".aksa-home-dashboard")?.getBoundingClientRect();
+        const cards = Array.from(document.querySelectorAll(".aksa-home-dashboard__grid > *"))
+          .map((item) => item.getBoundingClientRect());
+        return {
+          homeWidth: home?.width ?? 0,
+          columnsAligned: cards.length === 2 && Math.abs(cards[0].top - cards[1].top) < 2,
+          chipCount: document.querySelectorAll(".aksa-quick-suggestions__chip").length
+        };
+      });
+      expect(geometry.homeWidth).toBeGreaterThan(900);
+      expect(geometry.columnsAligned).toBe(true);
+      expect(geometry.chipCount).toBe(1);
+      expect(await hasHorizontalOverflow(page)).toBe(false);
+    }
+  });
 });
 
 test.describe("command composer", () => {
@@ -293,6 +371,7 @@ test.describe("command composer", () => {
         value: RecognitionStub
       });
     });
+    await createAksaAccount(page);
     await page.goto("/workspace");
 
     await expect(page.getByRole("button", { name: "Send command" })).toBeVisible();
@@ -310,6 +389,7 @@ test.describe("command composer", () => {
   });
 
   test("reports what Aksa received and why it cannot run", async ({ page }) => {
+    await createAksaAccount(page);
     await page.goto("/workspace");
 
     const input = page.locator("#command-composer textarea");
@@ -331,24 +411,21 @@ test.describe("command composer", () => {
   });
 
   test("an example fills the box without running anything", async ({ page }) => {
+    await createAksaAccount(page);
     await page.goto("/workspace");
 
-    await page.getByRole("button", { name: "Find the files for this project" }).click();
+    await page.getByRole("button", { name: "Open my latest assignment" }).click();
     await expect(page.locator("#command-composer textarea")).toHaveValue(
-      "Find the files for this project"
+      "Open my latest assignment"
     );
     await expect(page.getByText("What Aksa received")).toHaveCount(0);
   });
 
   test("search reports unavailability instead of an unsourced answer", async ({ page }) => {
+    await createAksaAccount(page);
     await page.goto("/workspace/search");
 
-    await expect(
-      page.getByText("Answers use external web search. Every claim points to a listed source.")
-    ).toBeVisible();
-
-    await page.getByLabel("What do you want to know").fill("latest AI coding tool news");
-    await page.getByRole("button", { name: "Search" }).click();
+    await expect(page.getByText("Web Search is unavailable right now.").first()).toBeVisible();
 
     const panel = page.getByRole("main").locator(".aksa-state-panel").first();
     await expect(panel).toBeVisible();
@@ -359,6 +436,7 @@ test.describe("command composer", () => {
 
 test.describe("dark-mode control readouts", () => {
   test("keeps percentage and reduced-motion readouts opaque and distinct", async ({ page }) => {
+    await createAksaAccount(page);
     await page.goto("/workspace/controls");
     await page.locator('input[name="head-preset"][value="custom"]').check();
     const styles = await page.evaluate(() => {
@@ -387,6 +465,7 @@ test.describe("dark-mode control readouts", () => {
 
 test.describe("Phase II controls", () => {
   test("separates standard accessibility from head and voice controls", async ({ page }) => {
+    await createAksaAccount(page);
     await page.goto("/workspace/accessibility");
     await expect(page.getByLabel("Reduce motion")).toBeVisible();
     await expect(page.getByLabel("Pointer reach")).toHaveCount(0);
@@ -406,6 +485,9 @@ test.describe("Phase II controls", () => {
 
 test.describe("mobile layout", () => {
   test.use({ viewport: { width: 320, height: 640 } });
+  test.beforeEach(async ({ page }) => {
+    await createAksaAccount(page);
+  });
 
   test("no horizontal overflow and the composer stays reachable", async ({ page }) => {
     for (const route of workspaceRoutes) {
@@ -453,6 +535,7 @@ test.describe("mobile layout", () => {
 
 test.describe("reduced motion", () => {
   test("the workspace stays usable and the hero shows its static sentence", async ({ page }) => {
+    await createAksaAccount(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await expect(page.locator(".typewriter-fallback")).toHaveText(
@@ -470,6 +553,7 @@ test.describe("reduced motion", () => {
 test.describe("zoom", () => {
   test("content stays usable at 200 percent", async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 720 });
+    await createAksaAccount(page);
     await page.goto("/workspace");
 
     await expect(
