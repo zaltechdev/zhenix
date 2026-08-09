@@ -9,6 +9,7 @@ import { blockedResource, type ResourceState } from "@/lib/contracts/resource-st
 import { searchStateSchema, type SearchResult } from "@/lib/contracts/search";
 import { SurfaceState } from "@/components/workspace/state-panel";
 import { ArtifactView } from "@/components/workspace/artifact-view";
+import type { WorkspaceSurfaceMode } from "@/lib/contracts/workspace-surface";
 
 /**
  * Grounded search surface.
@@ -18,14 +19,19 @@ import { ArtifactView } from "@/components/workspace/artifact-view";
  */
 export function SearchSurface({
   locale,
-  initialState
+  initialState,
+  mode = "live",
+  previewResult
 }: {
   locale: Locale;
   initialState: ResourceState<SearchResult>;
+  mode?: WorkspaceSurfaceMode;
+  previewResult?: SearchResult;
 }) {
   const [query, setQuery] = useState("");
   const [state, setState] = useState<ResourceState<SearchResult>>(initialState);
   const [searching, setSearching] = useState(false);
+  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
   const options = { locale };
 
   const runSearch = useCallback(async () => {
@@ -37,6 +43,13 @@ export function SearchSurface({
     setState({ status: "loading" });
 
     try {
+      if (mode === "preview" && previewResult !== undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        setSubmittedQuery(query.trim());
+        setState({ status: "ready", data: previewResult });
+        return;
+      }
+
       const response = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -55,12 +68,16 @@ export function SearchSurface({
     } finally {
       setSearching(false);
     }
-  }, [locale, query]);
+  }, [locale, mode, previewResult, query]);
 
   return (
     <div className="aksa-search">
-      <p className="aksa-disclosure">{m.search_disclosure({}, options)}</p>
-      <p className="aksa-hint">{m.search_privacy_note({}, options)}</p>
+      {mode === "live" ? (
+        <>
+          <p className="aksa-disclosure">{m.search_disclosure({}, options)}</p>
+          <p className="aksa-hint">{m.search_privacy_note({}, options)}</p>
+        </>
+      ) : null}
 
       <div className="aksa-search-form">
         <div className="aksa-field">
@@ -87,6 +104,12 @@ export function SearchSurface({
         </button>
       </div>
 
+      {submittedQuery === null ? null : (
+        <p className="aksa-inline-note" role="status">
+          {m.search_preview_query({ query: submittedQuery }, options)}
+        </p>
+      )}
+
       <SurfaceState locale={locale} state={state}>
         {(data) =>
           data.artifact === null ? (
@@ -97,7 +120,7 @@ export function SearchSurface({
         }
       </SurfaceState>
 
-      <p className="aksa-hint">{m.search_no_grounding_note({}, options)}</p>
+      {mode === "live" ? <p className="aksa-hint">{m.search_no_grounding_note({}, options)}</p> : null}
     </div>
   );
 }

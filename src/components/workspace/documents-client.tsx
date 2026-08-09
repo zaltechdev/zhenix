@@ -151,7 +151,6 @@ export function DocumentsClient({ locale }: { locale: Locale }) {
         </div>
       ) : null}
 
-      {/* Not configured */}
       {pageState.status === "unavailable" ? (
         <div className="aksa-state-panel" data-tone="blocked">
           <p className="aksa-state-panel__body">{m.error_unavailable({}, options)}</p>

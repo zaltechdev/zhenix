@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, FileText, FolderOpen } from "lucide-react";
+import { ChevronRight, FileText, FolderOpen, Mail, Table2 } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 
@@ -12,14 +12,32 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
       name: m.nav_documents({}, options),
       desc: m.home_docs_desc({}, options),
       icon: FileText,
-      disabled: false
+      disabled: false,
+      preview: false
     },
     {
       href: "/workspace/files",
       name: m.nav_files({}, options),
       desc: m.home_drive_desc({}, options),
       icon: FolderOpen,
-      disabled: false
+      disabled: false,
+      preview: false
+    },
+    {
+      href: "/workspace/sheets",
+      name: m.nav_sheets({}, options),
+      desc: m.home_sheets_desc({}, options),
+      icon: Table2,
+      disabled: false,
+      preview: true
+    },
+    {
+      href: "/workspace/mail",
+      name: m.nav_mail({}, options),
+      desc: m.home_gmail_desc({}, options),
+      icon: Mail,
+      disabled: false,
+      preview: true
     }
   ];
 
@@ -48,7 +66,12 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
                     <Icon aria-hidden="true" className="aksa-icon" />
                   </div>
                   <div className="aksa-launchpad__flat-info">
-                    <span className="aksa-launchpad__flat-name">{item.name}</span>
+                    <span className="aksa-launchpad__flat-name">
+                      {item.name}
+                      {item.preview ? (
+                        <span className="aksa-badge">{m.illustrative_label({}, options)}</span>
+                      ) : null}
+                    </span>
                     <span className="aksa-launchpad__flat-desc">{item.desc}</span>
                   </div>
                 </span>

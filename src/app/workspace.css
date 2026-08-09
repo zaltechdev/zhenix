@@ -373,6 +373,13 @@
   max-width: 720px;
 }
 
+.aksa-surface-header__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .aksa-surface-header__heading {
   margin: 0;
   font-size: clamp(1.5rem, 3vw, 2rem);
@@ -2764,9 +2771,19 @@ html.high-contrast .aksa-button--primary:disabled {
 }
 
 .aksa-launchpad__flat-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-aksa-ink);
+}
+
+.aksa-sheet-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .aksa-launchpad__flat-desc {

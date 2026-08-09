@@ -17,11 +17,13 @@ import { StatusChip } from "@/components/workspace/status-chip";
 export function SheetSurface({
   range,
   locale,
-  onReviewWrite
+  onReviewWrite,
+  showWriteControls = true
 }: {
   range: SheetRange;
   locale: Locale;
   onReviewWrite?: (a1Range: string) => void;
+  showWriteControls?: boolean;
 }) {
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const options = { locale };
@@ -120,16 +122,94 @@ export function SheetSurface({
         </p>
       ) : null}
 
-      <button
-        className="aksa-button aksa-button--primary"
-        disabled={!canWrite}
-        onClick={() => onReviewWrite?.(range.a1Range)}
-        type="button"
-      >
-        {m.documents_review_edit({}, options)}
-      </button>
+      {showWriteControls ? (
+        <>
+          <button
+            className="aksa-button aksa-button--primary"
+            disabled={!canWrite}
+            onClick={() => onReviewWrite?.(range.a1Range)}
+            type="button"
+          >
+            {m.documents_review_edit({}, options)}
+          </button>
 
-      <p className="aksa-hint">{m.sheets_write_note({}, options)}</p>
+          <p className="aksa-hint">{m.sheets_write_note({}, options)}</p>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export function SheetPreviewSurface({ range, locale }: { range: SheetRange; locale: Locale }) {
+  const [rangeInput, setRangeInput] = useState(range.a1Range);
+  const [activeRange, setActiveRange] = useState(range.a1Range);
+  const [prompt, setPrompt] = useState("");
+  const [answerVisible, setAnswerVisible] = useState(false);
+  const options = { locale };
+
+  return (
+    <div className="aksa-sheet-preview">
+      <form
+        className="aksa-search-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const nextRange = rangeInput.trim();
+          if (nextRange !== "") setActiveRange(nextRange);
+        }}
+      >
+        <div className="aksa-field">
+          <label className="aksa-label" htmlFor="sheet-preview-range">
+            {m.sheets_range_label({}, options)}
+          </label>
+          <input
+            className="aksa-input"
+            id="sheet-preview-range"
+            onChange={(event) => setRangeInput(event.target.value)}
+            value={rangeInput}
+          />
+        </div>
+        <button className="aksa-button aksa-button--secondary" type="submit">
+          {m.sheets_preview_range_apply({}, options)}
+        </button>
+      </form>
+
+      <SheetSurface
+        locale={locale}
+        range={{ ...range, a1Range: activeRange }}
+        showWriteControls={false}
+      />
+
+      <section className="aksa-panel aksa-panel--inset">
+        <div className="aksa-field">
+          <label className="aksa-label" htmlFor="sheet-preview-prompt">
+            {m.sheets_preview_prompt_label({}, options)}
+          </label>
+          <textarea
+            className="aksa-textarea"
+            id="sheet-preview-prompt"
+            onChange={(event) => {
+              setPrompt(event.target.value);
+              setAnswerVisible(false);
+            }}
+            placeholder={m.sheets_preview_prompt_placeholder({}, options)}
+            rows={3}
+            value={prompt}
+          />
+        </div>
+        <button
+          className="aksa-button aksa-button--primary"
+          disabled={prompt.trim() === ""}
+          onClick={() => setAnswerVisible(true)}
+          type="button"
+        >
+          {m.sheets_preview_prompt_submit({}, options)}
+        </button>
+        {answerVisible ? (
+          <p className="aksa-inline-note" role="status">
+            {m.sheets_preview_result({}, options)}
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

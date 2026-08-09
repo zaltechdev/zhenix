@@ -1,8 +1,12 @@
 import { readFileSync } from "node:fs";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { QuickStartSuggestions } from "@/components/workspace/quick-start-suggestions";
 import { CommandProvider } from "@/components/workspace/command-context";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() })
+}));
 
 describe("production product copy", () => {
   it("contains no deployment diagnostics or fabricated-data language", () => {
@@ -17,15 +21,16 @@ describe("production product copy", () => {
     }
   });
 
-  it("offers only a command backed by the real Docs runner", () => {
+  it("keeps the real Docs prompt and routes preview prompts to labelled surfaces", () => {
     render(
       <CommandProvider>
         <QuickStartSuggestions locale="en" />
       </CommandProvider>
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Open my latest assignment" })).toBeInTheDocument();
-    expect(screen.queryByText(/sheet|web search/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: "Summarize a document" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read a sheet range" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search the web with sources" })).toBeInTheDocument();
   });
 });

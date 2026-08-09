@@ -17,18 +17,21 @@ import { StatusChip } from "@/components/workspace/status-chip";
 export function MailSurface({
   inbox,
   locale,
-  onReviewDraft
+  onReviewDraft,
+  preview = false
 }: {
   inbox: MailInbox;
   locale: Locale;
   onReviewDraft?: (draft: DraftRequest) => void;
+  preview?: boolean;
 }) {
   const [selected, setSelected] = useState<MailMessage | null>(null);
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
   const options = { locale };
-  const canDraft = onReviewDraft !== undefined;
+  const canDraft = preview || onReviewDraft !== undefined;
 
   return (
     <div className="aksa-mail">
@@ -40,6 +43,7 @@ export function MailSurface({
               <th scope="col">{m.mail_column_sender({}, options)}</th>
               <th scope="col">{m.mail_column_subject({}, options)}</th>
               <th scope="col">{m.mail_column_date({}, options)}</th>
+              <th scope="col">{m.mail_column_status({}, options)}</th>
               <th scope="col">{m.mail_open({}, options)}</th>
             </tr>
           </thead>
@@ -54,6 +58,16 @@ export function MailSurface({
                   <span className="aksa-mail__preview">{message.preview}</span>
                 </td>
                 <td>{formatDateTime(message.receivedAt, locale)}</td>
+                <td>
+                  <StatusChip
+                    tone={message.unread ? "info" : "neutral"}
+                    value={
+                      message.unread
+                        ? m.mail_status_unread({}, options)
+                        : m.mail_status_read({}, options)
+                    }
+                  />
+                </td>
                 <td>
                   <button
                     aria-pressed={selected?.id === message.id}
@@ -94,7 +108,10 @@ export function MailSurface({
             autoComplete="email"
             className="aksa-input"
             id="draft-to"
-            onChange={(event) => setTo(event.target.value)}
+            onChange={(event) => {
+              setTo(event.target.value);
+              setDraftReady(false);
+            }}
             type="email"
             value={to}
           />
@@ -107,7 +124,10 @@ export function MailSurface({
           <input
             className="aksa-input"
             id="draft-subject"
-            onChange={(event) => setSubject(event.target.value)}
+            onChange={(event) => {
+              setSubject(event.target.value);
+              setDraftReady(false);
+            }}
             type="text"
             value={subject}
           />
@@ -120,7 +140,10 @@ export function MailSurface({
           <textarea
             className="aksa-textarea"
             id="draft-body"
-            onChange={(event) => setBody(event.target.value)}
+            onChange={(event) => {
+              setBody(event.target.value);
+              setDraftReady(false);
+            }}
             rows={4}
             value={body}
           />
@@ -129,13 +152,24 @@ export function MailSurface({
         <button
           className="aksa-button aksa-button--primary"
           disabled={!canDraft || to.trim() === "" || subject.trim() === "" || body.trim() === ""}
-          onClick={() => onReviewDraft?.({ to: [to.trim()], subject: subject.trim(), body: body.trim() })}
+          onClick={() => {
+            if (preview) {
+              setDraftReady(true);
+              return;
+            }
+            onReviewDraft?.({ to: [to.trim()], subject: subject.trim(), body: body.trim() });
+          }}
           type="button"
         >
           {m.mail_draft_create({}, options)}
         </button>
 
         <p className="aksa-hint">{m.mail_no_send_note({}, options)}</p>
+        {draftReady ? (
+          <p className="aksa-inline-note" role="status">
+            {m.mail_preview_draft_ready({}, options)}
+          </p>
+        ) : null}
       </section>
     </div>
   );
