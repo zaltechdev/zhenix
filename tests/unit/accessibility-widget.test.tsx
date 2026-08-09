@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AccessibilityWidget } from "@/components/shared/accessibility-widget";
@@ -12,6 +13,12 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("accessibility quick panel", () => {
+  it("remains mounted globally across every application surface", () => {
+    const rootLayout = readFileSync("src/app/layout.tsx", "utf8");
+
+    expect(rootLayout).toContain('<AccessibilityWidget locale={locale} />');
+  });
+
   it("offers configurable text size, high contrast, and reduced motion", () => {
     render(
       <PreferenceProvider>

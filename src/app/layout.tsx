@@ -5,6 +5,7 @@ import { m } from "@/paraglide/messages.js";
 import { getRequestLocale } from "@/lib/i18n/request";
 import { HeadControlProvider } from "@/lib/client/vision/head-control-context";
 import { PreferenceProvider } from "@/lib/client/preferences/preference-context";
+import { AccessibilityWidget } from "@/components/shared/accessibility-widget";
 import "./globals.css";
 
 const hostGrotesk = Host_Grotesk({
@@ -68,7 +69,10 @@ export default async function RootLayout({
           {m.skip_to_content({}, { locale })}
         </a>
         <PreferenceProvider initialLocale={locale}>
-          <HeadControlProvider>{children}</HeadControlProvider>
+          <HeadControlProvider>
+            {children}
+            <AccessibilityWidget locale={locale} />
+          </HeadControlProvider>
         </PreferenceProvider>
       </body>
     </html>
