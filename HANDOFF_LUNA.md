@@ -2,7 +2,7 @@
 
 ## Current HEAD
 
-`e796e90` on `dev`, pushed to `origin/dev` before this handoff update.
+`ac16fa6` on `dev`, pushed to `origin/dev` before this handoff update.
 
 ## Completed
 
@@ -15,6 +15,10 @@
 - Kept Drive metadata search/list/open live.
 - Verified Google Cloud project `henixhacking`, active account `gammafadhillah@gmail.com`, and enabled Drive, Docs, and Vertex APIs.
 - Confirmed source OAuth scopes are Drive metadata, Docs, `openid`, and `email`.
+- Created a separate Google Web OAuth client named `Aksa local PoC replacement`.
+- Configured local and future production origins for `localhost:3000` and `aksawork.web.id`, with each matching `/api/google/callback` redirect URI.
+- Verified both the original `Aksa local PoC` client and the replacement client still exist. No existing client or secret was changed or disabled.
+- Reached the authenticated local Workspace with the existing Aksa browser session.
 
 ## Verification
 
@@ -29,20 +33,18 @@
 
 ## Human-only blocker
 
-Browser policy requires action-time confirmation immediately before creating an Aksa account, creating persistent OAuth credentials, or saving OAuth scopes. The current OAuth client already has two enabled secrets, so Google blocks a third. The no-disable path is a separate Web OAuth client named `Aksa local PoC replacement` with origin `http://localhost:3000` and callback `http://localhost:3000/api/google/callback`.
+The replacement credential screen is open in Chrome. Repository security rules prohibit agents from inspecting or editing `.env.local`, so the operator must paste the replacement client ID and secret into ignored `.env.local`. Never share, log, stage, or commit either value.
 
-Repository security rules prohibit agents from inspecting or editing `.env.local`. After Cloud creates the replacement client, the operator must paste its client ID and secret into ignored `.env.local`. Never share, log, stage, or commit either value.
+The Google Auth Platform draft contains Drive metadata, Docs, `openid`, and email. Google keeps Save disabled until a real YouTube demo link is supplied for the restricted Drive scope. The scope page is open with truthful justifications entered; no placeholder or fabricated video link was used.
 
 ## Remaining exact work
 
-1. Receive action-time confirmation for local Aksa account creation, replacement OAuth client creation, and saving the four OAuth scopes.
-2. Create the replacement Web OAuth client without disabling either old secret.
-3. Save Drive metadata, Docs, `openid`, and `email` on Google Auth Platform Data Access.
-4. Have the operator paste the new client ID and secret into ignored `.env.local`.
-5. Restart Aksa and verify sign-in, reload persistence, Google consent, callback, Connected state, and reload persistence.
-6. Use a disposable Google Doc to verify discovery, read, Cancel with zero mutation, Confirm with real mutation, and read-back.
-7. Run one bounded Home Docs task and verify real History and Activity entries.
-8. Disable no old secret unless authoritative per-secret dependency evidence proves it unused.
+1. Have the operator paste the replacement client ID and secret into ignored `.env.local`.
+2. Provide a real YouTube demo URL for Google Auth Platform, then save Drive metadata, Docs, `openid`, and email.
+3. Restart Aksa and verify sign-in, reload persistence, Google consent, callback, Connected state, and reload persistence.
+4. Use a disposable Google Doc to verify discovery, read, Cancel with zero mutation, Confirm with real mutation, and read-back.
+5. Run one bounded Home Docs task and verify real History and Activity entries.
+6. Disable no old secret unless authoritative per-secret dependency evidence proves it unused.
 
 ## Exact next commands
 

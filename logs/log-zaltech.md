@@ -227,3 +227,12 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `tests/unit/surfaces.test.tsx`
   - `HANDOFF_LUNA.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-09 17:35:00
+* **Model used**: GPT-5.6 Sol xhigh
+* **Human Prompt**: `Create a separate Aksa local PoC replacement Web OAuth client, preserve all existing credentials, configure localhost and aksawork.web.id origins and callbacks, save the required Google scopes, then continue verification and push dev without exposing secrets.`
+* **TLDR AI agents done**: Created and verified the separate replacement Web OAuth client with both approved origins and callbacks while leaving the original client and every old secret untouched. Reached the authenticated local Workspace. Added Drive metadata, Docs, openid, and email to the Google Auth Platform draft with truthful usage justifications. Google requires a real YouTube demo URL before the restricted-scope draft can be saved. The credential and scope screens remain open for the operator; only the manual ignored `.env.local` paste and real demo URL are pending. No credential was read, logged, committed, or shown.
+* **file changed**:
+  - `HANDOFF_LUNA.md`
+  - `logs/log-zaltech.md`
