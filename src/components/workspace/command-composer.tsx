@@ -7,6 +7,8 @@ import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import type { CommandResult } from "@/lib/contracts/command";
 import { createCommandId, commandResultSchema } from "@/lib/contracts/command";
+import { confirmationOutcomeSchema, type ConfirmationDecision } from "@/lib/contracts/confirmation";
+import { cancellationResultSchema } from "@/lib/contracts/task";
 import { matchAksaIntent, resolveAksaIntent } from "@/lib/voice/intent-router";
 import { createAksaError } from "@/lib/contracts/errors";
 import { takePendingCommand } from "@/lib/client/state/pending-command";
@@ -15,6 +17,7 @@ import { errorCopy, taskStateCopy } from "@/lib/i18n/copy";
 import { useCommandContext } from "@/components/workspace/command-context";
 import { useOptionalAksaActions } from "@/components/workspace/aksa-action-context";
 import { StatusChip } from "@/components/workspace/status-chip";
+import { ConfirmationDialog } from "@/components/workspace/confirmation-dialog";
 import {
   defaultVoiceControlSettings,
   recognitionLocale,
@@ -118,6 +121,7 @@ export function CommandComposer({
   const recognitionModeRef = useRef<"dictation" | "command" | null>(null);
   const [recognitionMode, setRecognitionMode] = useState<"dictation" | "command" | null>(null);
   const voiceSubmissionRef = useRef(false);
+  const [confirmationPending, setConfirmationPending] = useState(false);
   const options = { locale };
 
   useEffect(() => {
@@ -247,6 +251,58 @@ export function CommandComposer({
     recognitionRef.current?.stop();
   }, []);
 
+  const decideConfirmation = useCallback(async (decision: ConfirmationDecision) => {
+    if (!state.confirmation || confirmationPending) return;
+    setConfirmationPending(true);
+    try {
+      const response = await fetch("/api/commands/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationId: state.confirmation.id, decision })
+      });
+      const payload: unknown = await response.json();
+      const result = confirmationOutcomeSchema.safeParse(payload);
+      dispatch({
+        type: "confirmation_result",
+        result: result.success
+          ? result.data
+          : { outcome: "unavailable", error: createAksaError("unavailable") }
+      });
+    } catch {
+      dispatch({
+        type: "confirmation_result",
+        result: { outcome: "unavailable", error: createAksaError("unavailable") }
+      });
+    } finally {
+      setConfirmationPending(false);
+    }
+  }, [confirmationPending, dispatch, state.confirmation]);
+
+  const cancelCurrentTask = useCallback(async () => {
+    if (!state.task || !isCancellable(state) || state.status === "cancel_requested") return;
+    dispatch({ type: "cancel_requested" });
+    try {
+      const response = await fetch("/api/commands/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: state.task.id })
+      });
+      const payload: unknown = await response.json();
+      const result = cancellationResultSchema.safeParse(payload);
+      dispatch({
+        type: "cancel_result",
+        result: result.success
+          ? result.data
+          : { outcome: "unable_to_cancel", error: createAksaError("unavailable") }
+      });
+    } catch {
+      dispatch({
+        type: "cancel_result",
+        result: { outcome: "unable_to_cancel", error: createAksaError("unavailable") }
+      });
+    }
+  }, [dispatch, state]);
+
   const submit = useCallback(async () => {
     if (!canSubmit(state)) {
       return;
@@ -267,6 +323,9 @@ export function CommandComposer({
     }
 
     try {
+      const contextDocumentId = typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search).get("id");
       const response = await fetch("/api/commands", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,6 +333,7 @@ export function CommandComposer({
           commandId: createCommandId(),
           text: state.text.trim(),
           transcript: state.transcript,
+          contextDocumentId,
           locale: locale === "id" ? "id" : "en",
           source: state.source,
           submittedAt: Date.now()
@@ -304,6 +364,7 @@ export function CommandComposer({
     state.text !== "" ||
     state.understanding !== null ||
     state.error !== null ||
+    state.result !== null ||
     state.localIntent !== null;
   const isNonIdle = taskState !== "idle";
 
@@ -455,7 +516,7 @@ export function CommandComposer({
           <button
             aria-label={m.composer_cancel_task({}, options)}
             className="aksa-button aksa-button--quiet aksa-composer__cancel"
-            onClick={() => dispatch({ type: "cancel_requested" })}
+            onClick={() => void cancelCurrentTask()}
             title={m.composer_cancel_task({}, options)}
             type="button"
           >
@@ -502,6 +563,12 @@ export function CommandComposer({
             {m.composer_understanding_note({}, options)}
           </p>
         </div>
+      ) : state.result !== null ? (
+        <div className="aksa-composer__understanding">
+          <p className="aksa-received-text">
+            {state.result.text || m.documents_empty_content({}, options)}
+          </p>
+        </div>
       ) : state.error !== null ? (
         <p className="aksa-notice" role="alert">
           {errorCopy(state.error.category, locale)}
@@ -519,6 +586,20 @@ export function CommandComposer({
           <MicOff aria-hidden="true" className="aksa-icon aksa-icon--sm" />
           <span>{m.composer_voice_denied({}, options)}</span>
         </p>
+      ) : null}
+
+      {state.confirmation ? (
+        <ConfirmationDialog
+          confirmation={{
+            ...state.confirmation,
+            canApprove: !confirmationPending && state.confirmation.canApprove,
+            canCancel: !confirmationPending && state.confirmation.canCancel,
+            canEdit: !confirmationPending && state.confirmation.canEdit
+          }}
+          locale={locale}
+          onClose={() => void decideConfirmation("cancel")}
+          onDecision={(decision) => void decideConfirmation(decision)}
+        />
       ) : null}
     </section>
   );

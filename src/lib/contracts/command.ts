@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { aksaErrorSchema } from "@/lib/contracts/errors";
+import { confirmationSchema } from "@/lib/contracts/confirmation";
 import { taskSchema } from "@/lib/contracts/task";
 
 export const commandSourceSchema = z.enum(["text", "voice"]);
@@ -16,6 +17,8 @@ export const commandSubmissionSchema = z.object({
   text: z.string().trim().min(1).max(COMMAND_TEXT_MAX_LENGTH),
   /** The raw recognized transcript when the user edited it before submitting. */
   transcript: z.string().trim().max(COMMAND_TEXT_MAX_LENGTH).nullable(),
+  /** Current document context, when the composer is mounted on a Docs route. */
+  contextDocumentId: z.string().trim().min(1).max(200).nullable().optional(),
   locale: commandLocaleSchema,
   source: commandSourceSchema,
   submittedAt: z.number().int().nonnegative()
@@ -40,8 +43,25 @@ export const commandUnderstandingSchema = z.object({
 
 export type CommandUnderstanding = z.infer<typeof commandUnderstandingSchema>;
 
+/** Real, read-back document content returned by the bounded Docs agent. */
+export const agentDocumentResultSchema = z.object({
+  kind: z.literal("google_document"),
+  documentId: z.string().min(1).max(200),
+  title: z.string().min(1).max(300),
+  text: z.string().max(12000),
+  truncated: z.boolean(),
+  verified: z.literal(true)
+});
+
+export type AgentDocumentResult = z.infer<typeof agentDocumentResultSchema>;
+
 export const commandResultSchema = z.discriminatedUnion("outcome", [
-  z.object({ outcome: z.literal("accepted"), task: taskSchema }),
+  z.object({
+    outcome: z.literal("accepted"),
+    task: taskSchema,
+    confirmation: confirmationSchema.nullable().optional(),
+    result: agentDocumentResultSchema.nullable().optional()
+  }),
   z.object({
     outcome: z.literal("unavailable"),
     understanding: commandUnderstandingSchema,

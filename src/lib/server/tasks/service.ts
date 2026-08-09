@@ -11,7 +11,11 @@ import {
   type ConfirmationResponse
 } from "@/lib/contracts/confirmation";
 import type { UndoOutcome } from "@/lib/contracts/undo";
-import { readPersistedTaskHistory, respondToDocumentConfirmation } from "@/lib/server/google/docs-workflow";
+import {
+  readPersistedActiveTask,
+  readPersistedTaskHistory,
+  respondToDocumentConfirmation
+} from "@/lib/server/google/docs-workflow";
 
 assertServerOnly("src/lib/server/tasks/service.ts");
 
@@ -48,7 +52,11 @@ export async function readActiveTask(): Promise<ResourceState<Task>> {
   if (blocked !== null) {
     return blocked;
   }
-  return emptyResource<Task>("no_tasks");
+  const session = await readSessionState();
+  if (session.status !== "authenticated") {
+    return emptyResource<Task>("no_tasks");
+  }
+  return readPersistedActiveTask(session.session);
 }
 
 export async function readTaskHistory(): Promise<ResourceState<TaskList>> {

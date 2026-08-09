@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { assertServerOnly } from "@/lib/server/server-guard";
 import { googleStatus } from "@/lib/server/config/runtime-config";
@@ -9,7 +9,7 @@ import { confirmationSchema } from "@/lib/contracts/confirmation";
 import type { AksaDocumentModel } from "@/lib/contracts/aksa-document";
 import type { ActivityEvent, ActivityEventType, ActivityOutcome } from "@/lib/contracts/activity";
 import { activityEventTypeSchema } from "@/lib/contracts/activity";
-import type { AffectedItem, Task, TaskList } from "@/lib/contracts/task";
+import type { AffectedItem, CancellationResult, Task, TaskList } from "@/lib/contracts/task";
 import { affectedItemSchema, intentCategorySchema, taskStateSchema } from "@/lib/contracts/task";
 import type { DriveItem, DriveListing } from "@/lib/contracts/google";
 import { adaptGoogleDocument } from "@/lib/server/google/docs-adapter";
@@ -51,9 +51,12 @@ const pendingEditSchema = z.object({
   appendText: z.string().min(1).max(4000)
 });
 
-type WorkflowContext = {
+export type WorkflowContext = {
   userId: string;
   workspaceId: string;
+  /** Command IDs are the idempotency boundary for agent submissions. */
+  idempotencyKey?: string;
+  commandText?: string;
 };
 
 type ActivityItem = AffectedItem;
@@ -65,8 +68,8 @@ type ReadRecord = {
   startedAt: number;
 };
 
-type ProposalResult =
-  | { outcome: "confirmation_required"; confirmation: Confirmation }
+export type ProposalResult =
+  | { outcome: "confirmation_required"; confirmation: Confirmation; task: Task }
   | { outcome: "blocked"; error: AksaError };
 
 export type DocsConfirmationResult =
@@ -149,14 +152,14 @@ async function beginTask(
     userId: context.userId,
     workspaceId: context.workspaceId,
     inputMode: "text",
-    commandText,
+    commandText: context.commandText ?? commandText,
     intent,
     state: requiresConfirmation ? "waiting_for_confirmation" : "executing",
     resultSummary: null,
     errorCategory: null,
     itemsTotal: 1,
     itemsCompleted: 0,
-    idempotencyKey: id("docs"),
+    idempotencyKey: context.idempotencyKey ?? id("docs"),
     startedAt: now,
     endedAt: null,
     createdAt: now,
@@ -368,6 +371,66 @@ export async function readDocumentForUser(
   }
 }
 
+/**
+ * Reads one real document without creating a second user-visible task. The
+ * bounded agent uses this to obtain the revision needed for an edit proposal.
+ */
+export async function readDocumentSnapshotForUser(
+  context: WorkflowContext,
+  documentId: string
+): Promise<ResourceState<AksaDocumentModel>> {
+  const access = await accessTokenOrError(context.userId);
+  if ("error" in access) return blockedResource(access.error);
+
+  try {
+    return readyResource(adaptGoogleDocument(await getDocument(access.token, documentId)));
+  } catch (error) {
+    if (error instanceof GoogleApiError && error.isUnauthorized) {
+      await markGoogleNeedsReconnect(context.userId);
+    }
+    return blockedResource(errorFromGoogle(error));
+  }
+}
+
+export type AgentDocumentReadResult =
+  | { outcome: "completed"; document: AksaDocumentModel; task: Task }
+  | { outcome: "failed"; error: AksaError; task: Task }
+  | { outcome: "blocked"; error: AksaError };
+
+/** Executes the real Docs read as one persisted, evidence-backed task. */
+export async function readDocumentForAgent(
+  context: WorkflowContext,
+  documentId: string
+): Promise<AgentDocumentReadResult> {
+  const item = affectedDocument(documentId, "Google document");
+  const access = await accessTokenOrError(context.userId);
+  if ("error" in access) return { outcome: "blocked", error: access.error };
+
+  const record = await beginTask(
+    context,
+    "Read a Google Doc",
+    "read_document",
+    item,
+    "docs.read",
+    "read",
+    false
+  );
+
+  try {
+    const document = adaptGoogleDocument(await getDocument(access.token, documentId));
+    const namedItem = affectedDocument(documentId, document.title);
+    await finishRead(context, record, namedItem, null);
+    return { outcome: "completed", document, task: await taskForUser(record.taskId, context) };
+  } catch (error) {
+    if (error instanceof GoogleApiError && error.isUnauthorized) {
+      await markGoogleNeedsReconnect(context.userId);
+    }
+    const mapped = errorFromGoogle(error);
+    await finishRead(context, record, item, mapped);
+    return { outcome: "failed", error: mapped, task: await taskForUser(record.taskId, context) };
+  }
+}
+
 function appendIndex(raw: GoogleDocsGetResponse): number {
   const maxEndIndex = raw.body.content.reduce(
     (max, element) => Math.max(max, element.endIndex),
@@ -496,6 +559,7 @@ export async function proposeDocumentAppend(
 
   return {
     outcome: "confirmation_required",
+    task: await taskForUser(record.taskId, context),
     confirmation: toConfirmation(
       {
         id: confirmationId,
@@ -532,7 +596,16 @@ async function taskForUser(taskId: string, context: WorkflowContext): Promise<Ta
   const taskToolCalls = await db.query.toolCalls.findMany({
     where: and(eq(toolCalls.taskId, taskId), eq(toolCalls.userId, context.userId))
   });
-  const firstItem = taskArtifacts[0] ? { id: taskArtifacts[0].title, name: taskArtifacts[0].title, kind: "document" as const } : null;
+  const taskActivity = await db.query.activityEvents.findMany({
+    where: and(eq(activityEvents.taskId, taskId), eq(activityEvents.userId, context.userId))
+  });
+  const activityItems = taskActivity.flatMap((event) => {
+    const parsed = z.array(affectedItemSchema).safeParse(safeJson(event.affectedItems, []));
+    return parsed.success ? parsed.data : [];
+  });
+  const firstItem = taskArtifacts[0]
+    ? { id: taskArtifacts[0].title, name: taskArtifacts[0].title, kind: "document" as const }
+    : activityItems[0] ?? null;
   const error = task.errorCategory && [
     "not_configured", "connection_required", "scope_required", "authentication_required", "session_expired",
     "permission_denied", "not_found", "unsupported", "unavailable", "rate_limited", "timeout",
@@ -554,12 +627,116 @@ async function taskForUser(taskId: string, context: WorkflowContext): Promise<Ta
     artifactIds: taskArtifacts.map((artifact) => artifact.id),
     confirmationId: taskToolCalls.find((call) => call.confirmationId)?.confirmationId ?? null,
     undoId: null,
-    cancellationAvailable: false,
+    cancellationAvailable: ["understanding", "executing", "waiting_for_confirmation"].includes(task.state),
     itemsTotal: task.itemsTotal,
     itemsCompleted: task.itemsCompleted,
     resultSummaryKey: task.resultSummary,
     error
   };
+}
+
+export async function readPersistedTask(
+  context: WorkflowContext,
+  taskId: string
+): Promise<Task | null> {
+  await ensureLocalSchema();
+  try {
+    return await taskForUser(taskId, context);
+  } catch {
+    return null;
+  }
+}
+
+export async function readPersistedTaskByIdempotency(
+  context: WorkflowContext,
+  idempotencyKey: string
+): Promise<Task | null> {
+  await ensureLocalSchema();
+  const row = await db.query.tasks.findFirst({
+    where: and(
+      eq(tasks.userId, context.userId),
+      eq(tasks.workspaceId, context.workspaceId),
+      eq(tasks.idempotencyKey, idempotencyKey),
+      isNull(tasks.deletedAt)
+    )
+  });
+  return row ? taskForUser(row.id, context) : null;
+}
+
+export async function readPendingConfirmationForTask(
+  context: WorkflowContext,
+  taskId: string
+): Promise<Confirmation | null> {
+  await ensureLocalSchema();
+  const row = await db.query.confirmations.findFirst({
+    where: and(
+      eq(confirmations.taskId, taskId),
+      eq(confirmations.userId, context.userId),
+      eq(confirmations.workspaceId, context.workspaceId),
+      eq(confirmations.state, "pending")
+    )
+  });
+  if (!row || row.expiresAt <= Date.now()) return null;
+
+  const artifact = await db.query.artifacts.findFirst({
+    where: and(
+      eq(artifacts.taskId, taskId),
+      eq(artifacts.userId, context.userId),
+      eq(artifacts.kind, "google_docs_pending_edit")
+    )
+  });
+  const payload = pendingEditSchema.safeParse(safeJson(artifact?.body, null));
+  if (!payload.success) return null;
+  const item = affectedDocument(payload.data.documentId, artifact?.title ?? "Google document");
+  return toConfirmation(row, item, payload.data.appendText);
+}
+
+export async function readPersistedActiveTask(
+  context: WorkflowContext
+): Promise<ResourceState<Task>> {
+  await ensureLocalSchema();
+  const rows = await db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, context.userId),
+        eq(tasks.workspaceId, context.workspaceId),
+        isNull(tasks.deletedAt),
+        inArray(tasks.state, ["understanding", "executing", "waiting_for_confirmation"])
+      )
+    )
+    .orderBy(desc(tasks.updatedAt))
+    .limit(1);
+  if (rows.length === 0) return emptyResource("no_tasks");
+  return readyResource(await taskForUser(rows[0].id, context));
+}
+
+export async function cancelPersistedTask(
+  context: WorkflowContext,
+  taskId: string
+): Promise<CancellationResult> {
+  const task = await readPersistedTask(context, taskId);
+  if (!task) return { outcome: "unable_to_cancel", error: createAksaError("not_found") };
+  if (["completed", "partially_completed", "failed", "cancelled", "undo_available"].includes(task.state)) {
+    return { outcome: "already_completed", task };
+  }
+
+  const pending = await db.query.confirmations.findFirst({
+    where: and(
+      eq(confirmations.taskId, taskId),
+      eq(confirmations.userId, context.userId),
+      eq(confirmations.workspaceId, context.workspaceId),
+      eq(confirmations.state, "pending")
+    )
+  });
+  if (pending) {
+    const result = await respondToDocumentConfirmation(context, pending.id, "cancel");
+    if (result.outcome === "cancelled") return { outcome: "accepted", task: result.task };
+    if (result.outcome === "expired") return { outcome: "unable_to_cancel", error: result.error };
+  }
+
+  return { outcome: "unable_to_cancel", error: createAksaError("unavailable") };
 }
 
 export async function readPersistedTaskHistory(

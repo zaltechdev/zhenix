@@ -1603,6 +1603,28 @@ Then STOP.
   - `src/lib/server/db/schema.ts`
   - `src/lib/server/workspace/service.ts`
   - `tests/unit/accessibility-widget.test.tsx`
+
+---
+### Timestamp: 2026-08-09 07:35:00
+* **Model used**: GPT-5.6 Luna Max
+* **Human Prompt**: `AKSA CORE MVP PHASE 2 - BOUNDED AGENT CORE`
+* **TLDR AI agents done**: Implemented bounded Google Docs orchestration, strict tool validation, confirmation/cancellation routes, composer wiring, and regression coverage.
+* **file changed**:
+  - `package.json`
+  - `src/app/api/commands/cancel/route.ts`
+  - `src/app/api/commands/confirm/route.ts`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/lib/client/state/composer-machine.ts`
+  - `src/lib/contracts/command.ts`
+  - `src/lib/server/ai/agent-planner.ts`
+  - `src/lib/server/ai/agent-runner.ts`
+  - `src/lib/server/ai/agent-tools.ts`
+  - `src/lib/server/ai/tool-registry.ts`
+  - `src/lib/server/google/docs-workflow.ts`
+  - `src/lib/server/google/oauth.ts`
+  - `src/lib/server/tasks/service.ts`
+  - `tests/unit/agent-planner.test.ts`
+  - `tests/unit/agent-runner.test.ts`
   - `tests/unit/auth-onboarding.test.tsx`
   - `tests/unit/composer-ui.test.tsx`
   - `tests/unit/loading-shell.test.tsx`
@@ -1720,3 +1742,14 @@ Then STOP.
   - `tests/unit/google-docs-workflow.test.ts`
   - `tests/unit/google-oauth.test.ts`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-09 04:02:59
+* **Model used**: GPT-5.6 Luna Max
+* **Human Prompt**: `functional but broke the UI, also use proper icon for reduce motion`
+* **TLDR AI agents done**: Fixed accessibility panel sizing at large text sizes, made sign-in content wrap safely, and replaced the reduce-motion glyph with a Lucide Waves icon.
+* **file changed**:
+  - `src/app/globals.css`
+  - `src/app/workspace.css`
+  - `src/components/shared/accessibility-widget.tsx`
+  - `tests/unit/accessibility-widget.test.tsx`

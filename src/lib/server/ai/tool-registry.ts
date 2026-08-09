@@ -183,7 +183,7 @@ export const intentToolAllowlist: Record<IntentCategory, readonly ToolName[]> = 
   navigate: ["workspace.open_view"],
   find_files: ["drive.search", "drive.file_metadata"],
   read_document: ["drive.search", "docs.read"],
-  edit_document: ["docs.read", "docs.apply_edit"],
+  edit_document: ["drive.search", "docs.read", "docs.apply_edit"],
   read_sheet: ["sheets.read_range"],
   write_sheet: ["sheets.read_range", "sheets.write_range"],
   read_mail: ["gmail.list_recent", "gmail.read_message"],

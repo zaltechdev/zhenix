@@ -1,5 +1,12 @@
-import { COMMAND_TEXT_MAX_LENGTH, type CommandResult, type CommandSource, type CommandUnderstanding } from "@/lib/contracts/command";
+import {
+  COMMAND_TEXT_MAX_LENGTH,
+  type AgentDocumentResult,
+  type CommandResult,
+  type CommandSource,
+  type CommandUnderstanding
+} from "@/lib/contracts/command";
 import type { AksaError } from "@/lib/contracts/errors";
+import type { Confirmation, ConfirmationOutcome } from "@/lib/contracts/confirmation";
 import type { CancellationResult, Task, TaskState } from "@/lib/contracts/task";
 import type { AksaIntent } from "@/lib/contracts/voice-intent";
 
@@ -45,6 +52,10 @@ export type ComposerState = {
   error: AksaError | null;
   /** Only ever set from a server-returned task. */
   task: Task | null;
+  /** Only ever set from a server-returned confirmation. */
+  confirmation: Confirmation | null;
+  /** Real document content returned by the Docs tool. */
+  result: AgentDocumentResult | null;
   /** A local allowlisted command result, never a server task. */
   localIntent: LocalIntentResult | null;
   cancellationOutcome: CancellationResult["outcome"] | null;
@@ -60,6 +71,8 @@ export const initialComposerState: ComposerState = {
   understanding: null,
   error: null,
   task: null,
+  confirmation: null,
+  result: null,
   localIntent: null,
   cancellationOutcome: null,
   voice: "unknown",
@@ -80,6 +93,7 @@ export type ComposerAction =
   | { type: "local_intent_result"; intent: AksaIntent; source: "deterministic" | "semantic" }
   | { type: "local_intent_unknown" }
   | { type: "submit_result"; result: CommandResult }
+  | { type: "confirmation_result"; result: ConfirmationOutcome }
   | { type: "dismiss_result" }
   | { type: "cancel_requested" }
   | { type: "cancel_result"; result: CancellationResult };
@@ -157,6 +171,8 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         error: null,
         understanding: null,
         task: null,
+        confirmation: null,
+        result: null,
         localIntent: null,
         cancellationOutcome: null,
         announcement: { kind: "task_state", state: "understanding" }
@@ -169,6 +185,8 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         understanding: null,
         error: null,
         task: null,
+        confirmation: null,
+        result: null,
         localIntent: {
           outcome: "executed",
           intent: action.intent,
@@ -184,6 +202,8 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         understanding: null,
         error: null,
         task: null,
+        confirmation: null,
+        result: null,
         localIntent: { outcome: "unknown", source: "unknown" },
         announcement: { kind: "intent_result", outcome: "unknown" }
       };
@@ -194,6 +214,8 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
           ...state,
           status: "tracking",
           task: action.result.task,
+          confirmation: action.result.confirmation ?? null,
+          result: action.result.result ?? null,
           understanding: null,
           error: action.result.task.error,
           announcement: { kind: "task_state", state: action.result.task.state }
@@ -211,6 +233,8 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
           understanding: action.result.understanding,
           error: action.result.error,
           task: null,
+          confirmation: null,
+          result: null,
           announcement: { kind: "command_unavailable" }
         };
       }
@@ -221,7 +245,38 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         understanding: null,
         error: action.result.error,
         task: null,
+        confirmation: null,
+        result: null,
         announcement: { kind: "command_unavailable" }
+      };
+    }
+
+    case "confirmation_result": {
+      const result = action.result;
+      if (result.outcome === "executed" || result.outcome === "cancelled") {
+        return {
+          ...state,
+          status: "tracking",
+          task: result.task,
+          confirmation: null,
+          announcement: { kind: "task_state", state: result.task.state }
+        };
+      }
+
+      if (result.outcome === "edit_requested") {
+        return {
+          ...state,
+          status: "tracking",
+          confirmation: result.confirmation,
+          announcement: { kind: "task_state", state: "waiting_for_confirmation" }
+        };
+      }
+
+      return {
+        ...state,
+        confirmation: null,
+        error: result.error,
+        announcement: { kind: "task_state", state: "failed" }
       };
     }
 
@@ -232,6 +287,8 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         understanding: null,
         error: null,
         task: null,
+        confirmation: null,
+        result: null,
         localIntent: null,
         cancellationOutcome: null,
         announcement: null

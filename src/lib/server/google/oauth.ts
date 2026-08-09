@@ -110,7 +110,15 @@ export function verifyGoogleOAuthState(
     const expectedSignature = signState(encoded);
     const actual = Buffer.from(signature, "base64url");
     const expected = Buffer.from(expectedSignature, "base64url");
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+    // Base64url decoding ignores unused trailing bits, so compare the canonical
+    // encoded signature too; otherwise a one-character suffix mutation can decode
+    // to the same MAC bytes.
+    if (
+      signature.length !== expectedSignature.length ||
+      signature !== expectedSignature ||
+      actual.length !== expected.length ||
+      !timingSafeEqual(actual, expected)
+    ) {
       return false;
     }
 
