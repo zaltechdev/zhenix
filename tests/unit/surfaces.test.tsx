@@ -138,10 +138,8 @@ describe("files surface", () => {
     query: "assignment"
   };
 
-  const picker = { available: false, requiredCapability: "drive_picker" as const };
-
   it("lists items in a table with real headers and no drag requirement", () => {
-    render(<FilesSurface listing={listing} locale="en" picker={picker} />);
+    render(<FilesSurface listing={listing} locale="en" />);
 
     const table = screen.getByRole("table", { name: m.files_list_label({}, { locale: "en" }) });
     expect(
@@ -152,47 +150,33 @@ describe("files surface", () => {
     ).toBeInTheDocument();
   });
 
-  it("selects by activation and reports the selection as text", () => {
-    render(<FilesSurface listing={listing} locale="en" picker={picker} />);
+  it("opens a real Drive item through the authenticated server route", () => {
+    render(<FilesSurface listing={listing} locale="en" />);
 
-    fireEvent.click(screen.getByRole("button", { name: m.files_open({}, { locale: "en" }) }));
-    expect(screen.getAllByText("Programming Assignment 04").length).toBeGreaterThan(1);
+    expect(screen.getByRole("link", { name: m.files_open({}, { locale: "en" }) })).toHaveAttribute(
+      "href",
+      "/api/google/drive/file-1/open"
+    );
   });
 
   it("states that Drive could not cover the whole search", () => {
-    render(<FilesSurface listing={listing} locale="en" picker={picker} />);
+    render(<FilesSurface listing={listing} locale="en" />);
     expect(screen.getByText(m.files_incomplete_search({}, { locale: "en" }))).toBeInTheDocument();
   });
 
-  it("disables writes when no reviewed write path exists", () => {
-    render(<FilesSurface listing={listing} locale="en" picker={picker} />);
+  it("does not advertise unsupported Drive writes", () => {
+    render(<FilesSurface listing={listing} locale="en" />);
 
-    expect(screen.getByRole("button", { name: m.files_rename({}, { locale: "en" }) })).toBeDisabled();
-    expect(screen.getByRole("button", { name: m.files_move({}, { locale: "en" }) })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: m.files_create_folder({}, { locale: "en" }) })
-    ).toBeDisabled();
+    expect(screen.queryByRole("button", { name: m.files_rename({}, { locale: "en" }) })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: m.files_move({}, { locale: "en" }) })).not.toBeInTheDocument();
   });
 
-  it("reports the Drive chooser as unavailable instead of hiding it silently", () => {
-    render(<FilesSurface listing={listing} locale="en" picker={picker} />);
+  it("provides bounded pagination for a real result list", () => {
+    render(<FilesSurface listing={listing} locale="en" />);
 
     expect(
-      screen.getByRole("button", { name: m.files_choose_from_drive({}, { locale: "en" }) })
-    ).toBeDisabled();
-    expect(screen.getByText(m.files_picker_unavailable({}, { locale: "en" }))).toBeInTheDocument();
-  });
-
-  it("asks for a reviewed write rather than performing one", () => {
-    const onReviewWrite = vi.fn();
-    render(
-      <FilesSurface listing={listing} locale="en" onReviewWrite={onReviewWrite} picker={picker} />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: m.files_open({}, { locale: "en" }) }));
-    fireEvent.click(screen.getByRole("button", { name: m.files_rename({}, { locale: "en" }) }));
-
-    expect(onReviewWrite).toHaveBeenCalledWith("rename", listing.items[0]);
+      screen.getByRole("link", { name: m.files_load_more({}, { locale: "en" }) })
+    ).toHaveAttribute("href", "/workspace/files?q=assignment&pageToken=page-2");
   });
 });
 

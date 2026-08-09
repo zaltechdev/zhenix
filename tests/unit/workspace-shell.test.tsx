@@ -142,9 +142,7 @@ describe("workspace shell", () => {
     expect(
       screen.getByRole("link", { name: m.action_sign_in({}, { locale: "en" }) })
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(m.workspace_preview_notice({}, { locale: "en" }))
-    ).toBeInTheDocument();
+    expect(document.querySelector(".aksa-notice")).toBeNull();
     expect(
       screen.getAllByRole("link", { name: m.nav_account({}, { locale: "en" }) }).length
     ).toBeGreaterThan(0);

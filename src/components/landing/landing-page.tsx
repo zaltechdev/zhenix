@@ -10,7 +10,6 @@ import { AccessibilityHighlight } from "@/components/landing/accessibility-highl
 import { FaqSection } from "@/components/landing/faq-section";
 import { FinalCta } from "@/components/landing/final-cta";
 import { MarketingFooter } from "@/components/landing/marketing-footer";
-import { AccessibilityWidget } from "@/components/shared/accessibility-widget";
 import { ButtonLink } from "@/components/shared/button";
 import { TypewriterText } from "@/components/landing/typewriter-text";
 import LandingBackgroundImage from "../../../public/landing.webp";
@@ -76,7 +75,6 @@ export function LandingPage({ locale }: { locale: Locale }) {
       </main>
 
       <MarketingFooter locale={locale} />
-      <AccessibilityWidget locale={locale} />
     </LandingShell>
   );
 }

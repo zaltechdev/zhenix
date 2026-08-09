@@ -111,7 +111,6 @@ export function ErrorActions({ error, locale }: { error: AksaError; locale: Loca
 
 export function BlockedState({ error, locale }: { error: AksaError; locale: Locale }) {
   const tone = toneForCategory[error.category] ?? "blocked";
-  const isDev = process.env.NODE_ENV === "development";
 
   return (
     <StatePanel
@@ -119,14 +118,7 @@ export function BlockedState({ error, locale }: { error: AksaError; locale: Loca
       body={errorCopy(error.category, locale)}
       statusLabel={errorShortCopy(error.category, locale)}
       tone={tone}
-    >
-      {isDev ? (
-        <details className="aksa-developer-details">
-          <summary className="aksa-developer-details__summary">Developer details</summary>
-          <code className="aksa-developer-details__code">{error.debugReference}</code>
-        </details>
-      ) : null}
-    </StatePanel>
+    />
   );
 }
 

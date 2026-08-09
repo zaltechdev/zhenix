@@ -40,7 +40,6 @@ import {
 } from "@/lib/client/state/onboarding-step-store";
 import { PENDING_COMMAND_STORAGE_KEY } from "@/lib/client/state/pending-command";
 import { StatusChip } from "@/components/workspace/status-chip";
-import { AccessibilityWidget } from "@/components/shared/accessibility-widget";
 
 import {
   HeadControlRuntimeBoundary,
@@ -1267,7 +1266,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
         ref={controlVideoRef}
         tabIndex={-1}
       />
-      <AccessibilityWidget locale={locale} />
     </div>
   );
 }

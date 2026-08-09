@@ -234,12 +234,12 @@ describe("onboarding", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the accessibility launcher available during onboarding", () => {
+  it("keeps the public accessibility launcher out of onboarding", () => {
     render(<OnboardingFlow locale="en" />);
 
     expect(
-      screen.getByRole("button", { name: m.accessibility_widget_title({}, { locale: "en" }) })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: m.accessibility_widget_title({}, { locale: "en" }) })
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the final ready state concise and points to Accessibility and Controls", () => {

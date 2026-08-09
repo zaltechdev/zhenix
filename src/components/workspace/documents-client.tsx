@@ -29,7 +29,7 @@ type ConnectionState = {
 
 type PageState =
   | { status: "checking_connection" }
-  | { status: "not_configured" }
+  | { status: "unavailable" }
   | { status: "not_connected" }
   | { status: "needs_reconnect" }
   | { status: "connection_error" }
@@ -54,7 +54,7 @@ export function DocumentsClient({ locale }: { locale: Locale }) {
         const data: ConnectionState = await response.json();
 
         if (!data.configured) {
-          setPageState({ status: "not_configured" });
+          setPageState({ status: "unavailable" });
           return;
         }
 
@@ -73,7 +73,7 @@ export function DocumentsClient({ locale }: { locale: Locale }) {
           setPageState({ status: "not_connected" });
         }
       } catch {
-        setPageState({ status: "not_configured" });
+        setPageState({ status: "unavailable" });
       }
     }
 
@@ -152,14 +152,14 @@ export function DocumentsClient({ locale }: { locale: Locale }) {
       ) : null}
 
       {/* Not configured */}
-      {pageState.status === "not_configured" ? (
+      {pageState.status === "unavailable" ? (
         <div className="aksa-state-panel" data-tone="blocked">
-          <p className="aksa-state-panel__body">
-            {m.documents_oauth_not_configured(
-              { keys: "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI" },
-              options
-            )}
-          </p>
+          <p className="aksa-state-panel__body">{m.error_unavailable({}, options)}</p>
+          <div className="aksa-state-panel__actions">
+            <button className="aksa-button aksa-button--secondary" onClick={() => window.location.reload()} type="button">
+              {m.action_retry({}, options)}
+            </button>
+          </div>
         </div>
       ) : null}
 

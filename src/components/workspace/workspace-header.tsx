@@ -188,7 +188,7 @@ export function WorkspaceHeader({
           </Link>
         ) : !isGoogleConnected ? (
           <Link className="aksa-button aksa-button--secondary aksa-button--sm" href="/workspace/settings">
-            {connection.state === "needs_reconnect" ? "Reconnect Google" : m.action_connect_google({}, options)}
+            {connection.state === "needs_reconnect" ? m.google_reconnect({}, options) : m.action_connect_google({}, options)}
           </Link>
         ) : (
           <StatusChip

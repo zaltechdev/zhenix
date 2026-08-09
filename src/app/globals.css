@@ -68,8 +68,8 @@
       rgba(248, 250, 252, 0.45) 30%,
       rgba(248, 250, 252, 0.1) 65%,
       rgba(248, 250, 252, 0.4) 100%);
-  --landing-copy-max-width: 720px;
-  --landing-preview-max-width: 1120px;
+  --landing-copy-max-width: 800px;
+  --landing-preview-max-width: 1280px;
 }
 
 @media (prefers-color-scheme: dark) {

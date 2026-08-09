@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, FileText, FolderOpen, Mail, Presentation, Table2 } from "lucide-react";
+import { ChevronRight, FileText, FolderOpen } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 
@@ -15,32 +15,11 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
       disabled: false
     },
     {
-      href: "/workspace/sheets",
-      name: m.nav_sheets({}, options),
-      desc: m.home_sheets_desc({}, options),
-      icon: Table2,
-      disabled: false
-    },
-    {
       href: "/workspace/files",
       name: m.nav_files({}, options),
       desc: m.home_drive_desc({}, options),
       icon: FolderOpen,
       disabled: false
-    },
-    {
-      href: "/workspace/mail",
-      name: m.nav_mail({}, options),
-      desc: m.home_gmail_desc({}, options),
-      icon: Mail,
-      disabled: false
-    },
-    {
-      href: "/workspace/slides",
-      name: m.nav_slides({}, options),
-      desc: m.home_slides_desc({}, options),
-      icon: Presentation,
-      disabled: true
     }
   ];
 

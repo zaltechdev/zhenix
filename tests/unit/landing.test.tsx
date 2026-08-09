@@ -106,11 +106,11 @@ describe("landing hero", () => {
     expect(screen.getByText(m.faq_answer_hardware({}, { locale: "en" }))).toBeVisible();
   });
 
-  it("exposes accessible floating accessibility widget", () => {
+  it("keeps appearance controls out of the public page", () => {
     render(<LandingPage locale="en" />);
 
     expect(
-      screen.getByRole("button", { name: m.accessibility_widget_title({}, { locale: "en" }) })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: m.accessibility_widget_title({}, { locale: "en" }) })
+    ).not.toBeInTheDocument();
   });
 });

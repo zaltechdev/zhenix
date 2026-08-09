@@ -2,7 +2,6 @@
 
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
-import { exampleCommandKeys } from "@/lib/contracts/command";
 import { exampleCommandCopy } from "@/lib/i18n/copy";
 import { useOptionalCommandContext } from "@/components/workspace/command-context";
 
@@ -17,7 +16,7 @@ export function QuickStartSuggestions({ locale }: { locale: Locale }) {
   return (
     <nav aria-label={m.composer_examples_label({}, options)} className="aksa-quick-suggestions">
       <ul className="aksa-quick-suggestions__list">
-        {exampleCommandKeys.map((key) => {
+        {(["open_latest_assignment"] as const).map((key) => {
           const text = exampleCommandCopy(key, locale);
           return (
             <li key={key}>

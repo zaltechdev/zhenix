@@ -199,11 +199,6 @@ function WorkspaceShellContent({
           />
 
           <main className="aksa-main" id="main-content">
-            {!isHome && session.status !== "authenticated" ? (
-              <p className="aksa-notice" role="note">
-                {m.workspace_preview_notice({}, options)}
-              </p>
-            ) : null}
             {children}
           </main>
 
