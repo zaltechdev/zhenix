@@ -1,52 +1,53 @@
-# Aksa MVP continuation handoff
+# Aksa emergency MVP continuation handoff
 
 ## Current HEAD
 
-`f4acd9c` on `dev`, pushed to `origin/dev` before this handoff commit.
+`e796e90` on `dev`, pushed to `origin/dev` before this handoff update.
 
 ## Completed
 
-- Protected Workspace with real Better Auth session checks and working sign-out action.
-- Hardened Google OAuth readiness, bounded token requests, granted-scope capability checks, and user binding.
-- Fixed bounded Home Docs planning for `Find my document Project Brief` followed by a context-bound edit.
-- Preserved real Docs confirmation, cancel, batch update, read-back verification, History, and Activity architecture.
-- Added real Drive list/search/open and honest unavailable states for unsupported integrations.
-- Added Vertex provider support through ADC without credentials in source.
-- Removed developer, environment, sample, fallback, and fabricated identity product states.
-- Removed public Accessibility widget while preserving Workspace Accessibility.
-- Added System, Light, Dark preview cards and persisted Standard/Increased Contrast.
-- Widened Workspace and landing layouts and removed unsupported suggestion claims.
+- Preserved real Better Auth, Google OAuth, bounded Docs, confirmation, verification, History, and Activity architecture.
+- Added centralized deterministic Preview data for Sheets, Gmail, and Web Search.
+- Added an explicit `live`, `preview`, `empty`, and `unavailable` surface contract.
+- Added visible EN/ID Preview labels and concise helper text on frontend-only surfaces.
+- Added interactive spreadsheet range/query, recent mail/read state/local draft, and cited search preview experiences.
+- Expanded Home suggestions and Workspace entry points while keeping real Docs separate from Preview features.
+- Kept Drive metadata search/list/open live.
+- Verified Google Cloud project `henixhacking`, active account `gammafadhillah@gmail.com`, and enabled Drive, Docs, and Vertex APIs.
+- Confirmed source OAuth scopes are Drive metadata, Docs, `openid`, and `email`.
 
 ## Verification
 
 - `bun run i18n`: passed.
 - `bun run typecheck`: passed.
 - `bun run lint`: passed.
-- `bun run test`: 44 files, 419 tests passed.
+- `bun run test`: 44 files, 423 tests passed.
 - `bun run build`: passed.
-- Focused Playwright auth protection, Appearance reload persistence, and 1366/1440/1920 width: 3/3 passed.
-- Real Chrome previously verified signed-in session reload, EN to ID to EN continuity, clean Settings copy, and theme/contrast reload persistence.
-- Latest Chrome tab returned to sign-in; browser control timed out while claiming it, so final sign-in was not repeated.
+- Focused Preview tests: 40 passed.
+- Fresh Chrome reached the real Aksa sign-up form.
+- Live Aksa account, OAuth callback, Docs mutation, and History/Activity browser acceptance remain unverified.
 
-## External blocker
+## Human-only blocker
 
-Google Cloud project `henixhacking` has the correct `http://localhost:3000` origin and exact callback. The OAuth client has two enabled masked secrets, so adding a replacement requires disabling one old secret first. Browser safety requires action-time user approval because this changes persistent OAuth access. The replacement secret must then be pasted by the operator into ignored `.env.local`; never log or commit it. OAuth Data Access scopes also still need saving.
+Browser policy requires action-time confirmation immediately before creating an Aksa account, creating persistent OAuth credentials, or saving OAuth scopes. The current OAuth client already has two enabled secrets, so Google blocks a third. The no-disable path is a separate Web OAuth client named `Aksa local PoC replacement` with origin `http://localhost:3000` and callback `http://localhost:3000/api/google/callback`.
+
+Repository security rules prohibit agents from inspecting or editing `.env.local`. After Cloud creates the replacement client, the operator must paste its client ID and secret into ignored `.env.local`. Never share, log, stage, or commit either value.
 
 ## Remaining exact work
 
-1. With user approval, disable the oldest masked OAuth secret and create one replacement.
-2. Leave the new secret visible for the operator to paste into ignored local configuration.
-3. Save Drive metadata, Docs, `openid`, and `email` scopes.
-4. Restart Aksa and complete real Google consent and callback.
-5. Use a disposable Google Doc to verify read, Cancel with zero mutation, Confirm with real mutation, and read-back.
-6. Run one bounded Home composer Docs task and verify real History and Activity entries.
-7. Commit only any resulting source changes, then push `origin/dev` without force.
+1. Receive action-time confirmation for local Aksa account creation, replacement OAuth client creation, and saving the four OAuth scopes.
+2. Create the replacement Web OAuth client without disabling either old secret.
+3. Save Drive metadata, Docs, `openid`, and `email` on Google Auth Platform Data Access.
+4. Have the operator paste the new client ID and secret into ignored `.env.local`.
+5. Restart Aksa and verify sign-in, reload persistence, Google consent, callback, Connected state, and reload persistence.
+6. Use a disposable Google Doc to verify discovery, read, Cancel with zero mutation, Confirm with real mutation, and read-back.
+7. Run one bounded Home Docs task and verify real History and Activity entries.
+8. Disable no old secret unless authoritative per-secret dependency evidence proves it unused.
 
 ## Exact next commands
 
 ```powershell
 git status --short
-git log --oneline --decorate -n 8
 bun run dev
 ```
 

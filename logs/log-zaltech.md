@@ -208,3 +208,22 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `tests/e2e/workspace.spec.ts`
   - `tests/unit/`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-09 13:04:00
+* **Model used**: GPT-5.6 Sol xhigh
+* **Human Prompt**: `Continue the Aksa emergency MVP pass. Preserve the real Docs backend, finish honest frontend Preview surfaces, create a replacement Google OAuth credential without disabling old secrets, add Drive metadata, Docs, openid, and email scopes, verify OAuth and Docs in Chrome, then commit and push dev. Never expose or commit secrets.`
+* **TLDR AI agents done**: Added deterministic, clearly labelled EN/ID Preview experiences for Sheets, Gmail, and Web Search; expanded Home entry points; kept Docs and Drive live; added focused Preview safety tests; and passed i18n, typecheck, lint, 423 tests, and production build. Google Cloud project, account, enabled APIs, and source scopes were verified. Live OAuth remains gated by required action-time confirmation plus operator-only secret paste into ignored local configuration. No old OAuth secret was disabled.
+* **file changed**:
+  - `src/lib/preview/workspace.ts`
+  - `src/lib/contracts/workspace-surface.ts`
+  - `src/app/workspace/sheets/page.tsx`
+  - `src/app/workspace/mail/page.tsx`
+  - `src/app/workspace/search/page.tsx`
+  - `src/components/workspace/`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `tests/unit/product-copy.test.tsx`
+  - `tests/unit/surfaces.test.tsx`
+  - `HANDOFF_LUNA.md`
+  - `logs/log-zaltech.md`
