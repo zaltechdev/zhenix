@@ -1,3 +1,15 @@
+### Timestamp: [2026-08-10 09:06:25]
+* **Model used**: Gemini 3.6 Flash (High)
+* **Human Prompt**: `UI copy too is too bulky on controls`
+* **TLDR AI agents done**: Streamlined controls settings UI copy across English and Indonesian localizations. Removed long repetitive paragraphs and redundant helper text beneath preset radio cards. Shortened card descriptions and section subtitles to crisp, modern 4-8 word copy (e.g. `Auto-adjusts to tracking conditions`, `Steady tracking for dim lighting`, `Hold pointer on target to select`, `Runs navigation and app commands`). Updated unit test assertions in `controls-settings.test.tsx`. Verified clean i18n compilation, 0 typecheck errors, and 6/6 unit tests passing.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/components/workspace/controls-settings.tsx`
+  - `tests/unit/controls-settings.test.tsx`
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: [2026-08-10 08:57:30]
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `for these composer, use like correspond which feature, e.g if slide then "Ask about this slide" or "Edit the slide using modern style"`

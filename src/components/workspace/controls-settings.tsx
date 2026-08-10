@@ -489,7 +489,6 @@ export function HeadControlSettings({
             );
           })}
         </div>
-        {preset === "auto" ? <p className="aksa-hint">{m.controls_auto_adjusts({}, options)}</p> : null}
       </section>
 
       {preset === "custom" ? (

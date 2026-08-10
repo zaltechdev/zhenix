@@ -29,9 +29,11 @@ describe("Phase II controls settings", () => {
   });
 
   it("adds a dedicated Controls navigation destination", () => {
-    expect(secondaryNavigationItems("en")).toEqual(
-      expect.arrayContaining([expect.objectContaining({ href: "/workspace/controls", label: "Controls" })])
-    );
+    expect(secondaryNavigationItems("en").map((item) => item.href)).toEqual([
+      "/workspace/accessibility",
+      "/workspace/controls",
+      "/workspace/account"
+    ]);
   });
 
   it("shows clear head presets and exposes tuning only for Custom", () => {
@@ -55,17 +57,17 @@ describe("Phase II controls settings", () => {
   it.each([
     {
       locale: "en" as const,
-      heading: "After camera tracking resumes",
-      keep: "Keep pointer where it was",
-      center: "Move pointer to screen center",
-      helper: "Choose where the pointer starts after Aksa finds your face again."
+      heading: "When tracking resumes",
+      keep: "Keep current position",
+      center: "Move to screen center",
+      helper: "Pointer starting position when face is re-detected."
     },
     {
       locale: "id" as const,
-      heading: "Setelah pelacakan kamera tersambung kembali",
-      keep: "Pertahankan posisi penunjuk",
-      center: "Pindahkan penunjuk ke tengah layar",
-      helper: "Pilih posisi penunjuk saat Aksa kembali mendeteksi wajahmu."
+      heading: "Saat pelacakan tersambung kembali",
+      keep: "Pertahankan posisi terakhir",
+      center: "Pindahkan ke tengah layar",
+      helper: "Posisi penunjuk saat wajah kembali terdeteksi."
     }
   ])("exposes persisted reacquisition behavior in $locale", ({ locale, heading, keep, center, helper }) => {
     render(
