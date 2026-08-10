@@ -3057,6 +3057,29 @@ html.high-contrast .aksa-button--primary:disabled {
   flex-shrink: 0;
 }
 
+@media (max-width: 520px) {
+  .aksa-recent-work__item {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .aksa-recent-work__item-action {
+    grid-column: 1 / -1;
+  }
+
+  .aksa-recent-work__item-action .aksa-button {
+    width: 100%;
+  }
+
+  .aksa-recent-work__item-title {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* Flattened Launchpad List */
 .aksa-launchpad__flat-list {
   display: flex;
