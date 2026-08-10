@@ -2170,3 +2170,18 @@ Then STOP.
   - `Google AI Studio key configuration` (external; credentials never logged)
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 11:00:02
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `OAuth seems not to persist when reopening the app. Also add new password and confirm new password fields to the standalone forgot-password page.`
+* **TLDR AI agents done**: Added a localized new-password confirmation form with length and match validation, kept its demo-only behavior explicit, and verified mismatch and success states in production.
+* **file changed**:
+  - `.agents/features/auth-onboarding.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/(auth)/forgot-password/page.tsx`
+  - `src/components/auth/demo-password-reset-form.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`

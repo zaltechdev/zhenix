@@ -146,3 +146,19 @@ A security-relevant issue follows the same template with three additions.
 - Verification: Google accepted `/api/auth/callback/google`, requested the Docs and Drive metadata scopes, and rendered its full-page sign-in surface. Typecheck, focused tests, lint, and production build passed.
 - Prevention: Authentication coverage requires one social callback directly to onboarding.
 - Commit or PR: pending.
+
+## 2026-08-10 11:00 - Session appeared lost when reopening the Vercel alias
+
+- Status: fixed
+- Owner: Zaltech
+- Area: production hostname routing and Better Auth session cookies
+- Symptoms: A signed-in user opening `aksawork.vercel.app/workspace` was redirected to sign in again.
+- Reproduction: Request `https://aksawork.vercel.app/workspace` before the fix. Production returned HTTP 307 with `Location: /sign-in`.
+- Expected: Every production entry URL converges on `aksawork.web.id`, where the secure session cookie is valid.
+- Actual: The Vercel alias served independently, but browser cookies cannot cross between unrelated hostnames.
+- Root cause: Production exposed two hostnames without canonical redirect handling, splitting one session across two cookie origins.
+- Fix: Added an HTTP 308 canonical-host redirect for Vercel aliases before the Workspace cookie guard. Permanent fix.
+- Files changed: `src/proxy.ts`, `tests/unit/proxy.test.ts`
+- Verification: Production now returns HTTP 308 from the Vercel alias to the matching `aksawork.web.id` path. Opening the alias in the authenticated browser reached the canonical Workspace with no console errors. Focused tests passed 37/37, typecheck passed, and both local and Vercel production builds passed.
+- Prevention: Proxy tests require alias canonicalization, path and query preservation, public canonical routes, and the existing Workspace session guard.
+- Commit or PR: `f470ad3`.

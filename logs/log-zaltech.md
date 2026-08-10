@@ -403,3 +403,15 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `Google AI Studio key configuration` (external; credentials never logged)
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 11:00:02
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `OAuth seems not to persist when reopening the app. Also add new password and confirm new password fields to the standalone forgot-password page.`
+* **TLDR AI agents done**: Reproduced the split-host session failure, redirected every Vercel production alias to the canonical domain, and verified reopening the alias reaches the existing authenticated Workspace session.
+* **file changed**:
+  - `.agents/debug-zaltech.md`
+  - `src/proxy.ts`
+  - `tests/unit/proxy.test.ts`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
