@@ -4,6 +4,7 @@ import { m } from "@/paraglide/messages.js";
 import { PASSWORD_MIN_LENGTH, type AuthResult } from "@/lib/contracts/auth";
 import { createAksaError } from "@/lib/contracts/errors";
 import { AuthForm } from "@/components/auth/auth-form";
+import { DemoPasswordResetForm } from "@/components/auth/demo-password-reset-form";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import type { HeadControlEngineFactory } from "@/lib/client/vision/head-control-context";
 import { CAMERA_YAW_TO_SCREEN_DIRECTION } from "@/lib/client/vision/pointer-mapping";
@@ -262,6 +263,31 @@ describe("account form", () => {
     expect(
       screen.getByRole("button", { name: m.auth_submit_sign_up({}, { locale: "id" }) })
     ).toBeInTheDocument();
+  });
+});
+
+describe("demo password reset", () => {
+  it("requires matching new passwords before approving the demo reset", () => {
+    render(
+      <DemoPasswordResetForm
+        confirmLabel="Confirm new password"
+        mismatchMessage="Passwords must match."
+        newPasswordLabel="New password"
+        passwordRequirement="Use at least 8 characters."
+        shortMessage="Password is too short."
+        submitLabel="Set new password"
+        successMessage="Demo reset approved."
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "strongpass" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "different" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
+    expect(screen.getByText("Passwords must match.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "strongpass" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Demo reset approved.");
   });
 });
 
