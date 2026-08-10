@@ -65,7 +65,7 @@ export function AuthForm({
 
   useEffect(() => {
     if (state?.outcome === "authenticated") {
-      router.replace(mode === "sign_up" ? "/onboarding" : "/workspace");
+      router.replace("/onboarding");
       router.refresh();
     }
   }, [mode, router, state]);

@@ -280,4 +280,20 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Files changed: `src/components/auth/google-sign-in-button.tsx`, `src/components/shared/route-loading.tsx`, `src/app/loading.tsx`, `src/app/workspace/loading.tsx`, `src/app/globals.css`, `src/app/workspace.css`, focused tests and guidance.
 - Verification: Chrome retained one tab and the `/sign-in` URL after invoking Google; browser inspection showed route-specific home and Settings skeletons; the loaded Settings trigger measured 44 by 44 pixels at x=280 outside the sidebar. All 431 unit tests and the production build passed.
 - Prevention: Auth tests require a dialog-capable prompt after explicit activation, loading tests assert public and Workspace destination shapes, and accessibility tests require Workspace-specific positioning.
+- Commit or PR: `6bd1d9d`.
+
+## 2026-08-10 07:02 - Google actions appeared frozen or generically unavailable
+
+- Status: fixed
+- Owner: Henix
+- Area: Google sign-in feedback and Docs connection recovery
+- Symptoms: Continue with Google retained static copy while waiting, and Docs reduced missing OAuth configuration to `This is temporarily unavailable`.
+- Reproduction: Select Continue with Google and observe the pending state, then open `/workspace/documents` while Google Workspace OAuth is unconfigured.
+- Expected: The button names its active operation, and Docs names the exact recoverable setup requirement.
+- Actual: Authentication looked inactive and Docs offered only a generic retry loop.
+- Root cause: Pending state changed only button mechanics, while the Docs client mapped `configured: false` to the general unavailable state.
+- Fix: Added localized signing-in copy and a dedicated Google setup state that identifies the server environment, restart, and retry steps. Permanent fix.
+- Files changed: `messages/en.json`, `messages/id.json`, `src/components/auth/google-sign-in-button.tsx`, `src/components/workspace/documents-client.tsx`, `src/app/workspace/settings/page.tsx`.
+- Verification: Chrome reproduced the original generic state, then displayed `Finish Google setup` with the exact recovery after the change. All 433 unit tests and the production build passed.
+- Prevention: Authentication coverage asserts the chained callback, and Google configuration no longer maps to generic unavailability.
 - Commit or PR: pending.

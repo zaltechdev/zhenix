@@ -34,7 +34,7 @@ export function GoogleSignInButton({
     try {
       await authClient.oneTap({
         autoSelect: false,
-        callbackURL: mode === "sign_up" ? "/onboarding" : "/workspace",
+        callbackURL: "/api/google/auth?returnTo=/onboarding",
         context: mode === "sign_up" ? "signup" : "signin",
         uxMode: "popup",
         onPromptNotification: () => {
@@ -64,7 +64,9 @@ export function GoogleSignInButton({
         variant="primary"
       >
         <SiGoogle aria-hidden="true" className="aksa-oauth-icon" size={20} />
-        {m.auth_continue_google({}, options)}
+        {pending
+          ? m.auth_google_signing_in({}, options)
+          : m.auth_continue_google({}, options)}
       </Button>
       {!authClient || failed ? (
         <p className="aksa-hint" id="google-sign-in-status" role={failed ? "alert" : undefined}>

@@ -38,6 +38,7 @@ afterEach(() => cleanup());
 
 describe("account form", () => {
   it("starts Google sign-in through Better Auth with bounded callback routes", async () => {
+    authClientMocks.oneTap.mockReturnValueOnce(new Promise(() => undefined));
     render(
       <AuthForm
         action={async () => ({ outcome: "unavailable", error: createAksaError("not_configured") })}
@@ -59,11 +60,17 @@ describe("account form", () => {
 
     fireEvent.click(googleButton);
 
+    expect(
+      await screen.findByRole("button", {
+        name: m.auth_google_signing_in({}, { locale: "en" })
+      })
+    ).toBeDisabled();
+
     await waitFor(() => {
       expect(authClientMocks.create).toHaveBeenCalledWith("google-client-id-for-tests");
       expect(authClientMocks.oneTap).toHaveBeenCalledWith({
         autoSelect: false,
-        callbackURL: "/workspace",
+        callbackURL: "/api/google/auth?returnTo=/onboarding",
         context: "signin",
         onPromptNotification: expect.any(Function),
         uxMode: "popup"
@@ -112,6 +119,30 @@ describe("account form", () => {
       target: { value: "correct horse battery" }
     });
     fireEvent.click(screen.getByRole("button", { name: m.auth_submit_sign_up({}, { locale: "en" }) }));
+
+    await waitFor(() => expect(navigationMocks.replace).toHaveBeenCalledWith("/onboarding"));
+  });
+
+  it("routes returning accounts through onboarding after authentication", async () => {
+    render(
+      <AuthForm
+        action={async () => ({
+          outcome: "authenticated",
+          session: {
+            userId: "user-returning",
+            email: "returning@example.com",
+            displayName: "Returning user",
+            workspaceId: "workspace-returning",
+            locale: "en",
+            expiresAt: Date.now() + 60_000
+          }
+        })}
+        locale="en"
+        mode="sign_in"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: m.auth_submit_sign_in({}, { locale: "en" }) }));
 
     await waitFor(() => expect(navigationMocks.replace).toHaveBeenCalledWith("/onboarding"));
   });

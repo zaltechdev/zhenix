@@ -312,3 +312,18 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `src/lib/server/db/dal.ts`
   - `src/lib/server/google/service.ts`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 07:02:06
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Make the primary Google CTA authenticate Aksa, connect Google Workspace, and continue to onboarding in the same tab. [All credentials and environment values redacted.]`
+* **TLDR AI agents done**: Chained identity verification into Workspace consent, signed and bounded OAuth return routing, added configuration recovery, and verified tests and build. Actual token exchange awaits the real OAuth client secret outside the repository.
+* **file changed**:
+  - `.agents/debug-zaltech.md`
+  - `.agents/features/auth-onboarding.md`
+  - `.agents/features/google-workspace.md`
+  - `src/app/api/google/auth/route.ts`
+  - `src/app/api/google/callback/route.ts`
+  - `src/lib/server/google/oauth.ts`
+  - `tests/unit/google-oauth.test.ts`
+  - `logs/log-zaltech.md`

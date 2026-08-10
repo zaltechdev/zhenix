@@ -36,7 +36,7 @@ export default async function SettingsPage() {
             {connection.state === "connected" ? m.google_reconnect({}, options) : m.google_connect({}, options)}
           </a>
         ) : (
-          <p className="aksa-hint">{m.error_unavailable({}, options)}</p>
+          <p className="aksa-hint">{m.google_configuration_body({}, options)}</p>
         )}
       </Panel>
     </div>

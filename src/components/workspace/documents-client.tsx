@@ -29,6 +29,7 @@ type ConnectionState = {
 
 type PageState =
   | { status: "checking_connection" }
+  | { status: "configuration_required" }
   | { status: "unavailable" }
   | { status: "not_connected" }
   | { status: "needs_reconnect" }
@@ -54,7 +55,7 @@ export function DocumentsClient({ locale }: { locale: Locale }) {
         const data: ConnectionState = await response.json();
 
         if (!data.configured) {
-          setPageState({ status: "unavailable" });
+          setPageState({ status: "configuration_required" });
           return;
         }
 
@@ -156,6 +157,26 @@ export function DocumentsClient({ locale }: { locale: Locale }) {
           <p className="aksa-state-panel__body">{m.error_unavailable({}, options)}</p>
           <div className="aksa-state-panel__actions">
             <button className="aksa-button aksa-button--secondary" onClick={() => window.location.reload()} type="button">
+              {m.action_retry({}, options)}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {pageState.status === "configuration_required" ? (
+        <div className="aksa-state-panel" data-tone="attention">
+          <h2 className="aksa-state-panel__heading">
+            {m.google_configuration_heading({}, options)}
+          </h2>
+          <p className="aksa-state-panel__body">
+            {m.google_configuration_body({}, options)}
+          </p>
+          <div className="aksa-state-panel__actions">
+            <button
+              className="aksa-button aksa-button--primary"
+              onClick={() => window.location.reload()}
+              type="button"
+            >
               {m.action_retry({}, options)}
             </button>
           </div>

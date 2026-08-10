@@ -1900,3 +1900,20 @@ Then STOP.
   - `src/components/auth/google-sign-in-button.tsx`
   - `tests/unit/auth-onboarding.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 07:02:06
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Fix Google sign-in appearing stuck, route sign-in and sign-up through onboarding, make Google establish both the Aksa session and Workspace connection, and replace the Docs generic unavailable state with a working recovery. [All credentials and environment values redacted.]`
+* **TLDR AI agents done**: Added visible Google progress, routed all authentication through onboarding, replaced generic Docs failure with exact setup recovery, and verified the browser state.
+* **file changed**:
+  - `.agents/debug-henix.md`
+  - `.agents/features/auth-onboarding.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace/settings/page.tsx`
+  - `src/components/auth/auth-form.tsx`
+  - `src/components/auth/google-sign-in-button.tsx`
+  - `src/components/workspace/documents-client.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`

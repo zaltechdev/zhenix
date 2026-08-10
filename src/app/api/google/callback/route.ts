@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   exchangeCodeForTokens,
   getGoogleUserInfo,
+  googleOAuthReturnToFromState,
   GOOGLE_OAUTH_STATE_COOKIE,
   verifyGoogleOAuthState
 } from "@/lib/server/google/oauth";
@@ -24,14 +25,17 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
   const storedState = request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE)?.value;
+  const returnTo = googleOAuthReturnToFromState(storedState, state, session.userId);
 
   const redirectWithError = (reason: string) => {
-    const response = NextResponse.redirect(new URL(`/workspace?google_error=${reason}`, request.url));
+    const destination = new URL(returnTo ?? "/workspace/documents", request.url);
+    destination.searchParams.set("google_error", reason);
+    const response = NextResponse.redirect(destination);
     response.cookies.delete(GOOGLE_OAUTH_STATE_COOKIE);
     return response;
   };
 
-  if (!verifyGoogleOAuthState(storedState, state, session.userId)) {
+  if (!returnTo || !verifyGoogleOAuthState(storedState, state, session.userId)) {
     return redirectWithError("invalid_state");
   }
 
@@ -59,7 +63,7 @@ export async function GET(request: NextRequest) {
       subjectId: "google"
     });
 
-    const response = NextResponse.redirect(new URL("/workspace/documents", request.url));
+    const response = NextResponse.redirect(new URL(returnTo, request.url));
     response.cookies.delete(GOOGLE_OAUTH_STATE_COOKIE);
 
     return response;

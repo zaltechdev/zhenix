@@ -3,6 +3,8 @@ import {
   buildAuthorizationUrl,
   createGoogleOAuthState,
   GOOGLE_SCOPES,
+  googleOAuthReturnToFromState,
+  parseGoogleOAuthReturnTo,
   verifyGoogleOAuthState
 } from "@/lib/server/google/oauth";
 
@@ -30,11 +32,20 @@ describe("Google OAuth MVP", () => {
   });
 
   it("binds OAuth state to the initiating Aksa user", () => {
-    const created = createGoogleOAuthState("aksa-user-a");
+    const created = createGoogleOAuthState("aksa-user-a", "/onboarding");
 
     expect(verifyGoogleOAuthState(created.cookieValue, created.state, "aksa-user-a")).toBe(true);
     expect(verifyGoogleOAuthState(created.cookieValue, created.state, "aksa-user-b")).toBe(false);
     expect(verifyGoogleOAuthState(created.cookieValue, "different-state", "aksa-user-a")).toBe(false);
+    expect(
+      googleOAuthReturnToFromState(created.cookieValue, created.state, "aksa-user-a")
+    ).toBe("/onboarding");
+  });
+
+  it("allows only bounded post-consent destinations", () => {
+    expect(parseGoogleOAuthReturnTo("/onboarding")).toBe("/onboarding");
+    expect(parseGoogleOAuthReturnTo("https://attacker.example")).toBe("/workspace/documents");
+    expect(parseGoogleOAuthReturnTo("/workspace/settings")).toBe("/workspace/documents");
   });
 
   it("rejects a tampered OAuth state cookie", () => {

@@ -113,4 +113,20 @@ A security-relevant issue follows the same template with three additions.
 - Files changed: `src/lib/server/db/dal.ts`, `src/lib/server/google/service.ts`.
 - Verification: Authenticated Workspace response time decreased from approximately 9.3 seconds to 3.6 seconds. TypeScript, lint, all 431 unit tests, and the production build passed.
 - Prevention: Keep memoization request-scoped and never promote authenticated results into shared process caches.
+- Commit or PR: `6bd1d9d`.
+
+## 2026-08-10 07:02 - Google sign-in stopped before Workspace authorization
+
+- Status: workaround
+- Owner: Zaltech
+- Area: Better Auth, Google Workspace OAuth, post-consent routing
+- Symptoms: Google created an Aksa session but did not establish a Google Workspace connection, so Docs remained blocked.
+- Reproduction: Complete Continue with Google, then inspect the Workspace connection and open Docs.
+- Expected: The primary CTA verifies the Google identity token, creates the Aksa session, starts same-tab Workspace consent, stores the encrypted refresh token, then enters onboarding.
+- Actual: The identity callback navigated directly to Workspace, and the current local runtime reports Workspace OAuth unconfigured because its client secret is still a placeholder or missing.
+- Root cause: Authentication and Workspace authorization had no chained transition, and Google authorization-code exchange cannot run without the real web OAuth client secret.
+- Fix: Chained the verified session into `/api/google/auth`, carried only allowlisted return destinations inside signed OAuth state, redirected success or failure safely, and routed all authentication modes to onboarding. The code path is permanent; local token exchange remains blocked until the real client secret is supplied outside the repository.
+- Files changed: `src/app/api/google/auth/route.ts`, `src/app/api/google/callback/route.ts`, `src/lib/server/google/oauth.ts`, `src/components/auth/auth-form.tsx`, `src/components/auth/google-sign-in-button.tsx`, focused tests and guidance.
+- Verification: State-binding and open-redirect tests passed, Chrome confirmed Aksa authentication, and all 433 unit tests plus the production build passed. Real Workspace token exchange was not claimable because the required client secret is absent.
+- Prevention: Tests require the chained callback, onboarding destination, user-bound state, tamper rejection, and bounded return destinations.
 - Commit or PR: pending.

@@ -36,14 +36,14 @@ Get a new user from the landing page to a workspace where head control and voice
 - Password reset by email, deferred to Future Scope in `.agents/prd.md` section 25.
 - Team invitations and workspace sharing.
 - Guest access, tracked as OQ-9.
-- Google account connection. That is a workspace action, not a sign-in step. See `.agents/features/google-workspace.md`.
+- Google Workspace authorization remains a separate security boundary. The primary Google CTA starts it immediately after Google sign-in succeeds. See `.agents/features/google-workspace.md`.
 
 ## User Flow
 
 | Step | User | Aksa |
 | --- | --- | --- |
 | 1 | Selects `Try Aksa` on the landing page | Opens sign in with email, password, and Google choices plus a link to sign up |
-| 2 | Creates an account or signs in | Establishes a session, creates the first workspace on first sign in, then sends new users to onboarding |
+| 2 | Creates an account or signs in | Establishes a session, creates the first workspace on first sign in, then sends the account to onboarding |
 | 3 | Arrives in onboarding | Explains head control, what is processed, what is stored, and the skip path |
 | 4 | Chooses `Allow camera` or `Skip` | Requests camera permission only after the explanation, records consent either way |
 | 5 | Moves head | Shows the Aksa pointer following head pose, distinct from browser focus |
@@ -83,7 +83,7 @@ Owner: Henix.
 
 - Route structure for landing, sign up, sign in, onboarding steps, and workspace entry.
 - Sign-up and sign-in forms with persistent labels, autofill support, inline field errors linked to inputs, and a form-level error summary that receives focus on failure.
-- Google sign-in is the primary authentication CTA. It opens the Google Identity Services prompt in-page, without a new tab, and exposes pending, unavailable, and failed states.
+- Google sign-in is the primary authentication CTA. It opens the Google Identity Services prompt in-page, shows an explicit signing-in state, creates the Aksa session, then starts Google Workspace authorization in the same tab before onboarding.
 - Loading state that prevents duplicate submission without shifting layout.
 - Onboarding step shell with visible progress, back, skip, and resume.
 - Consent screens that explain purpose before any permission request.

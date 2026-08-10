@@ -65,7 +65,16 @@ type OAuthStatePayload = {
   state: string;
   userId: string;
   issuedAt: number;
+  returnTo: GoogleOAuthReturnTo;
 };
+
+export type GoogleOAuthReturnTo = "/onboarding" | "/workspace/documents";
+
+const DEFAULT_GOOGLE_OAUTH_RETURN_TO: GoogleOAuthReturnTo = "/workspace/documents";
+
+export function parseGoogleOAuthReturnTo(value: string | null): GoogleOAuthReturnTo {
+  return value === "/onboarding" ? value : DEFAULT_GOOGLE_OAUTH_RETURN_TO;
+}
 
 const googleTokenResponseSchema = z.object({
   access_token: z.string().min(1),
@@ -92,10 +101,56 @@ function signState(encoded: string): string {
 }
 
 /** Creates a cookie value bound to the authenticated Aksa user who initiated OAuth. */
-export function createGoogleOAuthState(userId: string): { state: string; cookieValue: string } {
+export function createGoogleOAuthState(
+  userId: string,
+  returnTo: GoogleOAuthReturnTo = DEFAULT_GOOGLE_OAUTH_RETURN_TO
+): { state: string; cookieValue: string } {
   const state = crypto.randomUUID();
-  const encoded = encodeState({ state, userId, issuedAt: Date.now() });
+  const encoded = encodeState({ state, userId, issuedAt: Date.now(), returnTo });
   return { state, cookieValue: `${encoded}.${signState(encoded)}` };
+}
+
+function verifiedStatePayload(
+  cookieValue: string | undefined,
+  expectedState: string | null,
+  expectedUserId: string
+): OAuthStatePayload | null {
+  if (!cookieValue || !expectedState) return null;
+
+  const [encoded, signature] = cookieValue.split(".");
+  if (!encoded || !signature) return null;
+
+  try {
+    const expectedSignature = signState(encoded);
+    const actual = Buffer.from(signature, "base64url");
+    const expected = Buffer.from(expectedSignature, "base64url");
+    // Base64url decoding ignores unused trailing bits, so require the canonical
+    // encoding before comparing the decoded MAC bytes.
+    if (
+      signature.length !== expectedSignature.length ||
+      signature !== expectedSignature ||
+      actual.length !== expected.length ||
+      !timingSafeEqual(actual, expected)
+    ) {
+      return null;
+    }
+
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as OAuthStatePayload;
+    const age = Date.now() - payload.issuedAt;
+    if (
+      payload.state !== expectedState ||
+      payload.userId !== expectedUserId ||
+      !Number.isFinite(payload.issuedAt) ||
+      age < 0 ||
+      age > 10 * 60 * 1000 ||
+      !["/onboarding", "/workspace/documents"].includes(payload.returnTo)
+    ) {
+      return null;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 /** Verifies the state, its age, and the initiating authenticated Aksa user. */
@@ -104,39 +159,15 @@ export function verifyGoogleOAuthState(
   expectedState: string | null,
   expectedUserId: string
 ): boolean {
-  if (!cookieValue || !expectedState) return false;
+  return verifiedStatePayload(cookieValue, expectedState, expectedUserId) !== null;
+}
 
-  const [encoded, signature] = cookieValue.split(".");
-  if (!encoded || !signature) return false;
-
-  try {
-    const expectedSignature = signState(encoded);
-    const actual = Buffer.from(signature, "base64url");
-    const expected = Buffer.from(expectedSignature, "base64url");
-    // Base64url decoding ignores unused trailing bits, so compare the canonical
-    // encoded signature too; otherwise a one-character suffix mutation can decode
-    // to the same MAC bytes.
-    if (
-      signature.length !== expectedSignature.length ||
-      signature !== expectedSignature ||
-      actual.length !== expected.length ||
-      !timingSafeEqual(actual, expected)
-    ) {
-      return false;
-    }
-
-    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as OAuthStatePayload;
-    const age = Date.now() - payload.issuedAt;
-    return (
-      payload.state === expectedState &&
-      payload.userId === expectedUserId &&
-      Number.isFinite(payload.issuedAt) &&
-      age >= 0 &&
-      age <= 10 * 60 * 1000
-    );
-  } catch {
-    return false;
-  }
+export function googleOAuthReturnToFromState(
+  cookieValue: string | undefined,
+  expectedState: string | null,
+  expectedUserId: string
+): GoogleOAuthReturnTo | null {
+  return verifiedStatePayload(cookieValue, expectedState, expectedUserId)?.returnTo ?? null;
 }
 
 /**
