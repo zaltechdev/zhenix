@@ -23,4 +23,22 @@ describe("production host canonicalization", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://aksawork.web.id/sign-in");
   });
+
+  it("protects onboarding with the same session cookie", () => {
+    const response = proxy(new NextRequest("https://aksawork.web.id/onboarding"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://aksawork.web.id/sign-in");
+  });
+
+  it("redirects authenticated users away from sign-in", () => {
+    const response = proxy(
+      new NextRequest("https://aksawork.web.id/sign-in", {
+        headers: { cookie: "__Secure-better-auth.session_token=session-token" }
+      })
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://aksawork.web.id/workspace");
+  });
 });

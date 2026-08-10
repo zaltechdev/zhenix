@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const CANONICAL_HOST = "aksawork.web.id";
+const AUTH_ENTRY_PATHS = new Set(["/sign-in", "/sign-up"]);
 
 function shouldUseCanonicalHost(hostname: string): boolean {
   return hostname === "aksawork.vercel.app" || hostname.endsWith(".vercel.app");
@@ -15,10 +16,6 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(canonicalUrl, 308);
   }
 
-  if (!request.nextUrl.pathname.startsWith("/workspace")) {
-    return NextResponse.next();
-  }
-
   const hasSessionCookie = request.cookies.getAll().some(({ name, value }) =>
     value.length > 0 && (
       name === "better-auth.session_token" ||
@@ -27,7 +24,14 @@ export function proxy(request: NextRequest) {
     )
   );
 
-  if (!hasSessionCookie) {
+  if (AUTH_ENTRY_PATHS.has(request.nextUrl.pathname) && hasSessionCookie) {
+    return NextResponse.redirect(new URL("/workspace", request.url));
+  }
+
+  const requiresSession =
+    request.nextUrl.pathname === "/onboarding" || request.nextUrl.pathname.startsWith("/workspace");
+
+  if (requiresSession && !hasSessionCookie) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 
