@@ -33,8 +33,8 @@ export function MarketingFooter({ locale }: { locale: Locale }) {
         <nav aria-label={m.footer_navigation_label({}, options)} className="marketing-footer__links">
           <a href="#features">{m.navigation_features({}, options)}</a>
           <a href="#how-it-works">{m.navigation_how_it_works({}, options)}</a>
-          <a href="#faq">{m.navigation_faq({}, options)}</a>
           <a href="#accessibility">{m.footer_accessibility({}, options)}</a>
+          <a href="#faq">{m.navigation_faq({}, options)}</a>
           <PendingFooterItem label={m.footer_safety({}, options)} locale={locale} />
           <PendingFooterItem label={m.footer_privacy({}, options)} locale={locale} />
           <PendingFooterItem label={m.footer_terms({}, options)} locale={locale} />
