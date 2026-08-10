@@ -1994,6 +1994,16 @@ Then STOP.
   - `logs/log-zaltech.md`
 
 ---
+### Timestamp: 2026-08-10 11:39:33
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Now give me a three-minute demo walkthrough and what to say and click.`
+* **TLDR AI agents done**: Created a timed, judge-facing demo script with exact clicks, spoken lines, recovery paths, and honest concept-preview wording.
+* **file changed**:
+  - `docs/demo-script-3-minute.md`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
 ### Timestamp: 2026-08-10 10:24:16
 * **Model used**: GPT-5.6 Sol (High)
 * **Human Prompt**: `Ship the repository from main, deploy to aksawork.web.id or aksawork.vercel.app, configure production environment, and add a forgot-password demo acknowledgment. [All credentials and environment values redacted.]`
