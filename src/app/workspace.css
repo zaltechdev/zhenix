@@ -3495,12 +3495,14 @@ html.high-contrast .aksa-button--primary:disabled {
   position: relative;
   width: 100%;
   max-width: 560px;
-  max-height: min(300px, 42vh);
+  max-height: min(320px, 44vh);
   margin-inline: auto;
   aspect-ratio: 16 / 9;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: #000;
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 .aksa-camera-preview {
@@ -3515,62 +3517,75 @@ html.high-contrast .aksa-button--primary:disabled {
   position: absolute;
   top: var(--space-3);
   left: var(--space-3);
-  z-index: 2;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
 }
 
-/* Calibration guidance belongs to the camera surface, keeping the flow compact. */
+.aksa-camera-preview__status .aksa-chip {
+  background: rgba(11, 19, 36, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  padding: 4px 12px;
+}
+
+/* Floating instruction card centered near bottom-middle with max readability. */
 .aksa-camera-preview__calibration {
   position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  left: 8.5rem;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: var(--space-3);
-  border: 1px solid var(--color-aksa-line);
-  border-radius: var(--radius-sm);
-  background: var(--color-aksa-charcoal);
-  padding: var(--space-2) var(--space-3);
+  bottom: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: calc(100% - (var(--space-3) * 2));
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(11, 19, 36, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px var(--space-4);
   color: var(--color-aksa-paper);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
 }
 
 .aksa-camera-preview__calibration-copy {
+  width: 100%;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .aksa-camera-preview__calibration-title {
-  color: var(--color-aksa-paper);
-  font-size: 0.9375rem;
+  color: #ffffff;
+  font-size: 1rem;
   font-weight: 700;
-  line-height: 1.3;
-}
-
-.aksa-camera-preview__calibration-helper,
-.aksa-camera-preview__calibration-step {
-  margin: var(--space-1) 0 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 0.75rem;
   line-height: 1.35;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.aksa-camera-preview__calibration-helper {
+  margin: 4px 0 0;
+  color: #cbd5e1;
+  font-size: 0.84375rem;
+  line-height: 1.4;
 }
 
 .aksa-camera-preview__calibration-step {
-  color: var(--color-aksa-teal-soft);
+  margin: 6px 0 0;
+  color: var(--color-aksa-teal-soft, #47d2bc);
+  font-size: 0.8125rem;
   font-weight: 650;
-}
-
-.aksa-camera-preview__target {
-  display: inline-flex;
-  width: 3.25rem;
-  height: 3.25rem;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border: 1px solid var(--color-aksa-teal);
-  border-radius: var(--radius-round);
-  background: rgba(6, 36, 43, 0.72);
-  color: var(--color-aksa-teal-soft);
+  line-height: 1.3;
 }
 
 .aksa-camera-preview__progress {
@@ -3579,15 +3594,14 @@ html.high-contrast .aksa-button--primary:disabled {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 4px;
+  height: 3px;
   overflow: hidden;
-  border-radius: var(--radius-round);
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .aksa-camera-preview__progress-value {
   height: 100%;
-  background: var(--color-aksa-teal);
+  background: var(--color-aksa-teal, #47d2bc);
   transition: width var(--duration-fast) var(--ease-calm);
 }
 
@@ -3941,10 +3955,8 @@ html.high-contrast .aksa-button--primary:disabled {
   }
 
   .aksa-camera-preview__calibration {
-    top: auto;
-    right: var(--space-2);
-    bottom: var(--space-3);
-    left: var(--space-2);
+    width: calc(100% - (var(--space-2) * 2));
+    bottom: var(--space-2);
   }
 }
 

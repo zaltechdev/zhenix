@@ -4,15 +4,10 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
   Camera,
   CameraOff,
   Check,
   ChevronRight,
-  Crosshair,
   Mic,
   Sparkles,
   MousePointer,
@@ -80,7 +75,7 @@ function getPhaseRadialProgress(phaseId: OnboardingPhase, currentPhase: Onboardi
 
 function calibrationDirectionLabel(
   direction: "center" | "left" | "right" | "up" | "down" | "return_center",
-  options: { locale: Locale }
+  options: { locale?: Locale } = {}
 ): string {
   if (direction === "left") return m.onboarding_calibration_direction_left({}, options);
   if (direction === "right") return m.onboarding_calibration_direction_right({}, options);
@@ -88,18 +83,6 @@ function calibrationDirectionLabel(
   if (direction === "down") return m.onboarding_calibration_direction_down({}, options);
   if (direction === "return_center") return m.onboarding_calibration_direction_return_center({}, options);
   return m.onboarding_calibration_direction_center({}, options);
-}
-
-function CalibrationDirectionIcon({
-  direction
-}: {
-  direction: "center" | "left" | "right" | "up" | "down" | "return_center";
-}) {
-  if (direction === "left") return <ArrowLeft aria-hidden="true" size={24} />;
-  if (direction === "right") return <ArrowRight aria-hidden="true" size={24} />;
-  if (direction === "up") return <ArrowUp aria-hidden="true" size={24} />;
-  if (direction === "down") return <ArrowDown aria-hidden="true" size={24} />;
-  return <Crosshair aria-hidden="true" size={22} />;
 }
 
 export function OnboardingFlow({
@@ -780,13 +763,6 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                               )}
                             </p>
                           ) : null}
-                        </div>
-                        <div
-                          aria-label={calibrationStepDirection}
-                          className={`aksa-camera-preview__target aksa-camera-preview__target--${headControl.calibrationState.direction}`}
-                          role="img"
-                        >
-                          <CalibrationDirectionIcon direction={headControl.calibrationState.direction} />
                         </div>
                         {calibrationStatus === "capturing" ? (
                           <div

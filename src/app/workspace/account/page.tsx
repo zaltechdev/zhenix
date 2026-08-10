@@ -16,21 +16,20 @@ export default async function AccountPage() {
   return (
     <div className="aksa-surface">
       <SurfaceHeader
-        heading={m.auth_account_heading({}, options)}
-        intro={m.auth_account_intro({}, options)}
+        heading={m.account_page_heading({}, options)}
+        intro={m.account_page_intro({}, options)}
       />
 
-      <Panel heading={m.workspace_session_label({}, options)} locale={locale}>
+      <Panel heading={m.account_email_heading({}, options)} locale={locale}>
         {session.status === "authenticated" ? (
           <>
             <StatusChip
-              label={m.workspace_session_label({}, options)}
               tone="ready"
-              value={m.workspace_session_signed_in({ email: session.session.email }, options)}
+              value={m.account_email_value({ email: session.session.email }, options)}
             />
             <form action={signOutAction}>
               <button className="aksa-button aksa-button--secondary" type="submit">
-                {m.auth_sign_out({}, options)}
+                {m.account_sign_out({}, options)}
               </button>
             </form>
           </>

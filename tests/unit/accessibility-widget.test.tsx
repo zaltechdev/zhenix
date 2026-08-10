@@ -19,7 +19,7 @@ describe("accessibility quick panel", () => {
 
     expect(rootLayout).toContain('<AccessibilityWidget locale={locale} />');
     expect(globalStyles).toContain("body:has(.aksa-shell) .landing-a11y-widget");
-    expect(globalStyles).toContain("left: calc(264px + var(--space-4))");
+    expect(globalStyles).toContain("left: var(--space-3)");
   });
 
   it("offers configurable text size, high contrast, and reduced motion", () => {
