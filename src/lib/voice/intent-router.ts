@@ -24,7 +24,7 @@ const intentDefinitions: readonly IntentDefinition[] = [
   {
     intent: "NAV_DOCS",
     patterns: {
-      en: [/^(?:open|go to) docs$/, /^(?:open|go to) documents$/],
+      en: [/^(?:open|go to) docs$/, /^(?:open|go to) documents?$/],
       id: [/^buka (?:dokumen|docs)$/, /^ke dokumen$/]
     }
   },

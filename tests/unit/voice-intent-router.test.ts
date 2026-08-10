@@ -40,6 +40,10 @@ describe("Aksa deterministic voice router", () => {
     expect(matchAksaIntent("Open Gmail.", "en")).toBe("NAV_GMAIL");
   });
 
+  it("matches the singular Open document command used by Live Voice", () => {
+    expect(matchAksaIntent("Open document", "en")).toBe("NAV_DOCS");
+  });
+
   it("does not guess unmatched text", () => {
     expect(matchAksaIntent("show me anything", "en")).toBeNull();
     expect(matchAksaIntent("buka dokumen saya sekarang", "id")).toBeNull();
