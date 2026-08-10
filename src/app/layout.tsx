@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Host_Grotesk, Inter } from "next/font/google";
 import { cookies } from "next/headers";
+import { Monitor } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import { getRequestLocale } from "@/lib/i18n/request";
 import { HeadControlProvider } from "@/lib/client/vision/head-control-context";
@@ -62,18 +63,30 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${hostGrotesk.variable} ${inter.variable} font-body`}>
-        <a
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-cloud focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-ink"
-          href="#main-content"
-        >
-          {m.skip_to_content({}, { locale })}
-        </a>
-        <PreferenceProvider initialLocale={locale}>
-          <HeadControlProvider>
-            {children}
-            <AccessibilityWidget locale={locale} />
-          </HeadControlProvider>
-        </PreferenceProvider>
+        <div className="aksa-desktop-experience">
+          <a
+            className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-cloud focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-ink"
+            href="#main-content"
+          >
+            {m.skip_to_content({}, { locale })}
+          </a>
+          <PreferenceProvider initialLocale={locale}>
+            <HeadControlProvider>
+              {children}
+              <AccessibilityWidget locale={locale} />
+            </HeadControlProvider>
+          </PreferenceProvider>
+        </div>
+
+        <section aria-labelledby="mobile-blocker-heading" className="aksa-mobile-blocker">
+          <div className="aksa-mobile-blocker__card">
+            <span aria-hidden="true" className="aksa-mobile-blocker__icon">
+              <Monitor />
+            </span>
+            <h1 id="mobile-blocker-heading">{m.mobile_blocker_heading({}, { locale })}</h1>
+            <p>{m.mobile_blocker_body({}, { locale })}</p>
+          </div>
+        </section>
       </body>
     </html>
   );

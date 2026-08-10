@@ -43,11 +43,10 @@ test.describe("Accessibility audits", () => {
     expect(results.violations).toEqual([]);
   });
 
-  test("no accessibility issues while the mobile drawer is open", async ({ page }) => {
+  test("no accessibility issues in the mobile blocker", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
-    await page.goto("/workspace");
-    await page.getByRole("button", { name: "Open workspace navigation" }).click();
-    await expect(page.getByRole("dialog", { name: "Workspace navigation" })).toBeVisible();
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Open Aksa on a computer" })).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])

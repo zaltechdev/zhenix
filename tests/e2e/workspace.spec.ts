@@ -493,50 +493,22 @@ test.describe("Phase II controls", () => {
 
 test.describe("mobile layout", () => {
   test.use({ viewport: { width: 320, height: 640 } });
-  test.beforeEach(async ({ page }) => {
-    await createAksaAccount(page);
-  });
 
-  test("no horizontal overflow and the composer stays reachable", async ({ page }) => {
+  test("blocks workspace routes with desktop guidance", async ({ page }) => {
     for (const route of workspaceRoutes) {
       await page.goto(route);
       expect(await hasHorizontalOverflow(page), `overflow on ${route}`).toBe(false);
-      await expect(page.locator("#command-composer")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Open Aksa on a computer" })).toBeVisible();
+      await expect(page.locator(".aksa-desktop-experience")).toBeHidden();
     }
   });
 
-  test("the drawer traps focus and restores it to the trigger", async ({ page }) => {
-    await page.goto("/workspace");
-
-    const trigger = page.getByRole("button", { name: "Open workspace navigation" });
-    await expect(trigger).toBeVisible();
-    await trigger.click();
-
-    const dialog = page.getByRole("dialog", { name: "Workspace navigation" });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Close workspace navigation" })).toBeFocused();
-
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    await expect(trigger).toBeFocused();
-  });
-
-  test("long Indonesian labels wrap without overflow", async ({ page }) => {
+  test("localizes the blocker in Indonesian", async ({ page }) => {
+    await page.context().addCookies([
+      { name: "PARAGLIDE_LOCALE", value: "id", domain: "localhost", path: "/" }
+    ]);
     await page.goto("/");
-    await page.getByRole("button", { name: /menu/i }).click();
-    await page.getByRole("dialog", { name: "Primary navigation" }).getByRole("button", { name: "Language" }).click();
-    await page.getByRole("menuitem", { name: "Indonesia" }).click();
-
-    await page.goto("/workspace/accessibility");
-    await expect(page.getByRole("heading", { level: 1, name: "Aksesibilitas" })).toBeVisible();
-    expect(await hasHorizontalOverflow(page)).toBe(false);
-
-    await page.goto("/workspace/settings");
-    await expect(page.getByRole("heading", { level: 1, name: "Pengaturan" })).toBeVisible();
-    expect(await hasHorizontalOverflow(page)).toBe(false);
-
-    await page.goto("/workspace/controls");
-    await expect(page.getByRole("heading", { level: 1, name: "Kontrol" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Buka Aksa di komputer" })).toBeVisible();
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 });

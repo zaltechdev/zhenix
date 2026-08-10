@@ -82,55 +82,11 @@ test("hero layout order matches expectations", async ({ page }) => {
   expect(previewBox!.y).toBeGreaterThan(ctaBox!.y + ctaBox!.height);
 });
 
-test("keeps mobile hero within viewport and opens accessible menu", async ({ page }) => {
+test("blocks mobile access with desktop guidance", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
 
-  const hasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > window.innerWidth
-  );
-  expect(hasHorizontalOverflow).toBe(false);
-
-  const menuButton = page.getByRole("button", { name: "Open navigation menu" });
-  await expect(menuButton).toBeVisible();
-  await menuButton.click();
-  await expect(page.getByRole("dialog", { name: "Primary navigation" })).toBeVisible();
-  const dialog = page.getByRole("dialog", { name: "Primary navigation" });
-  await expect(dialog.getByRole("link", { name: "Features" })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: "How It Works" })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: "FAQ" })).toBeVisible();
-
-  await page.keyboard.press("Escape");
-  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
-});
-
-test("stacks landing cards and recent work actions on mobile", async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto("/");
-
-  const featureCards = page.locator(".landing-feature-card");
-  const firstCard = await featureCards.nth(0).boundingBox();
-  const secondCard = await featureCards.nth(1).boundingBox();
-
-  expect(firstCard).not.toBeNull();
-  expect(secondCard).not.toBeNull();
-  expect(secondCard!.y).toBeGreaterThan(firstCard!.y + firstCard!.height);
-  expect(firstCard!.width).toBeGreaterThan(200);
-
-  const recentItem = page.locator("#product-preview .aksa-recent-work__item").first();
-  const recentTitle = recentItem.locator(".aksa-recent-work__item-title");
-  const recentAction = recentItem.locator(".aksa-recent-work__item-action");
-  const [itemBox, titleBox, actionBox] = await Promise.all([
-    recentItem.boundingBox(),
-    recentTitle.boundingBox(),
-    recentAction.boundingBox()
-  ]);
-
-  expect(itemBox).not.toBeNull();
-  expect(titleBox).not.toBeNull();
-  expect(actionBox).not.toBeNull();
-  expect(titleBox!.width).toBeGreaterThan(100);
-  await expect(recentTitle).toHaveCSS("white-space", "normal");
-  expect(actionBox!.y).toBeGreaterThan(titleBox!.y + titleBox!.height);
-  expect(actionBox!.width).toBeGreaterThan(itemBox!.width - 32);
+  await expect(page.getByRole("heading", { name: "Open Aksa on a computer" })).toBeVisible();
+  await expect(page.locator(".aksa-desktop-experience")).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

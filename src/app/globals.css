@@ -211,6 +211,80 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.aksa-mobile-blocker {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  body {
+    overflow: hidden;
+  }
+
+  .aksa-desktop-experience {
+    display: none;
+  }
+
+  .aksa-mobile-blocker {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    background: var(--color-aksa-paper);
+    padding: calc(var(--space-5) + env(safe-area-inset-top)) 20px
+      calc(var(--space-5) + env(safe-area-inset-bottom));
+  }
+
+  .aksa-mobile-blocker__card {
+    display: flex;
+    width: min(100%, 32rem);
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    border: 1px solid var(--color-aksa-line);
+    border-radius: var(--radius-xl);
+    background: var(--color-aksa-cloud);
+    padding: var(--space-6) var(--space-5);
+    text-align: center;
+    box-shadow: var(--shadow-aksa-overlay);
+  }
+
+  .aksa-mobile-blocker__icon {
+    display: inline-flex;
+    width: 64px;
+    height: 64px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-aksa-teal);
+    border-radius: var(--radius-lg);
+    background: var(--color-aksa-teal-soft);
+    color: var(--color-aksa-ink);
+  }
+
+  .aksa-mobile-blocker__icon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .aksa-mobile-blocker h1 {
+    margin: 0;
+    color: var(--color-aksa-ink);
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+    line-height: 1.1;
+  }
+
+  .aksa-mobile-blocker p {
+    margin: 0;
+    color: var(--color-aksa-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+}
+
 /* Custom Scrollbar for WebKit/Chromium */
 ::-webkit-scrollbar {
   width: 10px;
