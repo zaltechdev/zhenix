@@ -22,6 +22,7 @@ Get a new user from the landing page to a workspace where head control and voice
 - Sign up with email and password.
 - Sign up and sign in through Google OAuth, handled server-side by Better Auth.
 - Sign in, sign out, session persistence.
+- Demo-only forgot-password acknowledgment that does not send email or change credentials.
 - One workspace created automatically on first sign in.
 - Onboarding: purpose explanation, camera consent, pointer test, calibration, microphone consent, voice test, first guided command.
 - Visible camera preview is mirrored for familiar self-alignment only. MediaPipe input, pose mapping, and calibration coordinates remain unmirrored.
@@ -33,7 +34,7 @@ Get a new user from the landing page to a workspace where head control and voice
 ## Non-Goals
 
 - Additional social providers, magic links, and multi-factor authentication.
-- Password reset by email, deferred to Future Scope in `.agents/prd.md` section 25.
+- Password reset by email, deferred to Future Scope in `.agents/prd.md` section 25. The competition demo exposes an explicitly labeled frontend-only acknowledgment.
 - Team invitations and workspace sharing.
 - Guest access, tracked as OQ-9.
 - Google identity and Workspace authorization remain separate security responsibilities but share one Google OAuth redirect. See `.agents/features/google-workspace.md`.
@@ -255,7 +256,7 @@ Prepared fallback: if the presenter's camera or microphone fails, deny the permi
 | AOQ-2 | Is guest or demo access offered, and how is its data isolated and expired? Tracked as OQ-9. | Scope |
 | AOQ-3 | Default sensitivity, dead zone, smoothing, and dwell duration values. Tracked as OQ-5. | Step 7 and 8 |
 | AOQ-4 | Which facial gesture is the default selection trigger? Tracked as OQ-4. | Step 8 |
-| AOQ-5 | Is password reset in scope for the competition window, or is it Future Scope? | Non-goals |
+| AOQ-5 | Resolved for the competition demo: show a frontend-only acknowledgment. Real password reset remains Future Scope. | Non-goals |
 | AOQ-6 | Default locale and language detection behavior. Tracked as OQ-7. | Localization |
 | AOQ-7 | Absolute and idle session expiry durations. | Backend responsibilities |
 | AOQ-8 | Exact disclosure wording for browser speech recognition leaving the device, pending Henix copy approval. | Step 10 |

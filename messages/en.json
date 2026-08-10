@@ -621,6 +621,8 @@
   "auth_submitting": "Working",
   "auth_switch_to_sign_up": "Don't have an account? Sign up",
   "auth_switch_to_sign_in": "Already have an account? Sign in",
+  "auth_forgot_password": "Forgot password?",
+  "auth_forgot_password_demo_note": "This demo automatically approves forgot-password requests. No email is sent, and your password stays unchanged.",
   "auth_error_summary_heading": "Check these before sending again",
   "auth_field_email_invalid": "Enter an email address.",
   "auth_field_password_short": "Use at least {min} characters.",

@@ -2471,6 +2471,32 @@ html.high-contrast .aksa-button--primary:disabled {
   gap: var(--space-4);
 }
 
+.aksa-auth-forgot {
+  margin-top: calc(-1 * var(--space-3));
+  text-align: right;
+}
+
+.aksa-auth-forgot__action {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--color-aksa-teal-deep);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.aksa-auth-forgot__action:hover {
+  color: var(--color-aksa-ink);
+}
+
+.aksa-auth-forgot .aksa-hint {
+  margin: 0;
+  text-align: left;
+}
+
 .aksa-pixel-title {
   font-family: var(--font-host-grotesk), sans-serif !important;
   letter-spacing: normal !important;

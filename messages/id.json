@@ -539,6 +539,8 @@
   "auth_submitting": "Memproses",
   "auth_switch_to_sign_up": "Belum punya akun? Daftar",
   "auth_switch_to_sign_in": "Sudah punya akun? Masuk",
+  "auth_forgot_password": "Lupa kata sandi?",
+  "auth_forgot_password_demo_note": "Demo ini otomatis menyetujui permintaan lupa kata sandi. Tidak ada surel yang dikirim, dan kata sandimu tidak berubah.",
   "auth_error_summary_heading": "Periksa ini sebelum mengirim lagi",
   "auth_field_email_invalid": "Masukkan alamat surel.",
   "auth_field_password_short": "Gunakan minimal {min} karakter.",

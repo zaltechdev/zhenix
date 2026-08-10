@@ -164,6 +164,22 @@ describe("account form", () => {
     );
   });
 
+  it("shows an honest demo-only forgot-password approval", () => {
+    render(
+      <AuthForm
+        action={async () => ({ outcome: "unavailable", error: createAksaError("not_configured") })}
+        locale="en"
+        mode="sign_in"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: m.auth_forgot_password({}, { locale: "en" }) }));
+
+    expect(
+      screen.getByText(m.auth_forgot_password_demo_note({}, { locale: "en" }))
+    ).toHaveAttribute("role", "status");
+  });
+
   it("shows the password requirement before submission, not only after failure", () => {
     render(
       <AuthForm

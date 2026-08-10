@@ -1933,6 +1933,21 @@ Then STOP.
   - `logs/log-zaltech.md`
 
 ---
+### Timestamp: 2026-08-10 10:24:16
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Ship the repository from main, deploy to aksawork.web.id or aksawork.vercel.app, configure production environment, and add a forgot-password demo acknowledgment. [All credentials and environment values redacted.]`
+* **TLDR AI agents done**: Added an accessible sign-in forgot-password acknowledgment for the frontend demo, localized its copy, documented its non-mutating behavior, verified tests, typecheck, and production build, and prepared the release for Vercel deployment.
+* **file changed**:
+  - `.agents/features/auth-onboarding.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/workspace.css`
+  - `src/components/auth/auth-form.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
 ### Timestamp: 2026-08-10 10:00:00
 * **Model used**: GPT-5.6 Sol
 * **Human Prompt**: `are you even read my prompt? ship it. Link deployment should be https://aksawork.web.id atau https://aksawork.vercel.app. Follow the attached EMERGENCY FINAL SHIP instructions.`
