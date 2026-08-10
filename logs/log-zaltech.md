@@ -426,3 +426,22 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `tests/unit/proxy.test.ts`
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 11:16:42
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Prioritize concept fidelity before the deadline. Ship the intended Google screenshot embeds across all feature pages and enable Slides instead of greying it out.`
+* **TLDR AI agents done**: Preserved existing production authentication and routing while deploying the frontend concept surfaces. Build and deployed asset delivery passed without new backend configuration.
+* **file changed**:
+  - `public/google-embeds/*`
+  - `src/app/workspace/documents/page.tsx`
+  - `src/app/workspace/files/page.tsx`
+  - `src/app/workspace/mail/page.tsx`
+  - `src/app/workspace/sheets/page.tsx`
+  - `src/app/workspace/slides/page.tsx`
+  - `src/components/workspace/google-screenshot-embed.tsx`
+  - `src/components/workspace/navigation-items.ts`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `tests/e2e/workspace.spec.ts`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
