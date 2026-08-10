@@ -45,7 +45,7 @@ export function FeatureGrid({ locale }: { locale: Locale }) {
             <div aria-hidden="true" className="landing-feature-card__ui-preview">
               <div className="landing-feature-card__ui-row">
                 <span className="landing-feature-card__badge landing-feature-card__badge--accent">
-                  Outcome-Based AI Execution
+                  Voice & Text Input
                 </span>
               </div>
             </div>

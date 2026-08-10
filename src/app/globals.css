@@ -975,7 +975,7 @@ body {
 }
 
 .landing-section__intro p {
-  max-width: 680px;
+  max-width: 980px;
   margin: var(--space-3) 0 0;
   color: var(--color-aksa-muted);
   font-size: 1.05rem;
