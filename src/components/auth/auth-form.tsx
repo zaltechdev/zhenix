@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useActionState, useEffect, useId, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
@@ -46,8 +47,6 @@ export function AuthForm({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<AuthResult | null, FormData>(action, null);
-  const [demoResetApproved, setDemoResetApproved] = useState(false);
-
   const emailId = useId();
   const passwordId = useId();
   const nameId = useId();
@@ -153,19 +152,9 @@ export function AuthForm({
 
         {mode === "sign_in" ? (
           <div className="aksa-auth-forgot">
-            <button
-              aria-expanded={demoResetApproved}
-              className="aksa-link aksa-auth-forgot__action"
-              onClick={() => setDemoResetApproved(true)}
-              type="button"
-            >
+            <Link className="aksa-link aksa-auth-forgot__action" href="/forgot-password">
               {m.auth_forgot_password({}, options)}
-            </button>
-            {demoResetApproved ? (
-              <p className="aksa-hint" role="status">
-                {m.auth_forgot_password_demo_note({}, options)}
-              </p>
-            ) : null}
+            </Link>
           </div>
         ) : null}
 

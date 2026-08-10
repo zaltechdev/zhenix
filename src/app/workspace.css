@@ -2477,12 +2477,10 @@ html.high-contrast .aksa-button--primary:disabled {
 }
 
 .aksa-auth-forgot__action {
+  display: inline-flex;
   min-height: 44px;
-  border: 0;
-  background: transparent;
+  align-items: center;
   color: var(--color-aksa-teal-deep);
-  cursor: pointer;
-  font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: underline;
@@ -2492,7 +2490,13 @@ html.high-contrast .aksa-button--primary:disabled {
   color: var(--color-aksa-ink);
 }
 
-.aksa-auth-forgot .aksa-hint {
+.aksa-auth-forgot-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.aksa-auth-forgot-page .aksa-hint {
   margin: 0;
   text-align: left;
 }

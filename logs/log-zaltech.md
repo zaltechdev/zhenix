@@ -247,6 +247,22 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `logs/log-zaltech.md`
 
 ---
+### Timestamp: 2026-08-10 10:34:13
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Move the forgot-password demo notice from the main sign-in form to the next standalone forgot-password page.`
+* **TLDR AI agents done**: Confirmed the standalone forgot-password demo remains frontend-only and does not send email, reset credentials, or alter authentication backend behavior.
+* **file changed**:
+  - `.agents/features/auth-onboarding.md`
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/(auth)/forgot-password/page.tsx`
+  - `src/app/workspace.css`
+  - `src/components/auth/auth-form.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
 ### Timestamp: 2026-08-10 10:24:16
 * **Model used**: GPT-5.6 Sol (High)
 * **Human Prompt**: `Ship the repository from main, deploy to aksawork.web.id or aksawork.vercel.app, configure production environment, and add a forgot-password demo acknowledgment. [All credentials and environment values redacted.]`

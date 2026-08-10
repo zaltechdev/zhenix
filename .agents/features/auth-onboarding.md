@@ -22,7 +22,7 @@ Get a new user from the landing page to a workspace where head control and voice
 - Sign up with email and password.
 - Sign up and sign in through Google OAuth, handled server-side by Better Auth.
 - Sign in, sign out, session persistence.
-- Demo-only forgot-password acknowledgment that does not send email or change credentials.
+- Standalone demo-only forgot-password page that does not send email or change credentials.
 - One workspace created automatically on first sign in.
 - Onboarding: purpose explanation, camera consent, pointer test, calibration, microphone consent, voice test, first guided command.
 - Visible camera preview is mirrored for familiar self-alignment only. MediaPipe input, pose mapping, and calibration coordinates remain unmirrored.
