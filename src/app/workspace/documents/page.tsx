@@ -1,6 +1,4 @@
-import { Suspense } from "react";
-import { getRequestLocale } from "@/lib/i18n/request";
-import { DocumentsClient } from "@/components/workspace/documents-client";
+import { GoogleScreenshotEmbed } from "@/components/workspace/google-screenshot-embed";
 
 /**
  * Documents workspace page.
@@ -11,11 +9,9 @@ import { DocumentsClient } from "@/components/workspace/documents-client";
  * useSearchParams compatibility.
  */
 export default async function DocumentsPage() {
-  const locale = await getRequestLocale();
-
   return (
-    <Suspense fallback={<div className="aksa-state-panel" data-tone="pending" role="status"><p className="aksa-state-panel__body">Loading...</p></div>}>
-      <DocumentsClient locale={locale} />
-    </Suspense>
+    <div className="aksa-surface">
+      <GoogleScreenshotEmbed app="docs" />
+    </div>
   );
 }

@@ -8,7 +8,6 @@ import {
   House,
   Mail,
   Presentation,
-  Settings,
   SlidersHorizontal,
   Table2,
   UserRound,
@@ -61,9 +60,7 @@ export function googleWorkspaceNavigationItems(locale: Locale): NavigationItem[]
     {
       href: "/workspace/slides",
       label: m.nav_slides({}, options),
-      icon: Presentation,
-      disabled: true,
-      disabledReason: m.nav_slides_disabled({}, options)
+      icon: Presentation
     },
     { href: "/workspace/files", label: m.nav_files({}, options), icon: FolderOpen },
     { href: "/workspace/mail", label: m.nav_mail({}, options), icon: Mail }
@@ -115,12 +112,14 @@ export function secondaryNavigationItems(locale: Locale): NavigationItem[] {
       icon: Accessibility
     },
     { href: "/workspace/controls", label: m.nav_controls({}, options), icon: SlidersHorizontal },
-    { href: "/workspace/settings", label: m.nav_settings({}, options), icon: Settings },
     { href: "/workspace/account", label: m.nav_account({}, options), icon: UserRound }
   ];
 }
 
 export function navigationLabelForPath(path: string, locale: Locale): string {
+  if (path === "/workspace/settings") {
+    return m.settings_heading({}, { locale });
+  }
   const items = [...primaryNavigationItems(locale), ...secondaryNavigationItems(locale)];
   const match = items.find((item) => item.href === path);
   return match?.label ?? m.nav_home({}, { locale });

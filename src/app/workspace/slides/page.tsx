@@ -1,12 +1,9 @@
-import { getRequestLocale } from "@/lib/i18n/request";
-import { SlidesSurface } from "@/components/workspace/slides-surface";
+import { GoogleScreenshotEmbed } from "@/components/workspace/google-screenshot-embed";
 
 export default async function SlidesPage() {
-  const locale = await getRequestLocale();
-
   return (
     <div className="aksa-surface">
-      <SlidesSurface locale={locale} />
+      <GoogleScreenshotEmbed app="slides" />
     </div>
   );
 }

@@ -13,6 +13,7 @@ const workspaceRoutes = [
   "/workspace/documents",
   "/workspace/files",
   "/workspace/sheets",
+  "/workspace/slides",
   "/workspace/mail",
   "/workspace/search",
   "/workspace/history",
