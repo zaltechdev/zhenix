@@ -1,3 +1,19 @@
+### Timestamp: [2026-08-10 08:26:30]
+* **Model used**: Gemini 3.6 Flash (High)
+* **Human Prompt**: `FINAL LANDING FE CLEANUP — DO THIS ONLY, FAST`
+* **TLDR AI agents done**: Performed final landing page visual and copy cleanup strictly according to user directives and annotated screenshots. Streamlined Google Workspace section copy to 1 short sentence per card + visual chip. Replaced bulky demo panel with compact sticky scroll-driven Look/Speak/Confirm preview panel using IntersectionObserver and interactive visual proof cards. Fixed dark mode WCAG AA contrast for status chips and badges (`:root[data-theme="dark"]`). Rewrote safety section into 3 concrete control cards (`Camera stays local`, `Review before changes`, `Keyboard & mouse always work`) removing "tetikus" wording. Compiled i18n, verified clean typecheck (0 errors) and 7/7 unit tests passing.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/components/landing/feature-grid.tsx`
+  - `src/components/landing/how-it-works-demo.tsx`
+  - `src/components/landing/accessibility-highlight.tsx`
+  - `src/app/globals.css`
+  - `src/app/workspace.css`
+  - `tests/unit/landing.test.tsx`
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: [2026-08-08 20:50:30]
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `should be floating, not docking | see? this is floating, not docking | stil not satisfy the req | shadow too harsh`
@@ -1276,6 +1292,77 @@ Then STOP.
   - `logs/log-henix.md`
 
 ---
+### Timestamp: 2026-08-10 08:12:28
+* **Model used**: GPT-5 Codex
+* **Human Prompt**: `FINAL FE DEADLINE PASS: frontend-only visual fixes. Remove the duplicate Web Search field and use one shared Aksa composer with source-backed research layout. Replace the landing Programming Assignment 04 stub with the current Aksa Home workspace preview. Preserve accessibility, themes, responsive layout, and existing design language. Run fast frontend checks, commit one atomic FE change, and push dev.`
+* **TLDR AI agents done**: Merged Web Search into the shared composer, added contextual search copy and source cards, replaced the landing stub with current Workspace UI, updated focused tests, and verified fast checks plus targeted browser flows.
+* **file changed**:
+  - `messages/en.json`
+  - `messages/id.json`
+  - `src/app/globals.css`
+  - `src/app/workspace.css`
+  - `src/components/landing/product-preview.tsx`
+  - `src/components/workspace/artifact-view.tsx`
+  - `src/components/workspace/command-composer.tsx`
+  - `src/components/workspace/search-surface.tsx`
+  - `src/components/workspace/welcome-header.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `src/lib/client/state/composer-machine.ts`
+  - `tests/e2e/landing.spec.ts`
+  - `tests/e2e/workspace.spec.ts`
+  - `tests/unit/landing.test.tsx`
+  - `tests/unit/surfaces.test.tsx`
+
+---
+### Timestamp: 2026-08-10 07:59:14
+* **Model used**: Codex
+* **Human Prompt**: `Urgent: Make the docs/features except voice control and head control or live control using the supplied Google Docs, Sheets, Slides, Drive, head-control, and Gmail screenshots. Preserve the current real backend; embed Google features in Aksa instead of creating new interfaces. Deadline is 10 minutes. Follow-up: use those images as FE embeds; real app E2E is not viable, focus on FE; just put the image into the FE, no new CSS.`
+* **TLDR AI agents done**: Copied five supplied Google screenshots into public assets and embedded them on Docs, Sheets, Slides, Drive, and Gmail routes. Preserved existing backend components and left voice/head-control code unchanged. No CSS files created.
+* **file changed**:
+  - `public/google-embeds/docs.png`
+  - `public/google-embeds/sheets.png`
+  - `public/google-embeds/slides.png`
+  - `public/google-embeds/drive.png`
+  - `public/google-embeds/gmail.png`
+  - `src/components/workspace/google-screenshot-embed.tsx`
+  - `src/app/workspace/documents-client.tsx`
+  - `src/app/workspace/sheets/page.tsx`
+  - `src/app/workspace/slides/page.tsx`
+  - `src/app/workspace/files/page.tsx`
+  - `src/app/workspace/mail/page.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 08:04:24
+* **Model used**: Codex
+* **Human Prompt**: `Use the original supplied screenshots, not the red annotations. Enable Slides with its screenshot instead of the gray disabled surface, and add rounded corners to screenshots.`
+* **TLDR AI agents done**: Reverted annotated Sheets and Gmail assets, restored original unannotated Google screenshots, made all five routes screenshot-only, enabled Slides navigation, and added rounded inline clipping.
+* **file changed**:
+  - `public/google-embeds/docs.png`
+  - `public/google-embeds/sheets.png`
+  - `public/google-embeds/slides.png`
+  - `public/google-embeds/drive.png`
+  - `public/google-embeds/gmail.png`
+  - `src/components/workspace/google-screenshot-embed.tsx`
+  - `src/components/workspace/navigation-items.ts`
+  - `src/app/workspace/documents/page.tsx`
+  - `src/app/workspace/files/page.tsx`
+  - `src/app/workspace/mail/page.tsx`
+  - `src/app/workspace/sheets/page.tsx`
+  - `src/app/workspace/slides/page.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 08:06:59
+* **Model used**: Codex
+* **Human Prompt**: `Continue work from the Slides screenshot. Remove the marked calibration and Google Connected header controls, and restore the missing composer.`
+* **TLDR AI agents done**: Removed marked calibration and connected-status controls, enabled the Slides route composer, and kept head start, pause, voice, and backend flows intact.
+* **file changed**:
+  - `src/components/workspace/workspace-header.tsx`
+  - `src/components/workspace/workspace-shell.tsx`
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: 2026-08-08 10:01:57
 * **Model used**: GPT-5.6 Terra (Medium)
 * **Human Prompt**: `instead of stuck in center, keep the camera control on`
@@ -1915,5 +2002,46 @@ Then STOP.
   - `src/components/auth/auth-form.tsx`
   - `src/components/auth/google-sign-in-button.tsx`
   - `src/components/workspace/documents-client.tsx`
+  - `tests/unit/auth-onboarding.test.tsx`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 07:30:55
+* **Model used**: Codex
+* **Human Prompt**: `table + 2 paragrph about the UI UX design system [$acawrite](C:\\Users\\henix\\.codex\\skills\\acawrite\\SKILL.md) [$humanize](C:\\Users\\henix\\.agents\\skills\\humanize\\SKILL.md) search project context first`
+* **TLDR AI agents done**: Read project guidance and drafted a proposal-ready UI/UX design-system section with one table and two Indonesian academic paragraphs.
+* **file changed**:
+  - `docs/section-3-4-ui-ux.md`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 07:36:30
+* **Model used**: Codex
+* **Human Prompt**: `[$humanize](C:\\Users\\henix\\.agents\\skills\\humanize\\SKILL.md) change the "bbukan salinan google" well yess but no, because we actually want to embed google workspace so better wording is "Integrated google workspace with aksa original design"`
+* **TLDR AI agents done**: Replaced the Google-copy exclusion with a clearer statement about Google Workspace integration through Aksa's original interface.
+* **file changed**:
+  - `docs/section-3-4-ui-ux.md`
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 07:32:12
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Make local Google sign-in and Google Workspace OAuth work immediately; use .env.local, remove the old .env, and verify Docs. [All credentials, account identifiers, and environment values redacted.]`
+* **TLDR AI agents done**: Replaced placeholder OAuth credentials, corrected the callback URL, restarted local development, connected Google, and verified real Docs loading.
+* **file changed**:
+  - `.env.local` (ignored; values never logged)
+  - `Google OAuth client configuration` (external)
+  - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 07:49:49
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Remove the double Google authentication step. Continue with Google should immediately use the full-page account chooser instead of a floating chooser.`
+* **TLDR AI agents done**: Replaced the floating One Tap prompt with one same-tab Google account chooser and preserved onboarding routing.
+* **file changed**:
+  - `.agents/debug-henix.md`
+  - `.agents/features/auth-onboarding.md`
+  - `src/components/auth/google-sign-in-button.tsx`
+  - `src/lib/client/auth/auth-client.ts`
   - `tests/unit/auth-onboarding.test.tsx`
   - `logs/log-henix.md`

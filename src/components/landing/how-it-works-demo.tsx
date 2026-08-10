@@ -1,68 +1,84 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
-import { Mic, MoveRight, RotateCcw, ShieldCheck, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Mic, MoveRight, ShieldCheck, CheckCircle2, Eye, type LucideIcon } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import { Button } from "@/components/shared/button";
 import { StatusChip } from "@/components/workspace/status-chip";
 
 type DemoStep = {
+  id: string;
   Icon: LucideIcon;
   label: string;
   description: string;
-  details: string[];
 };
 
 export function HowItWorksDemo({ locale }: { locale: Locale }) {
   const options = { locale };
   const [selectedStep, setSelectedStep] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
   const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const sectionRef = useRef<HTMLElement | null>(null);
+
   const steps: DemoStep[] = [
     {
+      id: "look",
       Icon: MoveRight,
       label: m.how_step_look_label({}, options),
-      description: m.how_step_look_description({}, options),
-      details: [
-        m.how_look_detail_1({}, options),
-        m.how_look_detail_2({}, options),
-        m.how_look_detail_3({}, options)
-      ]
+      description: m.how_step_look_description({}, options)
     },
     {
+      id: "speak",
       Icon: Mic,
       label: m.how_step_speak_label({}, options),
-      description: m.how_step_speak_description({}, options),
-      details: [
-        m.how_speak_detail_1({}, options),
-        m.how_speak_detail_2({}, options),
-        m.how_speak_detail_3({}, options)
-      ]
+      description: m.how_step_speak_description({}, options)
     },
     {
+      id: "confirm",
       Icon: ShieldCheck,
       label: m.how_step_confirm_label({}, options),
-      description: m.how_step_confirm_description({}, options),
-      details: [
-        m.how_confirm_detail_1({}, options),
-        m.how_confirm_detail_2({}, options),
-        m.how_confirm_detail_3({}, options),
-        m.how_confirm_detail_4({}, options)
-      ]
+      description: m.how_step_confirm_description({}, options)
     }
   ];
-  const activeStep = steps[selectedStep];
 
-  function replay() {
-    setSelectedStep(0);
-    setIsPaused(false);
-    stepRefs.current[0]?.focus();
-  }
+  // Scroll-driven active step detection via IntersectionObserver
+  useEffect(() => {
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return;
 
-  function selectStep(index: number) {
+    const observerOptions: IntersectionObserverInit = {
+      root: null,
+      rootMargin: "-20% 0px -30% 0px",
+      threshold: 0.3
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const indexStr = entry.target.getAttribute("data-step-index");
+          if (indexStr !== null) {
+            const idx = parseInt(indexStr, 10);
+            if (!isNaN(idx)) {
+              setSelectedStep(idx);
+            }
+          }
+        }
+      });
+    }, observerOptions);
+
+    stepRefs.current.forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  function selectStep(index: number, shouldScroll = false) {
     setSelectedStep(index);
-    stepRefs.current[index]?.focus();
+    if (shouldScroll && stepRefs.current[index]) {
+      stepRefs.current[index]?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    }
   }
 
   function handleStepKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -82,109 +98,153 @@ export function HowItWorksDemo({ locale }: { locale: Locale }) {
     }
 
     event.preventDefault();
-    selectStep(nextIndex);
+    selectStep(nextIndex, true);
   }
 
-  return (
-    <section aria-labelledby="how-it-works-heading" className="landing-section landing-section--demo" id="how-it-works">
-      <div className="landing-section__inner">
-        <div className="landing-demo-editorial-grid">
-          {/* Left Column: Heading, description & selectable steps */}
-          <div className="landing-demo-editorial__left">
-            <div className="landing-section__intro landing-section__intro--left">
-              <h2 id="how-it-works-heading">{m.how_heading({}, options)}</h2>
-              <p>{m.how_description({}, options)}</p>
-            </div>
+  const activeStep = steps[selectedStep];
 
+  return (
+    <section
+      aria-labelledby="how-it-works-heading"
+      className="landing-section landing-section--demo"
+      id="how-it-works"
+      ref={sectionRef}
+    >
+      <div className="landing-section__inner">
+        <div className="landing-section__intro landing-section__intro--left">
+          <h2 id="how-it-works-heading">{m.how_heading({}, options)}</h2>
+          <p>{m.how_description({}, options)}</p>
+        </div>
+
+        <div className="landing-demo-scroll-layout">
+          {/* Left Column: Scroll-driven step cards */}
+          <div className="landing-demo-steps-column">
             <div
               aria-label={m.how_control_label({}, options)}
               className="landing-demo__step-list landing-demo__step-list--vertical"
               role="tablist"
             >
-              {steps.map(({ Icon, label, description }, index) => (
-                <button
-                  aria-controls="how-demo-panel"
-                  aria-label={label}
-                  aria-selected={selectedStep === index}
-                  className={`landing-demo__step ${selectedStep === index ? "landing-demo__step--selected" : ""}`}
-                  id={`how-demo-tab-${index}`}
-                  key={label}
-                  onClick={() => selectStep(index)}
-                  onKeyDown={(event) => handleStepKeyDown(event, index)}
-                  ref={(element) => {
-                    stepRefs.current[index] = element;
-                  }}
-                  role="tab"
-                  tabIndex={selectedStep === index ? 0 : -1}
-                  type="button"
-                >
-                  <span className="landing-demo__step-number">{index + 1}</span>
-                  <div className="landing-demo__step-info">
-                    <div className="landing-demo__step-title">
-                      <Icon aria-hidden="true" className="landing-icon" />
-                      <span>{label}</span>
+              {steps.map(({ Icon, label, description }, index) => {
+                const isSelected = selectedStep === index;
+                return (
+                  <button
+                    aria-controls="how-demo-preview-panel"
+                    aria-label={label}
+                    aria-selected={isSelected}
+                    className={`landing-demo__step ${isSelected ? "landing-demo__step--selected" : ""}`}
+                    data-step-index={index}
+                    id={`how-demo-tab-${index}`}
+                    key={label}
+                    onClick={() => selectStep(index, true)}
+                    onKeyDown={(event) => handleStepKeyDown(event, index)}
+                    ref={(el) => {
+                      stepRefs.current[index] = el;
+                    }}
+                    role="tab"
+                    tabIndex={isSelected ? 0 : -1}
+                    type="button"
+                  >
+                    <span className="landing-demo__step-number">{index + 1}</span>
+                    <div className="landing-demo__step-info">
+                      <div className="landing-demo__step-title">
+                        <Icon aria-hidden="true" className="landing-icon" />
+                        <span>{label}</span>
+                      </div>
+                      <span className="landing-demo__step-desc">{description}</span>
                     </div>
-                    <span className="landing-demo__step-desc">{description}</span>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Right Column: One large product demonstration */}
-          <div className="landing-demo-editorial__right">
-            <div className="landing-demo" data-demo-paused={isPaused}>
-              <div className="landing-demo__toolbar">
-                <p className="landing-demo__label">{m.how_control_label({}, options)}</p>
-                <div className="landing-demo__controls">
-                  <Button
-                    aria-pressed={isPaused}
-                    onClick={() => setIsPaused((paused) => !paused)}
-                    size="sm"
-                    variant="secondary"
-                  >
-                    {isPaused ? m.how_resume({}, options) : m.how_pause({}, options)}
-                  </Button>
-                  <Button onClick={replay} size="sm" variant="quiet">
-                    <RotateCcw aria-hidden="true" className="landing-icon landing-icon--sm" />
-                    <span>{m.how_replay({}, options)}</span>
-                  </Button>
+          {/* Right Column: Sticky compact preview panel */}
+          <div className="landing-demo-preview-column">
+            <div
+              aria-labelledby={`how-demo-tab-${selectedStep}`}
+              className="landing-demo__compact-panel"
+              id="how-demo-preview-panel"
+              role="tabpanel"
+            >
+              <div className="landing-demo__compact-header">
+                <div className="landing-demo__compact-meta">
+                  <span className="landing-demo__step-badge">
+                    Step {selectedStep + 1} of {steps.length} • {activeStep.label}
+                  </span>
                 </div>
+                <StatusChip
+                  className="landing-demo__status-chip"
+                  tone="ready"
+                  value={m.how_demo_ready({}, options)}
+                />
               </div>
 
-              <div
-                aria-labelledby={`how-demo-tab-${selectedStep}`}
-                className="landing-demo__panel"
-                id="how-demo-panel"
-                role="tabpanel"
-                tabIndex={0}
-              >
-                <div className="landing-demo__panel-heading">
-                  <div>
-                    <span className="landing-demo__step-count">
-                      {selectedStep + 1} / {steps.length}
-                    </span>
-                    <h3>{activeStep.label}</h3>
-                    <p>{activeStep.description}</p>
+              {/* Dynamic visual preview based on active step */}
+              <div className="landing-demo__visual-proof">
+                {selectedStep === 0 && (
+                  <div className="landing-demo__proof-box landing-demo__proof-box--look">
+                    <div className="landing-demo__look-preview">
+                      <div className="landing-demo__look-target landing-demo__look-target--active">
+                        <Eye className="landing-icon landing-icon--sm" />
+                        <span>Docs</span>
+                        <div className="landing-demo__dwell-ring" aria-hidden="true" />
+                      </div>
+                      <div className="landing-demo__look-target">
+                        <span>Sheets</span>
+                      </div>
+                      <div className="landing-demo__look-target">
+                        <span>Drive</span>
+                      </div>
+                    </div>
+                    <div className="landing-demo__proof-caption">
+                      <span className="landing-demo__proof-dot" />
+                      <span>Head movement tracking • Dwell selection target</span>
+                    </div>
                   </div>
-                  <StatusChip
-                    label={m.how_demo_status_label({}, options)}
-                    tone={isPaused ? "pending" : "ready"}
-                    value={isPaused ? m.how_demo_paused({}, options) : m.how_demo_ready({}, options)}
-                  />
-                </div>
+                )}
 
-                <div className="landing-demo__sequence">
-                  <h4>{m.how_sequence_label({}, options)}</h4>
-                  <ol>
-                    {activeStep.details.map((detail) => (
-                      <li key={detail}>{detail}</li>
-                    ))}
-                  </ol>
-                </div>
+                {selectedStep === 1 && (
+                  <div className="landing-demo__proof-box landing-demo__proof-box--speak">
+                    <div className="landing-demo__speak-preview">
+                      <div className="landing-demo__mic-badge">
+                        <Mic className="landing-icon landing-icon--sm landing-icon--pulse" />
+                        <span>Voice / Text</span>
+                      </div>
+                      <div className="landing-demo__command-bubble">
+                        &quot;Summarize Q3 report into Google Drive&quot;
+                      </div>
+                    </div>
+                    <div className="landing-demo__proof-caption">
+                      <span className="landing-demo__proof-dot" />
+                      <span>Speech recognition transcript ready</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedStep === 2 && (
+                  <div className="landing-demo__proof-box landing-demo__proof-box--confirm">
+                    <div className="landing-demo__confirm-preview">
+                      <div className="landing-demo__confirm-card">
+                        <div className="landing-demo__confirm-header">
+                          <CheckCircle2 className="landing-icon landing-icon--sm" />
+                          <span>Action Pending Approval</span>
+                        </div>
+                        <p className="landing-demo__confirm-text">
+                          Create Google Doc: <strong>&quot;Q3 Summary&quot;</strong>
+                        </p>
+                        <div className="landing-demo__confirm-actions">
+                          <Button size="sm" variant="primary">Confirm Execution</Button>
+                          <Button size="sm" variant="secondary">Cancel</Button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="landing-demo__proof-caption">
+                      <span className="landing-demo__proof-dot" />
+                      <span>Explicit review step before execution</span>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              <p className="landing-demo__note">{m.how_demo_note({}, options)}</p>
             </div>
           </div>
         </div>
