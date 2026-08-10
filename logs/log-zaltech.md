@@ -390,3 +390,16 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
 * **file changed**:
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 10:44:38
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Ship main without manual production environment tinkering. Use aksawork.web.id or aksawork.vercel.app and keep the forgot-password notice on its standalone page. [All credentials and environment values redacted.]`
+* **TLDR AI agents done**: Created and migrated the production Turso database, configured server-side authentication, Google OAuth, token encryption, and Gemini variables in Vercel, then verified Google sign-in reaches authenticated onboarding and Docs loads with a live Workspace connection.
+* **file changed**:
+  - `Vercel production environment` (external; values never logged)
+  - `Turso aksa-production database` (external; credentials never logged)
+  - `Google OAuth client` (external; credentials never logged)
+  - `Google AI Studio key configuration` (external; credentials never logged)
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`

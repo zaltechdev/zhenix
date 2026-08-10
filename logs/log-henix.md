@@ -2157,3 +2157,16 @@ Then STOP.
 * **file changed**:
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 10:44:38
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Ship main without manual production environment tinkering. Use aksawork.web.id or aksawork.vercel.app and keep the forgot-password notice on its standalone page. [All credentials and environment values redacted.]`
+* **TLDR AI agents done**: Deployed the standalone forgot-password flow to Vercel, configured Turso, Google OAuth, and Gemini through provider dashboards, verified custom-domain HTTPS, completed Google consent to onboarding, and opened authenticated workspace and Docs routes.
+* **file changed**:
+  - `Vercel production environment` (external; values never logged)
+  - `Turso aksa-production database` (external; credentials never logged)
+  - `Google OAuth client` (external; credentials never logged)
+  - `Google AI Studio key configuration` (external; credentials never logged)
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
