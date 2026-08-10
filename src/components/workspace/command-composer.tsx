@@ -399,16 +399,18 @@ export function CommandComposer({
 
   const pathname = usePathname();
   let placeholder = m.composer_placeholder({}, options);
-  if (pathname.includes("/search")) {
-    placeholder = m.example_search_with_sources({}, options);
+  if (pathname.includes("/slides")) {
+    placeholder = m.composer_placeholder_slides({}, options);
   } else if (pathname.includes("/documents")) {
-    placeholder = (locale === "id" ? "Tanyakan tentang dokumen ini" : "Ask about this document") as typeof placeholder;
+    placeholder = m.composer_placeholder_docs({}, options);
   } else if (pathname.includes("/sheets")) {
-    placeholder = (locale === "id" ? "Tanyakan tentang lembar kerja ini" : "Ask about this spreadsheet") as typeof placeholder;
+    placeholder = m.composer_placeholder_sheets({}, options);
   } else if (pathname.includes("/files")) {
-    placeholder = (locale === "id" ? "Cari file atau folder" : "Search files or folders") as typeof placeholder;
+    placeholder = m.composer_placeholder_drive({}, options);
   } else if (pathname.includes("/mail")) {
-    placeholder = (locale === "id" ? "Tanyakan tentang surel terbaru" : "Ask about recent mail") as typeof placeholder;
+    placeholder = m.composer_placeholder_mail({}, options);
+  } else if (pathname.includes("/search")) {
+    placeholder = m.composer_placeholder_search({}, options);
   }
 
   const isDocked = mode === "docked";
