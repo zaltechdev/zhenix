@@ -33,6 +33,13 @@ describe("Indonesian speech recognition", () => {
     expect(recognition).toMatchObject({ lang: "id-ID", maxAlternatives: 3 });
   });
 
+  it("enables continuous recognition only for Live Voice", () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+
+    expect(createRecognition("en")?.continuous).toBe(false);
+    expect(createRecognition("en", true)?.continuous).toBe(true);
+  });
+
   it("keeps the highest-confidence Indonesian transcript verbatim", () => {
     const result = {
       length: 2,
@@ -83,5 +90,29 @@ describe("Indonesian speech recognition", () => {
         results: Object.assign([interim, final], { item: (index: number) => [interim, final][index] })
       })
     ).toEqual(["buka gmail", "buka email"]);
+  });
+
+  it("returns only newly finalized speech during continuous recognition", () => {
+    const previous = {
+      length: 1,
+      isFinal: true,
+      0: { transcript: "open gmail", confidence: 1 },
+      item: () => ({ transcript: "open gmail", confidence: 1 })
+    };
+    const current = {
+      length: 1,
+      isFinal: true,
+      0: { transcript: "open document", confidence: 1 },
+      item: () => ({ transcript: "open document", confidence: 1 })
+    };
+
+    expect(
+      finalTranscriptAlternativesFromEvent({
+        resultIndex: 1,
+        results: Object.assign([previous, current], {
+          item: (index: number) => [previous, current][index]
+        })
+      })
+    ).toEqual(["open document"]);
   });
 });

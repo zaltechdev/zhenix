@@ -126,7 +126,7 @@ export function CommandComposer({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionModeRef = useRef<"dictation" | "command" | null>(null);
   const [recognitionMode, setRecognitionMode] = useState<"dictation" | "command" | null>(null);
-  const voiceSubmissionRef = useRef(false);
+  const processedVoiceResultsRef = useRef(new Set<string>());
   const [confirmationPending, setConfirmationPending] = useState(false);
   const options = { locale };
 
@@ -206,7 +206,10 @@ export function CommandComposer({
   const startListening = useCallback((mode: "dictation" | "command") => {
     if (recognitionRef.current !== null) return;
 
-    const recognition = createRecognition(recognitionLocale(voiceSettings, locale));
+    const recognition = createRecognition(
+      recognitionLocale(voiceSettings, locale),
+      mode === "command"
+    );
     if (recognition === null) {
       dispatch({ type: "voice_capability", supported: false });
       return;
@@ -214,7 +217,7 @@ export function CommandComposer({
 
     recognitionModeRef.current = mode;
     setRecognitionMode(mode);
-    voiceSubmissionRef.current = false;
+    processedVoiceResultsRef.current.clear();
     recognition.onstart = () => dispatch({ type: "listening_started" });
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const transcript = transcriptFromEvent(event);
@@ -224,10 +227,11 @@ export function CommandComposer({
         if (
           mode === "command" &&
           finalCandidates.length > 0 &&
-          !voiceSubmissionRef.current &&
           (onSubmit || preview || aksaActions)
         ) {
-          voiceSubmissionRef.current = true;
+          const resultKey = `${event.resultIndex}:${finalCandidates.join("\u0000")}`;
+          if (processedVoiceResultsRef.current.has(resultKey)) return;
+          processedVoiceResultsRef.current.add(resultKey);
           if (onSubmit || preview) {
             void submitCustom(finalCandidates[0], finalCandidates[0]);
           } else if (aksaActions) {
@@ -251,11 +255,10 @@ export function CommandComposer({
     };
     recognition.onend = () => {
       if (recognitionRef.current !== recognition) return;
-      const submitted = voiceSubmissionRef.current;
       recognitionRef.current = null;
       recognitionModeRef.current = null;
       setRecognitionMode(null);
-      if (!submitted) dispatch({ type: "listening_stopped" });
+      dispatch({ type: "listening_stopped" });
     };
 
     recognitionRef.current = recognition;
@@ -385,7 +388,7 @@ export function CommandComposer({
   }, [aksaActions, dispatch, locale, onSubmit, preview, state, submitCustom]);
 
   const taskState = displayedTaskState(state);
-  const listening = state.status === "listening" || state.status === "transcribing";
+  const listening = recognitionMode !== null;
   const listeningMode = recognitionMode;
   const submitting = state.status === "submitting";
   const offerVoice = shouldOfferVoiceControl(state, voiceSettings.enabled);

@@ -250,6 +250,7 @@ describe("command composer", () => {
 
     const recognition = RecognitionMock.latest;
     expect(recognition).not.toBeNull();
+    expect(recognition?.continuous).toBe(true);
     const result = {
       length: 1,
       isFinal: true,
@@ -376,6 +377,48 @@ describe("command composer", () => {
     recognition?.onresult?.(event);
 
     await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1));
+  });
+
+  it("executes multiple finalized commands during one Live Voice session", async () => {
+    vi.stubGlobal("SpeechRecognition", RecognitionMock);
+    renderOfflineComposer();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: m.composer_live_voice_action({}, { locale: "en" })
+      })
+    );
+    const recognition = RecognitionMock.latest;
+    const gmail = {
+      length: 1,
+      isFinal: true,
+      0: { transcript: "open gmail", confidence: 1 },
+      item: () => ({ transcript: "open gmail", confidence: 1 })
+    };
+    const document = {
+      length: 1,
+      isFinal: true,
+      0: { transcript: "open document", confidence: 1 },
+      item: () => ({ transcript: "open document", confidence: 1 })
+    };
+
+    recognition?.onresult?.({
+      resultIndex: 0,
+      results: Object.assign([gmail], { item: () => gmail })
+    });
+    recognition?.onresult?.({
+      resultIndex: 1,
+      results: Object.assign([gmail, document], {
+        item: (index: number) => [gmail, document][index]
+      })
+    });
+
+    await waitFor(() => {
+      expect(routerPush).toHaveBeenNthCalledWith(1, "/workspace/mail");
+      expect(routerPush).toHaveBeenNthCalledWith(2, "/workspace/documents");
+    });
+    expect(
+      screen.getByRole("button", { name: m.composer_stop_voice_commands({}, { locale: "en" }) })
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("considers Indonesian recognition alternatives before semantic fallback", async () => {

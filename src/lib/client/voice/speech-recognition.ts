@@ -72,7 +72,10 @@ export function recognitionLanguage(locale: "en" | "id"): string {
   return locale === "id" ? "id-ID" : "en-US";
 }
 
-export function createRecognition(locale: "en" | "id"): SpeechRecognitionLike | null {
+export function createRecognition(
+  locale: "en" | "id",
+  continuous = false
+): SpeechRecognitionLike | null {
   const Constructor = speechRecognitionConstructor();
   if (Constructor === null) {
     return null;
@@ -80,7 +83,7 @@ export function createRecognition(locale: "en" | "id"): SpeechRecognitionLike | 
 
   const recognition = new Constructor();
   recognition.lang = recognitionLanguage(locale);
-  recognition.continuous = false;
+  recognition.continuous = continuous;
   recognition.interimResults = true;
   // Indonesian recognition benefits from alternatives where browser speech services
   // expose regional pronunciation choices. The selected transcript remains verbatim.
@@ -95,16 +98,17 @@ export function transcriptFromEvent(event: SpeechRecognitionEventLike): string {
 export function finalTranscriptAlternativesFromEvent(
   event: SpeechRecognitionEventLike
 ): string[] {
-  return transcriptAlternativesFromEvent(event, true);
+  return transcriptAlternativesFromEvent(event, true, event.resultIndex);
 }
 
 function transcriptAlternativesFromEvent(
   event: SpeechRecognitionEventLike,
-  finalOnly = false
+  finalOnly = false,
+  startIndex = 0
 ): string[] {
   const segments: SpeechRecognitionAlternative[][] = [];
 
-  for (let index = 0; index < event.results.length; index += 1) {
+  for (let index = startIndex; index < event.results.length; index += 1) {
     const result = event.results[index];
     if (result.length === 0 || (finalOnly && !result.isFinal)) continue;
 
