@@ -1,12 +1,20 @@
 import { expect, test } from "@playwright/test";
 
-test("renders hero value, CTA, and illustrative preview", async ({ page }) => {
+test("renders hero value, CTA, and current Workspace", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Say the task.");
   await expect(page.getByRole("link", { name: "Try Aksa" }).first()).toBeVisible();
-  await expect(page.getByText("You stopped at Testing.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("figure")).toBeVisible();
+  const workspace = page.locator("#product-preview");
+  await expect(workspace).toHaveAttribute("data-preview-type", "workspace");
+  await expect(workspace).toHaveAttribute("inert", "");
+  await expect(workspace.getByRole("textbox")).toBeVisible();
+  await expect(workspace.getByRole("heading", { name: "Continue your work" })).toBeVisible();
+  await expect(workspace.getByRole("heading", { name: "Start in Google Workspace" })).toBeVisible();
+  await expect(workspace.getByText("Summarized research notes", { exact: true })).toBeVisible();
+  await expect(workspace.getByText("Reviewed project files", { exact: true })).toBeVisible();
+  await expect(workspace.getByText("Prepared document edits", { exact: true })).toBeVisible();
+  await expect(page.getByText("Programming Assignment 04", { exact: true })).toHaveCount(0);
   await expect(page.locator("#top")).toBeVisible();
 });
 

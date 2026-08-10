@@ -72,7 +72,8 @@ function WorkspaceShellContent({
   const pathname = usePathname();
   const isHome = pathname === "/workspace" || pathname === "/workspace/";
   const isSlidesPage = pathname.startsWith("/workspace/slides");
-  const shouldRenderBottomComposer = !isHome && !isSlidesPage;
+  const isSearchPage = pathname.startsWith("/workspace/search");
+  const shouldRenderBottomComposer = !isHome && !isSlidesPage && !isSearchPage;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);

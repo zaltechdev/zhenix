@@ -17,6 +17,7 @@ import { FilesSurface } from "@/components/workspace/files-surface";
 import { SheetPreviewSurface, SheetSurface } from "@/components/workspace/sheet-surface";
 import { MailSurface } from "@/components/workspace/mail-surface";
 import { SearchSurface } from "@/components/workspace/search-surface";
+import { CommandProvider } from "@/components/workspace/command-context";
 import { SurfaceHeader } from "@/components/workspace/surface-layout";
 import { DocumentSurface } from "@/components/workspace/document-surface";
 import { SlidesSurface } from "@/components/workspace/slides-surface";
@@ -89,18 +90,20 @@ describe("preview surface contract", () => {
     const result = createPreviewSearchResult("en");
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     render(
-      <SearchSurface
-        initialState={{ status: "ready", data: result }}
-        locale="en"
-        mode="preview"
-        previewResult={result}
-      />
+      <CommandProvider>
+        <SearchSurface
+          initialState={{ status: "ready", data: result }}
+          locale="en"
+          mode="preview"
+          previewResult={result}
+        />
+      </CommandProvider>
     );
 
-    fireEvent.change(screen.getByLabelText(m.search_query_label({}, { locale: "en" })), {
+    fireEvent.change(screen.getByRole("textbox"), {
       target: { value: "accessible teamwork" }
     });
-    fireEvent.click(screen.getByRole("button", { name: m.search_submit({}, { locale: "en" }) }));
+    fireEvent.click(screen.getByRole("button", { name: m.composer_submit({}, { locale: "en" }) }));
 
     expect(
       await screen.findByText(

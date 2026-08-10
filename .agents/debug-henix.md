@@ -313,3 +313,19 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Browser testing opened `accounts.google.com` directly with `prompt=select_account consent` and no floating FedCM prompt. Focused tests, lint, and production build passed.
 - Prevention: The authentication test requires direct `signIn.social` routing and rejects dialog semantics.
 - Commit or PR: pending.
+
+## 2026-08-10 08:12 - Search composer and landing preview drifted from the approved product flow
+
+- Status: fixed
+- Owner: Henix
+- Area: Web Search surface and landing product preview
+- Symptoms: Web Search rendered a dedicated question field and Search button above the shared bottom command composer. The landing preview showed the obsolete Programming Assignment 04 planning, drafting, and testing stub.
+- Reproduction: Open `/workspace/search` and `/` at desktop width. Inspect the search controls and the landing preview frame.
+- Expected: Web Search exposes one shared Aksa composer with contextual web-search copy, then a concise cited answer and source cards. Landing shows the current Home workspace composition inside the existing preview frame.
+- Actual: Search exposed two command entry points. Landing exposed an illustrative task-stage card unrelated to the current Home workspace.
+- Root cause: SearchSurface owned a second local form while WorkspaceShell independently mounted the persistent composer, and ProductPreviewPanel retained the earlier task-stage illustration.
+- Fix: Routed search submissions through the shared composer, removed the search route's duplicate docked composer, added contextual placeholder and source-card styling, and composed the landing preview from the current Workspace header, composer, suggestions, recent-work, and Google Workspace launchpad components. Permanent fix.
+- Files changed: `messages/en.json`, `messages/id.json`, `src/app/globals.css`, `src/app/workspace.css`, `src/components/landing/product-preview.tsx`, `src/components/workspace/artifact-view.tsx`, `src/components/workspace/command-composer.tsx`, `src/components/workspace/search-surface.tsx`, `src/components/workspace/welcome-header.tsx`, `src/components/workspace/workspace-shell.tsx`, `src/lib/client/state/composer-machine.ts`, focused frontend tests.
+- Verification: `bun run i18n:compile`, `bun run typecheck`, 64 focused Vitest tests, and 2 targeted Playwright tests passed. Browser checks confirmed one search composer, no standalone search input, contextual placeholder, source list, and Workspace landing preview.
+- Prevention: Keep the shared composer as the only command entry point on SearchSurface and assert the landing preview uses current Workspace landmarks.
+- Commit or PR: pending.

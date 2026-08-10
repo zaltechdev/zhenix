@@ -44,10 +44,12 @@ function iconForTask(title: string): LucideIcon {
 
 export function RecentWorkColumn({
   tasks,
-  locale
+  locale,
+  statusCopy
 }: {
   tasks: Task[];
   locale: Locale;
+  statusCopy?: Partial<Record<Task["state"], string>>;
 }) {
   const options = { locale };
   const recentTasks = tasks.slice(0, 3);
@@ -86,15 +88,18 @@ export function RecentWorkColumn({
                   <div className="aksa-recent-work__item-meta">
                     <StatusChip
                       tone={toneForState[task.state]}
-                      value={taskStateCopy(
-                        {
-                          state: task.state,
-                          title: task.title,
-                          completed: task.itemsCompleted ?? 0,
-                          remaining: (task.itemsTotal ?? 0) - (task.itemsCompleted ?? 0)
-                        },
-                        locale
-                      )}
+                      value={
+                        statusCopy?.[task.state] ??
+                        taskStateCopy(
+                          {
+                            state: task.state,
+                            title: task.title,
+                            completed: task.itemsCompleted ?? 0,
+                            remaining: (task.itemsTotal ?? 0) - (task.itemsCompleted ?? 0)
+                          },
+                          locale
+                        )
+                      }
                     />
                     <time className="aksa-recent-work__item-time" dateTime={new Date(task.updatedAt).toISOString()}>
                       {formatDateTime(task.updatedAt, locale)}

@@ -126,7 +126,7 @@ export function ArtifactView({ artifact, locale }: { artifact: Artifact; locale:
       ) : null}
 
       <h4 className="aksa-artifact__subheading">{m.search_sources_heading({}, options)}</h4>
-      <ol className="aksa-sources">
+      <ol aria-label={m.search_sources_heading({}, options)} className="aksa-sources">
         {artifact.sources.map((source) => (
           <SourceCard key={source.id} locale={locale} source={source} />
         ))}

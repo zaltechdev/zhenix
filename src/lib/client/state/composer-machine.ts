@@ -90,6 +90,7 @@ export type ComposerAction =
   | { type: "voice_denied" }
   | { type: "voice_failed" }
   | { type: "submit_started" }
+  | { type: "submission_finished" }
   | { type: "local_intent_result"; intent: AksaIntent; source: "deterministic" | "semantic" }
   | { type: "local_intent_unknown" }
   | { type: "submit_result"; result: CommandResult }
@@ -176,6 +177,20 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         localIntent: null,
         cancellationOutcome: null,
         announcement: { kind: "task_state", state: "understanding" }
+      };
+
+    case "submission_finished":
+      return {
+        ...state,
+        status: "idle",
+        error: null,
+        understanding: null,
+        task: null,
+        confirmation: null,
+        result: null,
+        localIntent: null,
+        cancellationOutcome: null,
+        announcement: null
       };
 
     case "local_intent_result":

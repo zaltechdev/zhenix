@@ -424,16 +424,20 @@ test.describe("command composer", () => {
     await expect(page.getByText("What Aksa received")).toHaveCount(0);
   });
 
-  test("search reports unavailability instead of an unsourced answer", async ({ page }) => {
+  test("search uses one shared composer and shows a grounded preview artifact", async ({ page }) => {
     await createAksaAccount(page);
     await page.goto("/workspace/search");
 
-    await expect(page.getByText("Web Search is unavailable right now.").first()).toBeVisible();
+    const main = page.getByRole("main");
+    await expect(main.locator("#command-composer")).toHaveCount(1);
+    await expect(main.locator("input[type=search]")).toHaveCount(0);
+    await expect(main.locator("textarea")).toHaveAttribute("placeholder", "Search the web with sources");
+    await expect(main.getByRole("button", { name: "Send command" })).toBeVisible();
+    await expect(main.getByRole("list", { name: "Sources" })).toBeVisible();
 
-    const panel = page.getByRole("main").locator(".aksa-state-panel").first();
-    await expect(panel).toBeVisible();
-    /** No sources and no answer, because grounding is unavailable. */
-    await expect(page.getByRole("list", { name: /Sources/ })).toHaveCount(0);
+    await main.locator("textarea").fill("accessible teamwork");
+    await main.getByRole("button", { name: "Send command" }).click();
+    await expect(main.getByText("Preview query: accessible teamwork")).toBeVisible();
   });
 });
 

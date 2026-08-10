@@ -105,11 +105,17 @@ function canSubmit(state: ReturnType<typeof useCommandContext>["state"]): boolea
 export function CommandComposer({
   locale,
   inflow = false,
-  mode = "welcome"
+  mode = "welcome",
+  onSubmit,
+  preview = false,
+  inputLabel
 }: {
   locale: Locale;
   inflow?: boolean;
   mode?: "welcome" | "docked";
+  onSubmit?: (text: string, transcript: string | null) => Promise<void>;
+  preview?: boolean;
+  inputLabel?: string;
 }) {
   const { state, dispatch } = useCommandContext();
   const aksaActions = useOptionalAksaActions();
@@ -145,6 +151,20 @@ export function CommandComposer({
   }, [voiceSettings.enabled]);
 
   const announcement = announcementCopy(state.announcement, locale);
+
+  const submitCustom = useCallback(
+    async (text: string, transcript: string | null) => {
+      dispatch({ type: "submit_started" });
+      try {
+        if (!preview) {
+          await onSubmit?.(text.trim(), transcript);
+        }
+      } finally {
+        dispatch({ type: "submission_finished" });
+      }
+    },
+    [dispatch, onSubmit, preview]
+  );
 
   const executeVoiceIntent = useCallback(
     async (transcript: string, alternatives: readonly string[] = []) => {
@@ -205,11 +225,15 @@ export function CommandComposer({
           mode === "command" &&
           finalCandidates.length > 0 &&
           !voiceSubmissionRef.current &&
-          aksaActions
+          (onSubmit || preview || aksaActions)
         ) {
           voiceSubmissionRef.current = true;
-          dispatch({ type: "submit_started" });
-          void executeVoiceIntent(finalCandidates[0], finalCandidates.slice(1));
+          if (onSubmit || preview) {
+            void submitCustom(finalCandidates[0], finalCandidates[0]);
+          } else if (aksaActions) {
+            dispatch({ type: "submit_started" });
+            void executeVoiceIntent(finalCandidates[0], finalCandidates.slice(1));
+          }
         }
       }
     };
@@ -245,7 +269,7 @@ export function CommandComposer({
       }
       dispatch({ type: "voice_failed" });
     }
-  }, [aksaActions, dispatch, executeVoiceIntent, locale, voiceSettings]);
+  }, [aksaActions, dispatch, executeVoiceIntent, locale, onSubmit, preview, submitCustom, voiceSettings]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -308,6 +332,11 @@ export function CommandComposer({
       return;
     }
 
+    if (onSubmit || preview) {
+      await submitCustom(state.text, state.transcript);
+      return;
+    }
+
     dispatch({ type: "submit_started" });
 
     const commandLocale = locale === "id" ? "id" : "en";
@@ -353,7 +382,7 @@ export function CommandComposer({
         result: { outcome: "rejected", error: createAksaError("unavailable") }
       });
     }
-  }, [aksaActions, dispatch, locale, state]);
+  }, [aksaActions, dispatch, locale, onSubmit, preview, state, submitCustom]);
 
   const taskState = displayedTaskState(state);
   const listening = state.status === "listening" || state.status === "transcribing";
@@ -370,7 +399,9 @@ export function CommandComposer({
 
   const pathname = usePathname();
   let placeholder = m.composer_placeholder({}, options);
-  if (pathname.includes("/documents")) {
+  if (pathname.includes("/search")) {
+    placeholder = m.example_search_with_sources({}, options);
+  } else if (pathname.includes("/documents")) {
     placeholder = (locale === "id" ? "Tanyakan tentang dokumen ini" : "Ask about this document") as typeof placeholder;
   } else if (pathname.includes("/sheets")) {
     placeholder = (locale === "id" ? "Tanyakan tentang lembar kerja ini" : "Ask about this spreadsheet") as typeof placeholder;
@@ -425,7 +456,7 @@ export function CommandComposer({
       <div className="aksa-composer__field">
         {mode === "welcome" || inflow ? (
           <label className="sr-only" htmlFor={inputId}>
-            {m.home_welcome_title({}, options)}
+            {inputLabel ?? m.home_welcome_title({}, options)}
           </label>
         ) : (
           <label className="aksa-label" htmlFor={inputId}>
@@ -433,7 +464,7 @@ export function CommandComposer({
           </label>
         )}
         <textarea
-          aria-labelledby={mode === "welcome" || inflow ? "home-welcome-title" : undefined}
+          aria-labelledby={mode === "welcome" || inflow ? (inputLabel ? undefined : "home-welcome-title") : undefined}
           aria-describedby={listening || !offerVoice ? hintId : undefined}
           className="aksa-textarea aksa-textarea--flat"
           id={inputId}
@@ -581,7 +612,7 @@ export function CommandComposer({
         </p>
       ) : null}
 
-      {state.voice === "denied" ? (
+      {state.voice === "denied" && !preview ? (
         <p className="aksa-inline-note">
           <MicOff aria-hidden="true" className="aksa-icon aksa-icon--sm" />
           <span>{m.composer_voice_denied({}, options)}</span>

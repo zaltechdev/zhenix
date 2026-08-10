@@ -1,84 +1,114 @@
-import { Mic } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
-import { Button } from "@/components/shared/button";
-import { StatusChip } from "@/components/workspace/status-chip";
-
-function MicrophoneIcon() {
-  return <Mic aria-hidden="true" className="landing-icon" />;
-}
+import type { Task } from "@/lib/contracts/task";
+import { CommandProvider } from "@/components/workspace/command-context";
+import { CommandComposer } from "@/components/workspace/command-composer";
+import { GoogleWorkspaceLaunchpad } from "@/components/workspace/google-workspace-launchpad";
+import { QuickStartSuggestions } from "@/components/workspace/quick-start-suggestions";
+import { RecentWorkColumn } from "@/components/workspace/recent-work-column";
+import { WelcomeHeader } from "@/components/workspace/welcome-header";
 
 export function ProductPreviewPanel({ locale }: { locale: Locale }) {
   const messageOptions = { locale };
+  const taskTimestamp = Date.UTC(2026, 7, 7, 9, 0, 0);
+  const landingTasks: Task[] = [
+    {
+      id: "landing-research-notes",
+      title: m.landing_task_research_notes({}, messageOptions),
+      intentCategory: "research",
+      state: "completed",
+      createdAt: taskTimestamp,
+      updatedAt: taskTimestamp,
+      affectedItems: [],
+      artifactIds: [],
+      confirmationId: null,
+      undoId: null,
+      cancellationAvailable: false,
+      itemsTotal: 1,
+      itemsCompleted: 1,
+      resultSummaryKey: null,
+      error: null
+    },
+    {
+      id: "landing-project-files",
+      title: m.landing_task_project_files({}, messageOptions),
+      intentCategory: "find_files",
+      state: "completed",
+      createdAt: taskTimestamp - 86_400_000,
+      updatedAt: taskTimestamp - 86_400_000,
+      affectedItems: [],
+      artifactIds: [],
+      confirmationId: null,
+      undoId: null,
+      cancellationAvailable: false,
+      itemsTotal: 1,
+      itemsCompleted: 1,
+      resultSummaryKey: null,
+      error: null
+    },
+    {
+      id: "landing-document-edits",
+      title: m.landing_task_document_edits({}, messageOptions),
+      intentCategory: "edit_document",
+      state: "waiting_for_confirmation",
+      createdAt: taskTimestamp - 172_800_000,
+      updatedAt: taskTimestamp - 172_800_000,
+      affectedItems: [],
+      artifactIds: [],
+      confirmationId: "landing-document-confirmation",
+      undoId: null,
+      cancellationAvailable: false,
+      itemsTotal: 1,
+      itemsCompleted: 0,
+      resultSummaryKey: null,
+      error: null
+    }
+  ];
 
   return (
     <figure
+      aria-label={m.landing_workspace_label({}, messageOptions)}
       aria-describedby="product-preview-description"
-      aria-labelledby="product-preview-title"
       className="landing-preview"
-      data-preview-type="illustrative"
+      data-preview-type="workspace"
       id="product-preview"
+      inert
     >
       <div className="landing-preview__surface">
-        <header className="landing-preview__header">
-          <div>
-            <p className="landing-preview__eyebrow">
-              {m.preview_illustrative_label({}, messageOptions)}
-            </p>
-            <h2 className="landing-preview__title" id="product-preview-title">
-              {m.preview_assignment_title({}, messageOptions)}
-            </h2>
-          </div>
-          <StatusChip
-            className="landing-preview__task-status"
-            label={m.preview_status_label({}, messageOptions)}
-            tone="pending"
-            value={m.preview_status_paused({}, messageOptions)}
-          />
-        </header>
+        <div className="landing-preview__workspace">
+          <CommandProvider>
+            <WelcomeHeader headingId="product-preview-title" headingLevel="h2" locale={locale} />
 
-        <div className="landing-preview__body">
-          <ol aria-label={m.preview_stage_label({}, messageOptions)} className="landing-preview__stages">
-            <li className="landing-preview__stage">
-              <span className="landing-preview__stage-number">1</span>
-              <span>{m.preview_stage_planning({}, messageOptions)}</span>
-            </li>
-            <li className="landing-preview__stage">
-              <span className="landing-preview__stage-number">2</span>
-              <span>{m.preview_stage_drafting({}, messageOptions)}</span>
-            </li>
-            <li aria-current="step" className="landing-preview__stage landing-preview__stage--active">
-              <span className="landing-preview__stage-number">3</span>
-              <span>{m.preview_stage_testing({}, messageOptions)}</span>
-            </li>
-          </ol>
-
-          <div className="landing-preview__continuation">
-            <div className="landing-preview__message">
-              <span className="landing-preview__message-mark" aria-hidden="true" />
-              <p>{m.preview_status_message({}, messageOptions)}</p>
+            <div className="landing-preview__workspace-composer">
+              <CommandComposer
+                inputLabel={m.composer_input_label({}, messageOptions)}
+                locale={locale}
+                mode="welcome"
+                preview
+              />
+              <p className="aksa-ai-disclaimer" role="note">
+                {m.workspace_ai_disclaimer({}, messageOptions)}
+              </p>
+              <QuickStartSuggestions locale={locale} />
             </div>
-            <Button
-              aria-describedby="preview-voice-control-note"
-              aria-label={m.preview_voice_control_label({}, messageOptions)}
-              className="landing-preview__voice-control"
-              disabled
-              type="button"
-              variant="secondary"
-              size="md"
-            >
-              <MicrophoneIcon />
-              <span>{m.preview_voice_control({}, messageOptions)}</span>
-            </Button>
-            <span className="sr-only" id="preview-voice-control-note">
-              {m.preview_voice_control_note({}, messageOptions)}
-            </span>
-          </div>
+
+            <div className="aksa-home-dashboard__grid landing-preview__workspace-grid">
+              <RecentWorkColumn
+                locale={locale}
+                statusCopy={{
+                  completed: m.landing_task_completed({}, messageOptions),
+                  waiting_for_confirmation: m.landing_task_waiting_confirmation({}, messageOptions)
+                }}
+                tasks={landingTasks}
+              />
+              <GoogleWorkspaceLaunchpad locale={locale} />
+            </div>
+          </CommandProvider>
         </div>
       </div>
 
       <figcaption className="sr-only" id="product-preview-description">
-        {m.preview_text_equivalent({}, messageOptions)}
+        {m.landing_workspace_description({}, messageOptions)}
       </figcaption>
     </figure>
   );

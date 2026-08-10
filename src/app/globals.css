@@ -758,6 +758,51 @@ body {
   box-shadow: var(--shadow-aksa-overlay);
 }
 
+.landing-preview__workspace {
+  padding: clamp(var(--space-5), 4vw, var(--space-7));
+}
+
+.landing-preview__workspace .aksa-welcome-header {
+  margin-bottom: var(--space-5);
+}
+
+.landing-preview__workspace .aksa-welcome-header__heading {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.landing-preview__workspace-composer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.landing-preview__workspace-composer .aksa-composer {
+  position: relative;
+  inset: auto;
+  transform: none;
+  width: 100%;
+  max-width: 840px;
+  box-shadow: var(--shadow-aksa-raised);
+}
+
+.landing-preview__workspace-composer .aksa-ai-disclaimer,
+.landing-preview__workspace-composer .aksa-quick-suggestions {
+  margin-bottom: 0;
+}
+
+.landing-preview__workspace-grid {
+  margin-top: var(--space-6);
+}
+
+.landing-preview__workspace-grid .aksa-dashboard-card {
+  min-width: 0;
+}
+
+.landing-preview__workspace-grid .aksa-recent-work__empty {
+  min-height: 116px;
+}
+
 .landing-preview__header {
   display: flex;
   align-items: flex-start;

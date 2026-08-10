@@ -4,6 +4,7 @@ import { m } from "@/paraglide/messages.js";
 import { LandingPage } from "@/components/landing/landing-page";
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({
     refresh: vi.fn(),
   }),
@@ -58,17 +59,26 @@ describe("landing hero", () => {
     );
   });
 
-  it("marks product preview as illustrative and equivalent", () => {
+  it("shows the current Workspace UI inside the product preview", () => {
     render(<LandingPage locale="en" />);
 
-    const preview = screen.getByRole("figure", { name: m.preview_assignment_title({}, { locale: "en" }) });
+    const preview = screen.getByRole("figure", { name: m.landing_workspace_label({}, { locale: "en" }) });
 
-    expect(preview).toHaveAttribute("data-preview-type", "illustrative");
-    expect(within(preview).getByText(m.preview_status_message({}, { locale: "en" }))).toBeInTheDocument();
-    expect(
-      within(preview).getByRole("button", { name: m.preview_voice_control_label({}, { locale: "en" }) })
-    ).toBeDisabled();
-    expect(within(preview).getByText(m.preview_text_equivalent({}, { locale: "en" }))).toBeInTheDocument();
+    expect(preview).toHaveAttribute("data-preview-type", "workspace");
+    expect(preview).toHaveAttribute("inert");
+    expect(within(preview).getByRole("heading", { name: m.home_welcome_title({}, { locale: "en" }) })).toBeInTheDocument();
+    expect(within(preview).getByRole("textbox")).toBeInTheDocument();
+    expect(within(preview).getByRole("heading", { name: m.home_continue_heading({}, { locale: "en" }) })).toBeInTheDocument();
+    expect(within(preview).getByRole("heading", { name: m.home_workspace_heading({}, { locale: "en" }) })).toBeInTheDocument();
+    expect(within(preview).getByText(m.landing_workspace_description({}, { locale: "en" }))).toBeInTheDocument();
+    expect(within(preview).getByText("Summarized research notes")).toBeInTheDocument();
+    expect(within(preview).getByText("Reviewed project files")).toBeInTheDocument();
+    expect(within(preview).getByText("Prepared document edits")).toBeInTheDocument();
+    expect(within(preview).getAllByText("Completed", { exact: true })).toHaveLength(2);
+    expect(within(preview).getByText("Waiting for confirmation", { exact: true })).toBeInTheDocument();
+    expect(within(preview).queryByText("Workspace preview", { exact: true })).not.toBeInTheDocument();
+    expect(within(preview).queryByText("Microphone access was refused. Typing still works.", { exact: true })).not.toBeInTheDocument();
+    expect(within(preview).queryByText("Programming Assignment 04")).not.toBeInTheDocument();
   });
 
   it("renders the required landing sections and exact anchors", () => {
@@ -89,15 +99,12 @@ describe("landing hero", () => {
     expect(speakTab).toHaveAttribute("aria-selected", "false");
     fireEvent.click(speakTab);
     expect(speakTab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel")).toHaveTextContent(m.how_speak_detail_2({}, { locale: "en" }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Summarize Q3 report into Google Drive");
     fireEvent.keyDown(speakTab, { key: "ArrowRight" });
     expect(screen.getByRole("tab", { name: m.how_step_confirm_label({}, { locale: "en" }) })).toHaveAttribute(
       "aria-selected",
       "true"
     );
-
-    fireEvent.click(screen.getByRole("button", { name: m.how_pause({}, { locale: "en" }) }));
-    expect(screen.getByRole("button", { name: m.how_resume({}, { locale: "en" }) })).toBeInTheDocument();
 
     const faqTrigger = screen.getByRole("button", { name: m.faq_question_hardware({}, { locale: "en" }) });
     expect(faqTrigger).toHaveAttribute("aria-expanded", "false");
