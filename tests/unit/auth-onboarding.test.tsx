@@ -9,7 +9,7 @@ import type { HeadControlEngineFactory } from "@/lib/client/vision/head-control-
 import { CAMERA_YAW_TO_SCREEN_DIRECTION } from "@/lib/client/vision/pointer-mapping";
 
 const navigationMocks = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
-const authClientMocks = vi.hoisted(() => ({ create: vi.fn(), oneTap: vi.fn() }));
+const authClientMocks = vi.hoisted(() => ({ create: vi.fn(), social: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/onboarding",
@@ -17,9 +17,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/client/auth/auth-client", () => ({
-  createGoogleAuthClient: (clientId: string) => {
-    authClientMocks.create(clientId);
-    return { oneTap: authClientMocks.oneTap };
+  createGoogleAuthClient: () => {
+    authClientMocks.create();
+    return { signIn: { social: authClientMocks.social } };
   }
 }));
 
@@ -27,8 +27,8 @@ beforeEach(() => {
   navigationMocks.replace.mockClear();
   navigationMocks.refresh.mockClear();
   authClientMocks.create.mockReset();
-  authClientMocks.oneTap.mockReset();
-  authClientMocks.oneTap.mockResolvedValue(undefined);
+  authClientMocks.social.mockReset();
+  authClientMocks.social.mockResolvedValue({ data: null, error: null });
   window.sessionStorage.clear();
   Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
   Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
@@ -38,7 +38,7 @@ afterEach(() => cleanup());
 
 describe("account form", () => {
   it("starts Google sign-in through Better Auth with bounded callback routes", async () => {
-    authClientMocks.oneTap.mockReturnValueOnce(new Promise(() => undefined));
+    authClientMocks.social.mockReturnValueOnce(new Promise(() => undefined));
     render(
       <AuthForm
         action={async () => ({ outcome: "unavailable", error: createAksaError("not_configured") })}
@@ -51,12 +51,12 @@ describe("account form", () => {
     const googleButton = screen.getByRole("button", {
       name: m.auth_continue_google({}, { locale: "en" })
     });
-    expect(googleButton).toHaveAttribute("aria-haspopup", "dialog");
+    expect(googleButton).not.toHaveAttribute("aria-haspopup");
     expect(googleButton).toHaveClass("aksa-button--primary", "aksa-button--lg");
     expect(
       screen.getByRole("button", { name: m.auth_submit_sign_in({}, { locale: "en" }) })
     ).toHaveClass("aksa-button--secondary");
-    expect(authClientMocks.oneTap).not.toHaveBeenCalled();
+    expect(authClientMocks.social).not.toHaveBeenCalled();
 
     fireEvent.click(googleButton);
 
@@ -67,13 +67,13 @@ describe("account form", () => {
     ).toBeDisabled();
 
     await waitFor(() => {
-      expect(authClientMocks.create).toHaveBeenCalledWith("google-client-id-for-tests");
-      expect(authClientMocks.oneTap).toHaveBeenCalledWith({
-        autoSelect: false,
-        callbackURL: "/api/google/auth?returnTo=/onboarding",
-        context: "signin",
-        onPromptNotification: expect.any(Function),
-        uxMode: "popup"
+      expect(authClientMocks.create).toHaveBeenCalledWith();
+      expect(authClientMocks.social).toHaveBeenCalledWith({
+        provider: "google",
+        callbackURL: "/onboarding",
+        newUserCallbackURL: "/onboarding",
+        errorCallbackURL: "/sign-in?auth_error=google",
+        requestSignUp: false
       });
     });
   });

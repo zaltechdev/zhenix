@@ -297,3 +297,19 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: Chrome reproduced the original generic state, then displayed `Finish Google setup` with the exact recovery after the change. All 433 unit tests and the production build passed.
 - Prevention: Authentication coverage asserts the chained callback, and Google configuration no longer maps to generic unavailability.
 - Commit or PR: pending.
+
+## 2026-08-10 07:49 - Google sign-in presented two account selectors
+
+- Status: fixed
+- Owner: Henix
+- Area: Google sign-in interaction
+- Symptoms: Selecting the primary Google CTA opened a floating FedCM account prompt before Google's full-page chooser.
+- Reproduction: Open `/sign-in`, select `Continue with Google`, then observe the floating chooser followed by the Google authorization page.
+- Expected: The CTA immediately opens Google's full-page account chooser in the same tab.
+- Actual: One Tap handled identity first, then a second custom OAuth flow requested Workspace access.
+- Root cause: The client used Better Auth One Tap while Workspace tokens were obtained through a separate redirect.
+- Fix: Replaced One Tap with Better Auth social sign-in and a single same-tab authorization-code redirect. Permanent fix.
+- Files changed: `src/components/auth/google-sign-in-button.tsx`, `src/lib/client/auth/auth-client.ts`, focused tests and guidance.
+- Verification: Browser testing opened `accounts.google.com` directly with `prompt=select_account consent` and no floating FedCM prompt. Focused tests, lint, and production build passed.
+- Prevention: The authentication test requires direct `signIn.social` routing and rejects dialog semantics.
+- Commit or PR: pending.

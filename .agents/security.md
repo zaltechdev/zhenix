@@ -123,7 +123,7 @@ These tests are mandatory and must exist before release. **[Repo]**
 
 ## 4. Google OAuth
 
-Google sign-in and Google Workspace authorization are separate boundaries. Sign-in verifies a Google Identity Services ID token server-side and creates an Aksa session. Workspace authorization uses the authorization-code flow and stores encrypted refresh tokens server-side.
+Google sign-in and Google Workspace authorization share one authorization-code redirect. Better Auth validates identity, creates the Aksa session, and stores encrypted provider tokens while session and token access remain separate server responsibilities.
 
 | Requirement | Detail |
 | --- | --- |

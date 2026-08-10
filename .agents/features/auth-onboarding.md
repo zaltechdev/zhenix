@@ -20,7 +20,7 @@ Get a new user from the landing page to a workspace where head control and voice
 ## Scope
 
 - Sign up with email and password.
-- Sign up and sign in with Google Identity Services, verified server-side by Better Auth.
+- Sign up and sign in through Google OAuth, handled server-side by Better Auth.
 - Sign in, sign out, session persistence.
 - One workspace created automatically on first sign in.
 - Onboarding: purpose explanation, camera consent, pointer test, calibration, microphone consent, voice test, first guided command.
@@ -36,7 +36,7 @@ Get a new user from the landing page to a workspace where head control and voice
 - Password reset by email, deferred to Future Scope in `.agents/prd.md` section 25.
 - Team invitations and workspace sharing.
 - Guest access, tracked as OQ-9.
-- Google Workspace authorization remains a separate security boundary. The primary Google CTA starts it immediately after Google sign-in succeeds. See `.agents/features/google-workspace.md`.
+- Google identity and Workspace authorization remain separate security responsibilities but share one Google OAuth redirect. See `.agents/features/google-workspace.md`.
 
 ## User Flow
 
@@ -83,7 +83,7 @@ Owner: Henix.
 
 - Route structure for landing, sign up, sign in, onboarding steps, and workspace entry.
 - Sign-up and sign-in forms with persistent labels, autofill support, inline field errors linked to inputs, and a form-level error summary that receives focus on failure.
-- Google sign-in is the primary authentication CTA. It opens the Google Identity Services prompt in-page, shows an explicit signing-in state, creates the Aksa session, then starts Google Workspace authorization in the same tab before onboarding.
+- Google sign-in is the primary authentication CTA. It immediately opens Google's full-page account chooser in the same tab, creates the Aksa session, stores encrypted Workspace tokens, then continues to onboarding.
 - Loading state that prevents duplicate submission without shifting layout.
 - Onboarding step shell with visible progress, back, skip, and resume.
 - Consent screens that explain purpose before any permission request.
@@ -104,7 +104,7 @@ The frontend never decides whether a session is valid. It renders the session st
 Owner: Zaltech.
 
 - Authentication library integration for sign up, sign in, sign out, and session lifecycle.
-- Better Auth One Tap verification for Google ID tokens and validated post-sign-in destinations.
+- Better Auth authorization-code exchange for Google identity, encrypted provider tokens, and validated post-sign-in destinations.
 - Session cookie configuration, rotation on sign in, revocation on sign out, absolute and idle expiry.
 - Sign-in rate limiting per account and per address, with identical responses for existing and non-existing accounts.
 - Workspace creation on first sign in, plus the single `owner` row in `workspace_members`.
@@ -141,8 +141,8 @@ Never stored: camera frames, landmark coordinates, blendshape series, calibratio
 Requirements from `.agents/security.md` sections 1 and 7.
 
 - Established authentication library. No custom password hashing or session cryptography.
-- Google sign-in opens the Google Identity Services prompt in the current page and uses server-side ID-token verification.
-- Google Workspace authorization remains a separate state-protected authorization-code flow with encrypted provider tokens.
+- Google sign-in opens Google's full-page account chooser in the current tab and uses a server-side authorization-code exchange.
+- One Google redirect establishes the Aksa session and stores encrypted Workspace provider tokens server-side.
 - HTTP-only, `Secure`, `SameSite=Lax` session cookie. No token in `localStorage` or a URL.
 - Session rotation on sign in. Server-side revocation on sign out.
 - Account enumeration prevented on sign in and any future reset flow.

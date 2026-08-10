@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { betterAuth } from "better-auth";
-import { oneTap } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { GOOGLE_SIGN_IN_CLIENT_ID } from "@/lib/config/public-google";
 import { db } from "@/lib/server/db/client";
 import * as schema from "@/lib/server/db/schema";
+import { GOOGLE_SCOPES } from "@/lib/server/google/oauth";
 
 declare global {
   var aksaDevelopmentAuthSecret: string | undefined;
@@ -30,6 +30,7 @@ function configuredValue(value: string | undefined): string | undefined {
 }
 
 const googleClientId = configuredValue(process.env.GOOGLE_CLIENT_ID) ?? GOOGLE_SIGN_IN_CLIENT_ID;
+const googleClientSecret = configuredValue(process.env.GOOGLE_CLIENT_SECRET);
 const vercelHost = configuredValue(process.env.VERCEL_URL);
 const baseURL =
   configuredValue(process.env.BETTER_AUTH_URL) ??
@@ -58,9 +59,18 @@ export const auth = betterAuth({
   account: {
     encryptOAuthTokens: true
   },
+  socialProviders:
+    googleClientId && googleClientSecret
+      ? {
+          google: {
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+            accessType: "offline",
+            prompt: "select_account consent",
+            scope: GOOGLE_SCOPES.filter((scope) => scope.startsWith("https://www.googleapis.com/"))
+          }
+        }
+      : {},
   secret: authSecret || "aksa-test-only-secret-key-32bytes",
-  plugins: [
-    ...(googleClientId ? [oneTap({ clientId: googleClientId })] : []),
-    nextCookies()
-  ]
+  plugins: [nextCookies()]
 });

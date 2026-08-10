@@ -53,9 +53,9 @@ Let a user work with their real Drive files, documents, spreadsheets, and mail f
 | 1 | Opens a Google-backed view or asks for a Google action | Shows the disconnected state naming what is missing |
 | 2 | Chooses `Connect Google` | Explains what will be read and that write permission is asked for separately |
 | 3 | Completes Google consent | Stores the encrypted refresh token server-side, records the granted scopes, sets status `active` |
-
-The primary Google sign-in CTA may start step 2 immediately after establishing the Aksa session. Identity-token verification and Workspace authorization remain separate server boundaries even when presented as one continuous same-tab flow.
 | 4 | Returns to Aksa | The requested view or action becomes available |
+
+The primary Google sign-in CTA combines account selection, Aksa session creation, and Workspace authorization in one same-tab OAuth redirect. Identity validation and provider-token handling remain separate server responsibilities.
 
 ### Read
 

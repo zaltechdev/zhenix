@@ -130,3 +130,19 @@ A security-relevant issue follows the same template with three additions.
 - Verification: State-binding and open-redirect tests passed, Chrome confirmed Aksa authentication, and all 433 unit tests plus the production build passed. Real Workspace token exchange was not claimable because the required client secret is absent.
 - Prevention: Tests require the chained callback, onboarding destination, user-bound state, tamper rejection, and bounded return destinations.
 - Commit or PR: pending.
+
+## 2026-08-10 07:49 - Google identity and Workspace tokens required two OAuth flows
+
+- Status: fixed
+- Owner: Zaltech
+- Area: Better Auth and Google Workspace tokens
+- Symptoms: Google identity created the session, then a second authorization route requested Workspace access.
+- Reproduction: Complete the One Tap account prompt and observe the subsequent `/api/google/auth` redirect.
+- Expected: One authorization-code callback creates the session and securely stores Workspace provider tokens.
+- Actual: Better Auth stored identity only while the custom connection table owned Workspace tokens.
+- Root cause: Google scopes and offline access were configured only on the custom OAuth route.
+- Fix: Configured Better Auth's Google provider with Workspace scopes, offline access, account selection, consent, and encrypted tokens; Google services now read Better Auth tokens before legacy connections. Permanent fix.
+- Files changed: `src/lib/server/auth/better-auth.ts`, `src/lib/server/google/token-store.ts`, focused tests and guidance.
+- Verification: Google accepted `/api/auth/callback/google`, requested the Docs and Drive metadata scopes, and rendered its full-page sign-in surface. Typecheck, focused tests, lint, and production build passed.
+- Prevention: Authentication coverage requires one social callback directly to onboarding.
+- Commit or PR: pending.

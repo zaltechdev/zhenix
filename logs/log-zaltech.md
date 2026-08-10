@@ -327,3 +327,17 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `src/lib/server/google/oauth.ts`
   - `tests/unit/google-oauth.test.ts`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 07:49:49
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `Use one Google authorization flow that signs the user into Aksa, connects Google Workspace, and continues to onboarding. [All account identifiers and sensitive values redacted.]`
+* **TLDR AI agents done**: Unified Google identity and Workspace authorization through Better Auth while retaining encrypted server-side provider tokens and legacy migration fallback.
+* **file changed**:
+  - `.agents/debug-zaltech.md`
+  - `.agents/features/auth-onboarding.md`
+  - `.agents/features/google-workspace.md`
+  - `.agents/security.md`
+  - `src/lib/server/auth/better-auth.ts`
+  - `src/lib/server/google/token-store.ts`
+  - `logs/log-zaltech.md`

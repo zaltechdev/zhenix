@@ -20,7 +20,7 @@ export function GoogleSignInButton({
   const [failed, setFailed] = useState(false);
   const options = { locale };
   const authClient = useMemo(
-    () => (clientId ? createGoogleAuthClient(clientId) : null),
+    () => (clientId ? createGoogleAuthClient() : null),
     [clientId]
   );
 
@@ -30,20 +30,18 @@ export function GoogleSignInButton({
     setFailed(false);
     setPending(true);
 
-    let promptClosed = false;
     try {
-      await authClient.oneTap({
-        autoSelect: false,
-        callbackURL: "/api/google/auth?returnTo=/onboarding",
-        context: mode === "sign_up" ? "signup" : "signin",
-        uxMode: "popup",
-        onPromptNotification: () => {
-          promptClosed = true;
-          setFailed(true);
-          setPending(false);
-        }
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/onboarding",
+        newUserCallbackURL: "/onboarding",
+        errorCallbackURL: mode === "sign_up" ? "/sign-up?auth_error=google" : "/sign-in?auth_error=google",
+        requestSignUp: mode === "sign_up"
       });
-      if (!promptClosed) setPending(false);
+      if (result.error) {
+        setFailed(true);
+        setPending(false);
+      }
     } catch {
       setFailed(true);
       setPending(false);
@@ -54,7 +52,6 @@ export function GoogleSignInButton({
     <div className="aksa-oauth-section">
       <Button
         aria-describedby={!authClient || failed ? "google-sign-in-status" : undefined}
-        aria-haspopup="dialog"
         className="aksa-oauth-button"
         disabled={!authClient || pending}
         loading={pending}
