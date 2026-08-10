@@ -1,3 +1,13 @@
+### Timestamp: [2026-08-10 09:32:00]
+* **Model used**: Gemini 3.6 Flash (High)
+* **Human Prompt**: `FIX CAMERA CALIBRATION UI NOW - Remove mystery crosshair button, fix instruction text readability, high contrast overlay, non-overlapping clean layout`
+* **TLDR AI agents done**: Refactored camera onboarding preview layout and styling. Completely removed the confusing mystery crosshair icon in the top-right corner. Restructured the status chip to top-left and instruction card to bottom-center with high-opacity translucent dark backdrop (`rgba(11, 19, 36, 0.92)`), backdrop blur, crisp white title text (`#ffffff`), and bright slate body copy (`#cbd5e1`) to eliminate camera feed background interference and guarantee WCAG AA readability. Preserved dark theme aesthetics, responsive mobile media queries, 0 typecheck errors, 0 lint errors, and 32/32 unit tests passing.
+* **file changed**:
+  - `src/components/onboarding/onboarding-flow.tsx`
+  - `src/app/workspace.css`
+  - `logs/log-henix.md`
+
+---
 ### Timestamp: [2026-08-10 09:06:25]
 * **Model used**: Gemini 3.6 Flash (High)
 * **Human Prompt**: `UI copy too is too bulky on controls`
@@ -2092,3 +2102,12 @@ Then STOP.
   - `src/lib/client/auth/auth-client.ts`
   - `tests/unit/auth-onboarding.test.tsx`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-10 09:52:34
+* **Model used**: GPT-5.6 Sol
+* **Human Prompt**: `log (henix and zaltech must upload to repo, that is mandatory-apparently log must uploaded too, do not ignore it.)`
+* **TLDR AI agents done**: Prepared both mandatory developer logs for a focused repository commit and push without staging unrelated work.
+* **file changed**:
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
