@@ -415,3 +415,14 @@ Add deterministic tests for physical direction mapping, pose spikes, stationary 
   - `tests/unit/proxy.test.ts`
   - `logs/log-henix.md`
   - `logs/log-zaltech.md`
+
+---
+### Timestamp: 2026-08-10 11:05:46
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `I am logged in, but another page asks me to log in again.`
+* **TLDR AI agents done**: Applied one production session boundary to onboarding and Workspace routes, redirected authenticated auth-entry visits to Workspace, and verified onboarding, Docs, account, and sign-in transitions without relogin.
+* **file changed**:
+  - `src/proxy.ts`
+  - `tests/unit/proxy.test.ts`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`

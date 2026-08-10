@@ -1949,6 +1949,17 @@ Then STOP.
   - `logs/log-zaltech.md`
 
 ---
+### Timestamp: 2026-08-10 11:05:46
+* **Model used**: GPT-5.6 Sol (High)
+* **Human Prompt**: `I am logged in, but another page asks me to log in again.`
+* **TLDR AI agents done**: Unified the visible authentication flow so authenticated sign-in and sign-up visits return to Workspace, while onboarding and every Workspace page use the same session guard.
+* **file changed**:
+  - `src/proxy.ts`
+  - `tests/unit/proxy.test.ts`
+  - `logs/log-henix.md`
+  - `logs/log-zaltech.md`
+
+---
 ### Timestamp: 2026-08-10 10:24:16
 * **Model used**: GPT-5.6 Sol (High)
 * **Human Prompt**: `Ship the repository from main, deploy to aksawork.web.id or aksawork.vercel.app, configure production environment, and add a forgot-password demo acknowledgment. [All credentials and environment values redacted.]`
