@@ -17,6 +17,16 @@ describe("production host canonicalization", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
+  it("allows only the pinned MediaPipe runtime hosts and WebAssembly", () => {
+    const response = proxy(new NextRequest("https://aksawork.web.id/sign-in"));
+    const policy = response.headers.get("content-security-policy") ?? "";
+
+    expect(policy).toContain("'wasm-unsafe-eval'");
+    expect(policy).toContain("https://cdn.jsdelivr.net");
+    expect(policy).toContain("https://storage.googleapis.com");
+    expect(policy).not.toContain("connect-src *");
+  });
+
   it("keeps the existing workspace session-cookie guard", () => {
     const response = proxy(new NextRequest("https://aksawork.web.id/workspace"));
 

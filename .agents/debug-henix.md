@@ -329,3 +329,19 @@ Backend, API, database, authentication internals, agent execution, and integrati
 - Verification: `bun run i18n:compile`, `bun run typecheck`, 64 focused Vitest tests, and 2 targeted Playwright tests passed. Browser checks confirmed one search composer, no standalone search input, contextual placeholder, source list, and Workspace landing preview.
 - Prevention: Keep the shared composer as the only command entry point on SearchSurface and assert the landing preview uses current Workspace landmarks.
 - Commit or PR: pending.
+
+## 2026-08-12 17:10 - Auth proxy removed the head-tracking CSP
+
+- Status: fixed
+- Owner: Henix
+- Area: Head-control startup and production response security
+- Symptoms: Starting head control on the deployed app reported `The head tracking model could not start.`
+- Reproduction: Request `/workspace` from `https://aksawork.web.id`, then inspect the final page response for `Content-Security-Policy` before starting head control.
+- Expected: Page responses allow WebAssembly and the two pinned MediaPipe runtime hosts.
+- Actual: The deployed response had no CSP, while `VisionEngine` still loaded WASM from jsDelivr and the face model from Google Storage.
+- Root cause: The authentication proxy replacement removed the existing nonce-based CSP instead of preserving it alongside host and session redirects.
+- Fix: Restored the nonce-based CSP in the current proxy, including `'wasm-unsafe-eval'`, jsDelivr, and Google Storage, while retaining every host and session redirect. Permanent fix.
+- Files changed: `src/proxy.ts`, `tests/unit/proxy.test.ts`.
+- Verification: Six focused proxy tests, TypeScript, focused lint, production build, and a local browser response check passed. The response contained both pinned hosts and WebAssembly permission without wildcard `connect-src` access.
+- Prevention: Proxy unit and Workspace browser coverage assert the required MediaPipe CSP directives.
+- Commit or PR: pending.
