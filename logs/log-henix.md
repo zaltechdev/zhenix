@@ -2276,3 +2276,14 @@ Then STOP.
   - `tests/e2e/landing.spec.ts`
   - `tests/e2e/workspace.spec.ts`
   - `logs/log-henix.md`
+
+---
+### Timestamp: 2026-08-12 17:10:15
+* **Model used**: GPT-5 Codex
+* **Human Prompt**: `its shipped but idk why it always fail, check latest progress first, donot touch anything else just fix and ship asap`
+* **TLDR AI agents done**: Verified the shipped branch and live response, traced head-model startup failure to a removed CSP, restored only the pinned MediaPipe allowances without changing auth behavior, and passed focused tests, typecheck, lint, production build, and local response verification.
+* **file changed**:
+  - `src/proxy.ts`
+  - `tests/unit/proxy.test.ts`
+  - `.agents/debug-henix.md`
+  - `logs/log-henix.md`
