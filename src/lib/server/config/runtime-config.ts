@@ -106,8 +106,7 @@ export const ONBOARDING_GEMINI_MODEL = "gemini-3.1-flash-lite";
 export function googleAiStudioClassifierConfig(): { apiKey: string; model: string; baseUrl: string } | null {
   const apiKey =
     readSecret("GOOGLE_AI_API_KEY") ??
-    readSecret("GEMINI_API_KEY") ??
-    readSecret("BAI_API_KEY");
+    readSecret("GEMINI_API_KEY");
 
   if (!apiKey) return null;
 
@@ -116,11 +115,8 @@ export function googleAiStudioClassifierConfig(): { apiKey: string; model: strin
     model:
       readSecret("GOOGLE_AI_MODEL") ??
       readSecret("GEMINI_MODEL") ??
-      readSecret("BAI_MODEL") ??
       ONBOARDING_GEMINI_MODEL,
-    baseUrl:
-      readSecret("BAI_BASE_URL") ??
-      "https://generativelanguage.googleapis.com"
+    baseUrl: "https://generativelanguage.googleapis.com"
   };
 }
 

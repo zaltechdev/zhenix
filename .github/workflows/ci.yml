@@ -42,8 +42,7 @@ jobs:
         run: bun run build
         env:
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY || 'mock-key' }}
-          GOOGLE_AI_MODEL: ${{ secrets.GOOGLE_AI_MODEL || 'gemini-2.5-flash' }}
-          BAI_BASE_URL: ${{ secrets.BAI_BASE_URL || 'https://api.example.com' }}
+          GOOGLE_AI_MODEL: ${{ secrets.GOOGLE_AI_MODEL || 'gemini-3.1-flash-lite' }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'aksa-ci-production-build-secret-key-32chars' }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET || 'aksa-ci-production-build-secret-key-32chars' }}
           BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL || 'http://localhost:3000' }}
