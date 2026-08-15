@@ -427,21 +427,19 @@ export function CommandComposer({
     state.localIntent !== null;
   const isNonIdle = taskState !== "idle";
 
-  let placeholder = inputLabel || m.composer_placeholder({}, options);
-  if (!inputLabel) {
-    if (pathname.includes("/slides")) {
-      placeholder = m.composer_placeholder_slides({}, options);
-    } else if (pathname.includes("/documents")) {
-      placeholder = m.composer_placeholder_docs({}, options);
-    } else if (pathname.includes("/sheets")) {
-      placeholder = m.composer_placeholder_sheets({}, options);
-    } else if (pathname.includes("/files")) {
-      placeholder = m.composer_placeholder_drive({}, options);
-    } else if (pathname.includes("/mail")) {
-      placeholder = m.composer_placeholder_mail({}, options);
-    } else if (pathname.includes("/search")) {
-      placeholder = m.composer_placeholder_search({}, options);
-    }
+  let placeholder = m.composer_placeholder({}, options);
+  if (pathname.includes("/slides")) {
+    placeholder = m.composer_placeholder_slides({}, options);
+  } else if (pathname.includes("/documents")) {
+    placeholder = m.composer_placeholder_docs({}, options);
+  } else if (pathname.includes("/sheets")) {
+    placeholder = m.composer_placeholder_sheets({}, options);
+  } else if (pathname.includes("/files")) {
+    placeholder = m.composer_placeholder_drive({}, options);
+  } else if (pathname.includes("/mail")) {
+    placeholder = m.composer_placeholder_mail({}, options);
+  } else if (pathname.includes("/search")) {
+    placeholder = m.composer_placeholder_search({}, options);
   }
 
   const isDocked = mode === "docked";
