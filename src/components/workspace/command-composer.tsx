@@ -283,6 +283,8 @@ export function CommandComposer({
     [aksaActions, dispatch, locale, submitCommandPayload, voiceSettings]
   );
 
+  const startListeningRef = useRef<(mode: "dictation" | "command") => void>(() => {});
+
   const startListening = useCallback((mode: "dictation" | "command") => {
     if (recognitionRef.current !== null) return;
 
@@ -383,7 +385,7 @@ export function CommandComposer({
           recognitionRef.current = null;
           setTimeout(() => {
             if (recognitionModeRef.current === "command") {
-              startListening("command");
+              startListeningRef.current("command");
             }
           }, 100);
           return;
@@ -407,7 +409,11 @@ export function CommandComposer({
       }
       dispatch({ type: "voice_failed" });
     }
-  }, [aksaActions, dispatch, executeVoiceIntent, locale, onSubmit, preview, submitCustom, voiceSettings]);
+  }, [dispatch, executeVoiceIntent, locale, onSubmit, preview, submitCustom, voiceSettings]);
+
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
 
   const stopListening = useCallback(() => {
     if (liveTimerRef.current) {
