@@ -104,13 +104,13 @@ export function googleAiStudioStatus(): ConfigurationStatus {
 export const ONBOARDING_GEMINI_MODEL = "claude-haiku-4.5";
 
 export function googleAiStudioClassifierConfig(): { apiKey: string; model: string; baseUrl: string } | null {
-  const apiKey = readSecret("GOOGLE_AI_API_KEY") ?? readSecret("BAI_API_KEY");
+  const apiKey = readSecret("GOOGLE_AI_API_KEY") ?? readSecret("BAI_API_KEY") ?? readSecret("GEMINI_API_KEY");
   if (apiKey === null) return null;
 
   return {
     apiKey,
-    model: readSecret("GOOGLE_AI_MODEL") ?? readSecret("BAI_MODEL") ?? ONBOARDING_GEMINI_MODEL,
-    baseUrl: readSecret("BAI_BASE_URL") ?? "https://api.b.ai/v1"
+    model: readSecret("GOOGLE_AI_MODEL") ?? readSecret("BAI_MODEL") ?? readSecret("GEMINI_MODEL") ?? ONBOARDING_GEMINI_MODEL,
+    baseUrl: readSecret("BAI_BASE_URL") ?? (readSecret("GEMINI_API_KEY") ? "https://generativelanguage.googleapis.com" : "https://api.b.ai/v1")
   };
 }
 

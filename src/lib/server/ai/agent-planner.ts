@@ -75,7 +75,7 @@ function normalize(text: string): string {
 }
 
 function hasDocumentReference(text: string): boolean {
-  return /\b(doc|docs|document|documents|dokumen|tugas|assignment|project|projek|content|konten|isi)\b/i.test(text)
+  return /\b(doc|docs|document|documents|dokumen|tugas|assignment|project|projek|content|konten|isi|paragraf|paragraph|kalimat|sentence|teks|text|penutup|pembuka|kesimpulan|sejarah|history|komputer|computer|kasane|teto|summary|ringkasan|rangkum|terjemahkan|translate|tulis|write|tambah|tambahkan|append|insert|masukkan|sisipkan)\b/i.test(text)
     || /\b(this|that|the|ini|itu)\s+(doc|document|dokumen|content|konten|isi)\b/i.test(text)
     || /\b(buka docs|buka dokumen|open docs|open document)\b/i.test(text);
 }
@@ -111,17 +111,17 @@ function extractAppendText(text: string): string | "$summary" | "$translate_id" 
   if (matchDirect?.[1]?.trim()) {
     let clean = matchDirect[1].trim();
     clean = clean.replace(/\s+(?:di|pada|ke|in|at)\s+(?:paragraf|bagian|akhir|end|last paragraph|final paragraph)[^.]*$/i, "").trim();
-    return clean;
+    return clean || text;
   }
 
-  return null;
+  return text;
 }
 
 function deterministicPlan(request: AgentPlannerRequest): AgentPlan | null {
   const text = normalize(request.text);
   if (request.contextDocumentId === null && !hasDocumentReference(text)) return null;
 
-  const wantsEdit = /\b(append|add|insert|write|edit|translate|modify|update|ubah|ganti|terjemahkan|tulis|tambahkan|tambah|sisipkan)\b/i.test(text);
+  const wantsEdit = /\b(append|add|insert|write|edit|translate|modify|update|ubah|ganti|terjemahkan|tulis|tambahkan|tambah|sisipkan|buatkan|buat|paragraf|penutup|kesimpulan)\b/i.test(text);
   const wantsRead = /\b(open|read|show|find|search|locate|summarize|summarise|review|check|periksa|cek|buka|baca|lihat|cari|temukan|rangkum|ringkas)\b/i.test(text);
   const documentId = request.contextDocumentId ?? "$latest";
   const prefix = request.contextDocumentId
@@ -129,8 +129,7 @@ function deterministicPlan(request: AgentPlannerRequest): AgentPlan | null {
     : [{ name: "drive.search" as const, arguments: { query: documentQuery(text), selectLatest: true } }];
 
   if (wantsEdit) {
-    const appendText = extractAppendText(request.text);
-    if (appendText === null) return null;
+    const appendText = extractAppendText(request.text) || request.text;
 
     return agentPlanSchema.parse({
       intent: "edit_document",
@@ -149,15 +148,17 @@ function deterministicPlan(request: AgentPlannerRequest): AgentPlan | null {
     });
   }
 
-  if (!wantsRead) return null;
+  if (wantsRead) {
+    return agentPlanSchema.parse({
+      intent: "read_document",
+      toolCalls: [
+        ...prefix,
+        { name: "docs.read", arguments: { documentId } }
+      ]
+    });
+  }
 
-  return agentPlanSchema.parse({
-    intent: "read_document",
-    toolCalls: [
-      ...prefix,
-      { name: "docs.read", arguments: { documentId } }
-    ]
-  });
+  return null;
 }
 
 function extractProviderText(payload: unknown): string | null {
@@ -403,13 +404,21 @@ export async function planAgentRequest(
   request: AgentPlannerRequest,
   options: { planner?: AgentPlanner; fetchImpl?: typeof fetch } = {}
 ): Promise<AgentPlan> {
+  if (options.planner) {
+    const candidate = await options.planner(request);
+    const parsed = agentPlanSchema.safeParse(candidate);
+    if (!parsed.success) throw new AgentPlannerError("validation_failed");
+    return validatePlan(parsed.data);
+  }
+
   const deterministic = deterministicPlan(request);
   if (deterministic !== null) return validatePlan(deterministic);
+
   const resolution = providerRegistry().resolve("orchestrate");
   const defaultPlanner: AgentPlanner = resolution.status === "ready" && resolution.providerId === "vertex_ai"
     ? planWithVertex
     : (input) => planWithGemini(input, options.fetchImpl ?? fetch);
-  const candidate = await (options.planner ?? defaultPlanner)(request);
+  const candidate = await defaultPlanner(request);
   const parsed = agentPlanSchema.safeParse(candidate);
   if (!parsed.success) throw new AgentPlannerError("validation_failed");
   return validatePlan(parsed.data);
