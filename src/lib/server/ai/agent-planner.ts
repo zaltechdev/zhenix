@@ -107,9 +107,11 @@ function extractAppendText(text: string): string | "$summary" | "$translate_id" 
 
   if (/\b(summary|summarize|summarise|ringkasan|rangkum|ringkas)\b/i.test(text)) return "$summary";
 
-  const matchDirect = text.match(/(?:tulis|tambahkan|tambah|write|append|insert|edit content(?:nya)? jadi)\s+(.+)$/i);
+  const matchDirect = text.match(/(?:tulis(?:kan)?|tambah(?:kan|in)?|masukkan|taruh|sisipkan|write|append|insert|add|edit content(?:nya)? jadi)\s+(.+)$/i);
   if (matchDirect?.[1]?.trim()) {
-    return matchDirect[1].trim();
+    let clean = matchDirect[1].trim();
+    clean = clean.replace(/\s+(?:di|pada|ke|in|at)\s+(?:paragraf|bagian|akhir|end|last paragraph|final paragraph)[^.]*$/i, "").trim();
+    return clean;
   }
 
   return null;

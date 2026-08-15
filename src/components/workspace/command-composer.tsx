@@ -168,15 +168,89 @@ export function CommandComposer({
     [dispatch, onSubmit, preview]
   );
 
+  const submitCommandPayload = useCallback(
+    async (rawText: string, transcript: string | null = null, source: "text" | "voice" = "text") => {
+      const text = rawText.trim();
+      if (!text) return;
+
+      if (onSubmit || preview) {
+        await submitCustom(text, transcript);
+        return;
+      }
+
+      dispatch({ type: "submit_started" });
+
+      const commandLocale = locale === "id" ? "id" : "en";
+      const deterministicIntent = matchAksaIntent(text, commandLocale);
+      if (aksaActions && deterministicIntent !== null) {
+        aksaActions.executeAksaIntent(deterministicIntent);
+        dispatch({
+          type: "local_intent_result",
+          intent: deterministicIntent,
+          source: "deterministic"
+        });
+        return;
+      }
+
+      const searchMatch = text.match(/^(?:search(?:\s+the\s+web)?(?:\s+(?:for|about))?|cari(?:\s+di\s+web)?(?:\s+(?:tentang|info))?|gugling)\s+(.+)$/i);
+      if (searchMatch?.[1]?.trim()) {
+        const q = encodeURIComponent(searchMatch[1].trim());
+        dispatch({ type: "clear" });
+        router.push(`/workspace/search?q=${q}`);
+        return;
+      }
+
+      if (pathname.startsWith("/workspace/search")) {
+        const q = encodeURIComponent(text);
+        dispatch({ type: "clear" });
+        router.push(`/workspace/search?q=${q}`);
+        return;
+      }
+
+      try {
+        const contextDocumentId = state.result?.documentId ?? (typeof window === "undefined"
+          ? null
+          : new URLSearchParams(window.location.search).get("id"));
+        const response = await fetch("/api/commands", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            commandId: createCommandId(),
+            text,
+            transcript: transcript ?? text,
+            contextDocumentId,
+            locale: locale === "id" ? "id" : "en",
+            source,
+            submittedAt: Date.now()
+          })
+        });
+
+        const payload: unknown = await response.json();
+        const parsed = commandResultSchema.safeParse(payload);
+        const result: CommandResult = parsed.success
+          ? parsed.data
+          : { outcome: "rejected", error: createAksaError("internal_error") };
+
+        dispatch({ type: "submit_result", result });
+      } catch {
+        dispatch({
+          type: "submit_result",
+          result: { outcome: "rejected", error: createAksaError("unavailable") }
+        });
+      }
+    },
+    [aksaActions, dispatch, locale, onSubmit, pathname, preview, router, state.result, submitCustom]
+  );
+
   const executeVoiceIntent = useCallback(
     async (transcript: string, alternatives: readonly string[] = []) => {
-      if (!aksaActions) return;
-
       const commandLocale = recognitionLocale(voiceSettings, locale);
       for (const candidate of [transcript, ...alternatives]) {
         const deterministic = matchAksaIntent(candidate, commandLocale);
         if (deterministic !== null) {
-          aksaActions.executeAksaIntent(deterministic);
+          if (aksaActions) {
+            aksaActions.executeAksaIntent(deterministic);
+          }
           dispatch({
             type: "local_intent_result",
             intent: deterministic,
@@ -190,19 +264,20 @@ export function CommandComposer({
         locale: commandLocale,
         transcript
       });
-      if (resolution.intent === "UNKNOWN") {
-        dispatch({ type: "local_intent_unknown" });
+      if (resolution.intent !== "UNKNOWN" && aksaActions) {
+        aksaActions.executeAksaIntent(resolution.intent);
+        dispatch({
+          type: "local_intent_result",
+          intent: resolution.intent,
+          source: resolution.source === "semantic" ? "semantic" : "deterministic"
+        });
         return;
       }
 
-      aksaActions.executeAksaIntent(resolution.intent);
-      dispatch({
-        type: "local_intent_result",
-        intent: resolution.intent,
-        source: resolution.source === "semantic" ? "semantic" : "deterministic"
-      });
+      // Automatically execute as Agent Command if not a local UI intent
+      await submitCommandPayload(transcript, transcript, "voice");
     },
-    [aksaActions, dispatch, locale, voiceSettings]
+    [aksaActions, dispatch, locale, submitCommandPayload, voiceSettings]
   );
 
   const startListening = useCallback((mode: "dictation" | "command") => {
@@ -336,73 +411,8 @@ export function CommandComposer({
     if (!canSubmit(state)) {
       return;
     }
-
-    if (onSubmit || preview) {
-      await submitCustom(state.text, state.transcript);
-      return;
-    }
-
-    dispatch({ type: "submit_started" });
-
-    const commandLocale = locale === "id" ? "id" : "en";
-    const deterministicIntent = matchAksaIntent(state.text, commandLocale);
-    if (aksaActions && deterministicIntent !== null) {
-      aksaActions.executeAksaIntent(deterministicIntent);
-      dispatch({
-        type: "local_intent_result",
-        intent: deterministicIntent,
-        source: "deterministic"
-      });
-      return;
-    }
-
-    const searchMatch = state.text.trim().match(/^(?:search(?:\s+the\s+web)?(?:\s+(?:for|about))?|cari(?:\s+di\s+web)?(?:\s+(?:tentang|info))?|gugling)\s+(.+)$/i);
-    if (searchMatch?.[1]?.trim()) {
-      const q = encodeURIComponent(searchMatch[1].trim());
-      dispatch({ type: "clear" });
-      router.push(`/workspace/search?q=${q}`);
-      return;
-    }
-
-    if (pathname.startsWith("/workspace/search")) {
-      const q = encodeURIComponent(state.text.trim());
-      dispatch({ type: "clear" });
-      router.push(`/workspace/search?q=${q}`);
-      return;
-    }
-
-    try {
-      const contextDocumentId = state.result?.documentId ?? (typeof window === "undefined"
-        ? null
-        : new URLSearchParams(window.location.search).get("id"));
-      const response = await fetch("/api/commands", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commandId: createCommandId(),
-          text: state.text.trim(),
-          transcript: state.transcript,
-          contextDocumentId,
-          locale: locale === "id" ? "id" : "en",
-          source: state.source,
-          submittedAt: Date.now()
-        })
-      });
-
-      const payload: unknown = await response.json();
-      const parsed = commandResultSchema.safeParse(payload);
-      const result: CommandResult = parsed.success
-        ? parsed.data
-        : { outcome: "rejected", error: createAksaError("internal_error") };
-
-      dispatch({ type: "submit_result", result });
-    } catch {
-      dispatch({
-        type: "submit_result",
-        result: { outcome: "rejected", error: createAksaError("unavailable") }
-      });
-    }
-  }, [aksaActions, dispatch, locale, onSubmit, pathname, preview, router, state, submitCustom]);
+    await submitCommandPayload(state.text, state.transcript, state.source);
+  }, [state, submitCommandPayload]);
 
   const taskState = displayedTaskState(state);
   const listening = recognitionMode !== null;
@@ -417,19 +427,21 @@ export function CommandComposer({
     state.localIntent !== null;
   const isNonIdle = taskState !== "idle";
 
-  let placeholder = m.composer_placeholder({}, options);
-  if (pathname.includes("/slides")) {
-    placeholder = m.composer_placeholder_slides({}, options);
-  } else if (pathname.includes("/documents")) {
-    placeholder = m.composer_placeholder_docs({}, options);
-  } else if (pathname.includes("/sheets")) {
-    placeholder = m.composer_placeholder_sheets({}, options);
-  } else if (pathname.includes("/files")) {
-    placeholder = m.composer_placeholder_drive({}, options);
-  } else if (pathname.includes("/mail")) {
-    placeholder = m.composer_placeholder_mail({}, options);
-  } else if (pathname.includes("/search")) {
-    placeholder = m.composer_placeholder_search({}, options);
+  let placeholder = inputLabel || m.composer_placeholder({}, options);
+  if (!inputLabel) {
+    if (pathname.includes("/slides")) {
+      placeholder = m.composer_placeholder_slides({}, options);
+    } else if (pathname.includes("/documents")) {
+      placeholder = m.composer_placeholder_docs({}, options);
+    } else if (pathname.includes("/sheets")) {
+      placeholder = m.composer_placeholder_sheets({}, options);
+    } else if (pathname.includes("/files")) {
+      placeholder = m.composer_placeholder_drive({}, options);
+    } else if (pathname.includes("/mail")) {
+      placeholder = m.composer_placeholder_mail({}, options);
+    } else if (pathname.includes("/search")) {
+      placeholder = m.composer_placeholder_search({}, options);
+    }
   }
 
   const isDocked = mode === "docked";
