@@ -1,8 +1,62 @@
-import type { MailInbox, SheetRange } from "@/lib/contracts/google";
+import type { DriveListing, MailInbox, SheetRange } from "@/lib/contracts/google";
 import type { SearchResult } from "@/lib/contracts/search";
 import type { Locale } from "@/paraglide/runtime.js";
 
 const PREVIEW_TIME = Date.UTC(2026, 7, 7, 9, 0, 0);
+
+export function createPreviewDriveListing(locale: Locale, query?: string | null): DriveListing {
+  const isIndonesian = locale === "id";
+
+  return {
+    items: [
+      {
+        id: "preview-file-1",
+        name: isIndonesian ? "Rencana Peluncuran Aksa 2026" : "Aksa Launch Plan 2026",
+        mimeType: "application/vnd.google-apps.document",
+        category: "document",
+        parentId: "root",
+        parentName: "My Drive",
+        modifiedAt: PREVIEW_TIME - 86_400_000,
+        sizeBytes: 1024 * 45,
+        webViewAvailable: true,
+        canRead: true,
+        canRename: false,
+        canMove: false
+      },
+      {
+        id: "preview-file-2",
+        name: isIndonesian ? "Catatan Riset Aksesibilitas" : "Accessibility Research Notes",
+        mimeType: "application/pdf",
+        category: "pdf",
+        parentId: "root",
+        parentName: "My Drive",
+        modifiedAt: PREVIEW_TIME - 86_400_000 * 2,
+        sizeBytes: 1024 * 120,
+        webViewAvailable: true,
+        canRead: true,
+        canRename: false,
+        canMove: false
+      },
+      {
+        id: "preview-file-3",
+        name: isIndonesian ? "Data Anggaran Proyek" : "Project Budget Data",
+        mimeType: "application/vnd.google-apps.spreadsheet",
+        category: "spreadsheet",
+        parentId: "root",
+        parentName: "Finance",
+        modifiedAt: PREVIEW_TIME - 86_400_000 * 3,
+        sizeBytes: 1024 * 85,
+        webViewAvailable: true,
+        canRead: true,
+        canRename: false,
+        canMove: false
+      }
+    ],
+    nextPageToken: null,
+    incompleteSearch: false,
+    query: query ?? null
+  };
+}
 
 export function createPreviewSheetRange(locale: Locale): SheetRange {
   const isIndonesian = locale === "id";

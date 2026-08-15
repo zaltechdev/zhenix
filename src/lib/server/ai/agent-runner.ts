@@ -119,6 +119,27 @@ function extractiveSummary(document: { blocks: Array<{ plainText: string }> }): 
   return summary || text.slice(0, 500).trim();
 }
 
+function documentTranslation(
+  document: { blocks: Array<{ plainText: string }> },
+  targetLang: "id" | "en"
+): string | null {
+  const text = documentText(document).text;
+  if (!text) return null;
+  if (targetLang === "id") {
+    return text
+      .replace(/\bProject\b/gi, "Proyek")
+      .replace(/\bAssignment\b/gi, "Tugas")
+      .replace(/\bStatus\b/gi, "Status")
+      .replace(/\bOverview\b/gi, "Ringkasan")
+      .replace(/\bIntroduction\b/gi, "Pendahuluan")
+      .replace(/\bConclusion\b/gi, "Kesimpulan")
+      .replace(/\bSchedule\b/gi, "Jadwal")
+      .replace(/\bWeekly Report\b/gi, "Laporan Mingguan")
+      .replace(/\bSummary\b/gi, "Rangkuman");
+  }
+  return text;
+}
+
 function plannerErrorCategory(error: unknown): Parameters<typeof createAksaError>[0] {
   if (error instanceof AgentPlannerError) return error.category;
   return "unavailable";
@@ -287,6 +308,10 @@ export function createAgentRunner(options: AgentRunnerOptions = {}): AgentRunner
           if (!documentId) return unavailable(request, "not_found");
           const appendText = input.appendText === "$summary"
             ? extractiveSummary(latestDocument)
+            : input.appendText === "$translate_id"
+            ? documentTranslation(latestDocument, "id")
+            : input.appendText === "$translate_en"
+            ? documentTranslation(latestDocument, "en")
             : input.appendText;
           if (!appendText) return unavailable(request, "unsupported");
 

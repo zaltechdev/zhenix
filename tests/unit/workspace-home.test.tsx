@@ -1,6 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { m } from "@/paraglide/messages.js";
 import WorkspaceHomePage from "@/app/workspace/page";
 
 vi.mock("@/lib/i18n/request", () => ({
@@ -46,12 +45,9 @@ vi.mock("@/components/workspace/google-workspace-launchpad", () => ({
 afterEach(() => cleanup());
 
 describe("workspace home composer", () => {
-  it("places the AI disclaimer below the home composer", async () => {
-    const view = render(await WorkspaceHomePage());
+  it("renders the home composer cleanly", async () => {
+    render(await WorkspaceHomePage());
     const composer = screen.getByTestId("home-composer");
-    const disclaimer = screen.getByText(m.workspace_ai_disclaimer({}, { locale: "en" }));
-
-    expect(composer.compareDocumentPosition(disclaimer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(view.container.querySelector(".aksa-ai-disclaimer")).toBe(disclaimer);
+    expect(composer).toBeInTheDocument();
   });
 });

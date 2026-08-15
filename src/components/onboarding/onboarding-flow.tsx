@@ -9,6 +9,7 @@ import {
   Check,
   ChevronRight,
   Mic,
+  RotateCcw,
   Sparkles,
   MousePointer,
   Keyboard,
@@ -17,6 +18,10 @@ import {
 import DefaultLogo from "../../../logo/Default.svg";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
+import {
+  provisionalAccessibilityProfile,
+  type AccessibilityProfile
+} from "@/lib/contracts/auth";
 import type { OnboardingVoiceDemoState } from "@/lib/contracts/onboarding-voice";
 import {
   createRecognition,
@@ -73,16 +78,54 @@ function getPhaseRadialProgress(phaseId: OnboardingPhase, currentPhase: Onboardi
   return 100;
 }
 
-function calibrationDirectionLabel(
-  direction: "center" | "left" | "right" | "up" | "down" | "return_center",
-  options: { locale?: Locale } = {}
-): string {
-  if (direction === "left") return m.onboarding_calibration_direction_left({}, options);
-  if (direction === "right") return m.onboarding_calibration_direction_right({}, options);
-  if (direction === "up") return m.onboarding_calibration_direction_up({}, options);
-  if (direction === "down") return m.onboarding_calibration_direction_down({}, options);
-  if (direction === "return_center") return m.onboarding_calibration_direction_return_center({}, options);
-  return m.onboarding_calibration_direction_center({}, options);
+
+
+function RangeField({
+  description,
+  id,
+  label,
+  max,
+  min = 0,
+  onChange,
+  step = 1,
+  value
+}: {
+  description: string;
+  id: string;
+  label: string;
+  max: number;
+  min?: number;
+  onChange: (value: number) => void;
+  step?: number;
+  value: number;
+}) {
+  const descriptionId = `${id}-description`;
+  return (
+    <div className="aksa-field">
+      <label className="aksa-label" htmlFor={id}>
+        {label}
+      </label>
+      <div className="aksa-field--row">
+        <input
+          aria-describedby={descriptionId}
+          className="aksa-range"
+          id={id}
+          max={max}
+          min={min}
+          onChange={(event) => onChange(Number(event.target.value))}
+          step={step}
+          type="range"
+          value={value}
+        />
+        <output className="aksa-output" htmlFor={id}>
+          {value}
+        </output>
+      </div>
+      <p className="aksa-field__description" id={descriptionId}>
+        {description}
+      </p>
+    </div>
+  );
 }
 
 export function OnboardingFlow({
@@ -124,8 +167,16 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     "none" | "no_speech" | "microphone_unavailable" | "recognition_error"
   >("none");
   const [firstCommand, setFirstCommand] = useState<string>("");
+  const [isListeningPhase4, setIsListeningPhase4] = useState(false);
   const [taskSubmitted, setTaskSubmitted] = useState(false);
   const [selectedCards, setSelectedCards] = useState<{ head: boolean; voice: boolean }>({ head: true, voice: true });
+
+  const updateProfile = useCallback(
+    <TKey extends keyof AccessibilityProfile>(key: TKey, value: AccessibilityProfile[TKey]) => {
+      headControl.updateProfile({ ...headControl.profile, [key]: value });
+    },
+    [headControl]
+  );
 
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -137,6 +188,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
   const controlVideoRef = useRef<HTMLVideoElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const voiceRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const phase4RecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceClassifyAttemptRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraAttemptRef = useRef(0);
@@ -296,66 +348,25 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
   const canCalibrate =
     effectiveCameraOutcome === "active" && headControl.lifecycleState === "active";
-  const calibrationProgress = Math.round(
-    headControl.calibrationState.progressRatio * 100
-  );
   const calibrationStatus = headControl.calibrationState.status;
-  const calibrationInstruction =
-    headControl.calibrationState.direction === "left"
-      ? {
-          title: m.onboarding_calibration_left_title({}, options),
-          helper: m.onboarding_calibration_left_helper({}, options)
-        }
-      : headControl.calibrationState.direction === "right"
-        ? {
-            title: m.onboarding_calibration_right_title({}, options),
-            helper: m.onboarding_calibration_right_helper({}, options)
-          }
-        : headControl.calibrationState.direction === "up"
-          ? {
-              title: m.onboarding_calibration_up_title({}, options),
-              helper: m.onboarding_calibration_up_helper({}, options)
-            }
-          : headControl.calibrationState.direction === "down"
-            ? {
-                title: m.onboarding_calibration_down_title({}, options),
-                helper: m.onboarding_calibration_down_helper({}, options)
-              }
-            : headControl.calibrationState.direction === "return_center"
-              ? {
-                  title: m.onboarding_calibration_return_center_title({}, options),
-                  helper: m.onboarding_calibration_return_center_helper({}, options)
-                }
-              : {
-          title: m.onboarding_calibration_center_title({}, options),
-          helper: m.onboarding_calibration_center_helper({}, options)
-        };
-  const calibrationStepDirection = calibrationDirectionLabel(
-    headControl.calibrationState.direction,
-    options
-  );
   const trackingReady =
     effectiveCameraOutcome === "active" && headControl.lifecycleState === "active";
+
   const calibrationCopy = !canCalibrate
     ? effectiveCameraOutcome === "active" && headControl.lifecycleState === "tracking_lost"
       ? m.onboarding_calibration_tracking_interrupted({}, options)
       : m.onboarding_calibration_tracking_required({}, options)
     : calibrationStatus === "completed"
       ? m.onboarding_calibration_success_title({}, options)
-    : calibrationStatus === "capturing"
-        ? calibrationInstruction.title
-    : calibrationStatus === "failed"
-      ? headControl.calibrationState.errorMessage === "tracking_lost"
-        ? m.onboarding_calibration_tracking_interrupted({}, options)
-            : m.onboarding_calibration_position_failed({}, options)
-          : m.onboarding_calibration_center_title({}, options);
+      : calibrationStatus === "failed"
+        ? m.onboarding_calibration_failed({}, options)
+        : m.onboarding_calibration_center_title({}, options);
+
   const calibrationHelper = !trackingReady
     ? m.onboarding_head_setup_detail({}, options)
-    : calibrationStatus === "capturing"
-      ? calibrationInstruction.helper
-      : calibrationStatus === "completed"
-        ? m.onboarding_calibration_success_helper({}, options)
-        : m.onboarding_calibration_center_helper({}, options);
+    : calibrationStatus === "completed"
+      ? m.onboarding_calibration_success_helper({}, options)
+      : m.onboarding_calibration_center_helper({}, options);
 
   const requestMicrophone = useCallback(async () => {
     if (typeof navigator.mediaDevices?.getUserMedia !== "function") {
@@ -452,13 +463,63 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
     setIsListening(false);
   }, []);
 
+  const startPhase4Voice = useCallback(() => {
+    const recognition = createRecognition(locale === "id" ? "id" : "en");
+    if (recognition === null) {
+      return;
+    }
+
+    phase4RecognitionRef.current?.abort();
+    phase4RecognitionRef.current = recognition;
+    setIsListeningPhase4(true);
+
+    recognition.onresult = (event) => {
+      const heard = transcriptFromEvent(event);
+      if (heard.trim() !== "") {
+        setFirstCommand(heard);
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListeningPhase4(false);
+    };
+
+    recognition.onend = () => {
+      if (phase4RecognitionRef.current === recognition) {
+        phase4RecognitionRef.current = null;
+      }
+      setIsListeningPhase4(false);
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      setIsListeningPhase4(false);
+    }
+  }, [locale]);
+
+  const stopPhase4Voice = useCallback(() => {
+    phase4RecognitionRef.current?.abort();
+    phase4RecognitionRef.current = null;
+    setIsListeningPhase4(false);
+  }, []);
+
+  const togglePhase4Voice = useCallback(() => {
+    if (isListeningPhase4) {
+      stopPhase4Voice();
+    } else {
+      startPhase4Voice();
+    }
+  }, [isListeningPhase4, startPhase4Voice, stopPhase4Voice]);
+
   const finish = useCallback(() => {
     stopVoiceTest();
+    stopPhase4Voice();
     if (firstCommand.trim() !== "") {
       window.sessionStorage.setItem(PENDING_COMMAND_STORAGE_KEY, firstCommand.trim());
     }
     clearOnboardingStep();
-  }, [firstCommand, stopVoiceTest]);
+  }, [firstCommand, stopPhase4Voice, stopVoiceTest]);
 
   const disableHeadControl = useCallback(() => {
     cameraAttemptRef.current += 1;
@@ -752,33 +813,7 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                             {calibrationCopy}
                           </div>
                           <p className="aksa-camera-preview__calibration-helper">{calibrationHelper}</p>
-                          {calibrationStatus === "capturing" ? (
-                            <p className="aksa-camera-preview__calibration-step" aria-live="polite">
-                              {m.onboarding_calibration_step(
-                                {
-                                  step: String(headControl.calibrationState.step),
-                                  direction: calibrationStepDirection
-                                },
-                                options
-                              )}
-                            </p>
-                          ) : null}
                         </div>
-                        {calibrationStatus === "capturing" ? (
-                          <div
-                            aria-label={m.onboarding_calibration_progress_label({}, options)}
-                            aria-valuemax={100}
-                            aria-valuemin={0}
-                            aria-valuenow={calibrationProgress}
-                            className="aksa-camera-preview__progress"
-                            role="progressbar"
-                          >
-                            <div
-                              className="aksa-camera-preview__progress-value"
-                              style={{ width: `${calibrationProgress}%` }}
-                            />
-                          </div>
-                        ) : null}
                       </div>
                     </>
                   ) : null}
@@ -845,6 +880,116 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
                       <CameraOff aria-hidden="true" className="aksa-icon" />
                       <span>{m.onboarding_pause_camera({}, options)}</span>
                     </button>
+                  </div>
+                ) : null}
+
+                {effectiveCameraOutcome === "active" ? (
+                  <div className="aksa-onboarding-tuning">
+                    <div className="aksa-onboarding-tuning__header">
+                      <h2 className="aksa-onboarding-tuning__title">
+                        {m.onboarding_tuning_title({}, options)}
+                      </h2>
+                      <p className="aksa-onboarding-tuning__description">
+                        {m.onboarding_tuning_body({}, options)}
+                      </p>
+                    </div>
+
+                    <div className="aksa-controls__grid">
+                      <RangeField
+                        description={m.controls_pointer_reach_description({}, options)}
+                        id="onboarding-pointer-sensitivity"
+                        label={m.onboarding_sensitivity_label({}, options)}
+                        max={100}
+                        min={10}
+                        onChange={(val) => updateProfile("pointerSensitivity", val)}
+                        value={headControl.profile.pointerSensitivity}
+                      />
+                      <RangeField
+                        description={m.controls_ignore_motion_description({}, options)}
+                        id="onboarding-dead-zone"
+                        label={m.onboarding_dead_zone_label({}, options)}
+                        max={100}
+                        onChange={(val) => updateProfile("deadZone", val)}
+                        value={headControl.profile.deadZone}
+                      />
+                      <RangeField
+                        description={m.controls_steadiness_description({}, options)}
+                        id="onboarding-smoothing"
+                        label={m.onboarding_smoothing_label({}, options)}
+                        max={100}
+                        onChange={(val) => updateProfile("smoothing", val)}
+                        value={headControl.profile.smoothing}
+                      />
+                      {headControl.profile.selectionMode === "dwell" ||
+                      headControl.profile.selectionMode === "both" ? (
+                        <RangeField
+                          description={m.controls_hold_time_description({}, options)}
+                          id="onboarding-dwell-duration"
+                          label={m.onboarding_dwell_duration_label({}, options)}
+                          max={3000}
+                          min={300}
+                          onChange={(val) => updateProfile("dwellDurationMs", val)}
+                          step={100}
+                          value={headControl.profile.dwellDurationMs ?? 1200}
+                        />
+                      ) : null}
+                    </div>
+
+                    <section aria-labelledby="onboarding-selection-heading" className="aksa-controls__group">
+                      <h3 className="aksa-controls__group-title" id="onboarding-selection-heading">
+                        {m.onboarding_selection_title({}, options)}
+                      </h3>
+                      <p className="aksa-hint">{m.onboarding_selection_body({}, options)}</p>
+                      <div className="aksa-choice-grid" role="radiogroup">
+                        {[
+                          {
+                            value: "dwell" as const,
+                            label: m.onboarding_selection_dwell({}, options),
+                            description: m.controls_selection_dwell_description({}, options)
+                          },
+                          {
+                            value: "gesture" as const,
+                            label: m.onboarding_selection_gesture({}, options),
+                            description: m.controls_selection_gesture_description({}, options)
+                          },
+                          {
+                            value: "both" as const,
+                            label: m.onboarding_selection_both({}, options),
+                            description: m.controls_selection_both_description({}, options)
+                          },
+                          {
+                            value: "off" as const,
+                            label: m.onboarding_selection_off({}, options),
+                            description: m.controls_selection_off_description({}, options)
+                          }
+                        ].map((mode) => (
+                          <label className="aksa-choice" key={mode.value}>
+                            <input
+                              checked={headControl.profile.selectionMode === mode.value}
+                              name="onboarding-selection-mode"
+                              onChange={() => updateProfile("selectionMode", mode.value)}
+                              type="radio"
+                              value={mode.value}
+                            />
+                            <span>
+                              <strong>{mode.label}</strong>
+                              <small>{mode.description}</small>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </section>
+
+                    <div className="aksa-controls__footer-row">
+                      <button
+                        className="aksa-button aksa-button--quiet"
+                        onClick={() => headControl.updateProfile(provisionalAccessibilityProfile)}
+                        type="button"
+                      >
+                        <RotateCcw aria-hidden="true" className="aksa-icon" />
+                        <span>{m.onboarding_reset_defaults({}, options)}</span>
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 
@@ -1151,17 +1296,50 @@ function OnboardingFlowContent({ locale }: { locale: Locale }) {
 
                   <div className="aksa-onboarding-panel">
                     <div className="aksa-field">
-                      <label className="aksa-label" htmlFor="onboarding-first-command">
-                        {m.composer_input_label({}, options)}
-                      </label>
-                      <input
-                        className="aksa-input"
-                        id="onboarding-first-command"
-                        onChange={(e) => setFirstCommand(e.target.value)}
-                        placeholder={m.onboarding_first_command_example({}, options)}
-                        type="text"
-                        value={firstCommand}
-                      />
+                      <div className="aksa-field__label-row">
+                        <label className="aksa-label" htmlFor="onboarding-first-command">
+                          {m.composer_input_label({}, options)}
+                        </label>
+                        {isListeningPhase4 ? (
+                          <span className="aksa-listening-pulse" role="status">
+                            <Mic aria-hidden="true" className="aksa-icon aksa-icon--pulse" size={14} />
+                            <span>{m.onboarding_voice_task_listening({}, options)}</span>
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="aksa-field--row aksa-onboarding-input-row">
+                        <input
+                          className="aksa-input"
+                          id="onboarding-first-command"
+                          onChange={(e) => setFirstCommand(e.target.value)}
+                          placeholder={m.onboarding_first_command_example({}, options)}
+                          type="text"
+                          value={firstCommand}
+                        />
+                        {voiceSupported !== false ? (
+                          <button
+                            aria-label={
+                              isListeningPhase4
+                                ? m.composer_stop_listening({}, options)
+                                : m.composer_start_listening({}, options)
+                            }
+                            className={`aksa-button ${
+                              isListeningPhase4
+                                ? "aksa-button--attention"
+                                : "aksa-button--secondary"
+                            } aksa-onboarding-mic-button`}
+                            onClick={togglePhase4Voice}
+                            type="button"
+                          >
+                            <Mic aria-hidden="true" className="aksa-icon" />
+                            <span>
+                              {isListeningPhase4
+                                ? m.composer_stop_listening({}, options)
+                                : m.home_speak_action({}, options)}
+                            </span>
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="aksa-onboarding-suggestions">

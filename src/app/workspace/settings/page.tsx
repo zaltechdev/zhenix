@@ -30,7 +30,6 @@ export default async function SettingsPage() {
           tone={connection.state === "connected" ? "ready" : "neutral"}
           value={googleConnectionCopy(connection.state, locale)}
         />
-        <p className="aksa-hint">{m.google_connection_read_only_note({}, options)}</p>
         {googleConfiguration().configured ? (
           <a className="aksa-button aksa-button--secondary" href="/api/google/auth">
             {connection.state === "connected" ? m.google_reconnect({}, options) : m.google_connect({}, options)}

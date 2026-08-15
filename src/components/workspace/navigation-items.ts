@@ -1,15 +1,10 @@
 import {
   Accessibility,
   Activity,
-  FileText,
-  FolderOpen,
   Globe,
   History,
   House,
-  Mail,
-  Presentation,
   SlidersHorizontal,
-  Table2,
   UserRound,
   type LucideIcon
 } from "lucide-react";
@@ -37,10 +32,18 @@ export type WorkspaceRoute =
   | "/workspace/settings"
   | "/workspace/account";
 
+import {
+  GoogleDocsIcon,
+  GoogleSheetsIcon,
+  GoogleSlidesIcon,
+  GoogleDriveIcon,
+  GoogleGmailIcon
+} from "@/components/workspace/google-app-icons";
+
 export type NavigationItem = {
   href: WorkspaceRoute;
   label: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
   disabled?: boolean;
   disabledReason?: string;
 };
@@ -55,15 +58,11 @@ export type NavigationGroup = {
 export function googleWorkspaceNavigationItems(locale: Locale): NavigationItem[] {
   const options = { locale };
   return [
-    { href: "/workspace/documents", label: m.nav_documents({}, options), icon: FileText },
-    { href: "/workspace/sheets", label: m.nav_sheets({}, options), icon: Table2 },
-    {
-      href: "/workspace/slides",
-      label: m.nav_slides({}, options),
-      icon: Presentation
-    },
-    { href: "/workspace/files", label: m.nav_files({}, options), icon: FolderOpen },
-    { href: "/workspace/mail", label: m.nav_mail({}, options), icon: Mail }
+    { href: "/workspace/documents", label: m.nav_documents({}, options), icon: GoogleDocsIcon },
+    { href: "/workspace/sheets", label: m.nav_sheets({}, options), icon: GoogleSheetsIcon },
+    { href: "/workspace/slides", label: m.nav_slides({}, options), icon: GoogleSlidesIcon },
+    { href: "/workspace/files", label: m.nav_files({}, options), icon: GoogleDriveIcon },
+    { href: "/workspace/mail", label: m.nav_mail({}, options), icon: GoogleGmailIcon }
   ];
 }
 

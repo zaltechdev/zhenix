@@ -32,7 +32,6 @@ export function SurfaceHeader({
           {preview ? <span className="aksa-badge">{m.illustrative_label({}, { locale })}</span> : null}
         </div>
         <p className="aksa-surface-header__intro">{intro}</p>
-        {preview ? <p className="aksa-hint">{m.illustrative_note({}, { locale })}</p> : null}
       </div>
       {actions ? <div className="aksa-surface-header__actions">{actions}</div> : null}
     </div>
@@ -66,7 +65,6 @@ export function Panel({
         ) : null}
       </div>
       {description ? <p className="aksa-panel__description">{description}</p> : null}
-      {illustrative ? <p className="aksa-hint">{m.illustrative_note({}, { locale })}</p> : null}
       {children}
     </section>
   );

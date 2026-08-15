@@ -1,17 +1,10 @@
-import { GoogleScreenshotEmbed } from "@/components/workspace/google-screenshot-embed";
+import { Suspense } from "react";
+import { GoogleDocsView } from "@/components/workspace/google-docs-view";
 
-/**
- * Documents workspace page.
- *
- * The PoC version uses a client component for the full document surface,
- * since it needs interactivity for Google Picker, editing, and save flow.
- * The server component provides locale and wraps in Suspense for
- * useSearchParams compatibility.
- */
-export default async function DocumentsPage() {
+export default function DocumentsPage() {
   return (
-    <div className="aksa-surface">
-      <GoogleScreenshotEmbed app="docs" />
-    </div>
+    <Suspense fallback={null}>
+      <GoogleDocsView />
+    </Suspense>
   );
 }

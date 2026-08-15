@@ -222,8 +222,6 @@ export function DocumentSurface({
         </a>
       </div>
 
-      <p className="aksa-hint">{m.documents_write_note({}, options)}</p>
-
       {confirmation ? (
         <ConfirmationDialog
           confirmation={{

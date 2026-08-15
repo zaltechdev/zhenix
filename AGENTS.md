@@ -11,7 +11,7 @@ Welcome to Aksa. If you are an AI agent, Zaltech (backend), or working in a newl
 1. **Identify Role**: Determine if your task belongs to Henix (frontend, UI/UX, accessibility) or Zaltech (backend, database, APIs, agent execution, QA).
 2. **Read Guidance**: Read `.agents/compbook.md`, `.agents/prd.md`, `.agents/rules.md`, `.agents/security.md`, and your role guide (`.agents/guide-henix.md` or `.agents/guide-zaltech.md`).
 3. **Verify Environment**: Review `.env.example` to understand required configuration variables. Never inspect or create real secret files (`.env`, `.env.local`).
-4. **Starter Skills & Logging**: Install mandatory starter skills for all developers and agents, adopt `caveman ultra` mode for output, and log completed sessions in `logs/log-{devname}.md` (e.g. `logs/log-henix.md` for Henix, `logs/log-zaltech.md` for Zaltech), ensuring all secrets, API keys, tokens, and sensitive environment variables are stripped and never logged.
+4. **Starter Skills**: Install mandatory starter skills for all developers and agents, and adopt `caveman ultra` mode for output.
 
 ## 1. Read Before You Work
 
@@ -50,20 +50,9 @@ All developers and AI agents (Antigravity, Claude Code, Kiro, ChatGPT Codex, and
 - **Humanize (`humanize`)**: `npx skills add https://github.com/justhenix/humanize --skill humanize`  
   Enforces natural, audience-aware language for UI copy, microcopy, product messaging, and documentation. Prohibits stilted AI clichés, bot openers, banned jargon, and `bukan hanya X tetapi juga Y` constructions.
 
-## 4. Logging Protocol
+## 4. Logging Protocol (Disabled)
 
-After completing any task, sprint, or user prompt, appending one entry to `logs/log-{devname}.md` (e.g. `logs/log-henix.md` for Henix, `logs/log-zaltech.md` for Zaltech) is mandatory for all agents and developers. Do not create duplicate log files. **Never log secrets, API keys, tokens, or environment variable values under any circumstance: always strip and redact them prior to writing logs.**
-
-```markdown
----
-### Timestamp: [YYYY-MM-DD HH:MM:SS]
-* **Model used**: [Model name and reasoning level, e.g. Gemini 3.6 Flash (High)]
-* **Human Prompt**: `[Full user prompt text - strip/redact any secrets, API keys, tokens, or env values without truncating non-sensitive prompt text]`
-* **TLDR AI agents done**: [Concise TLDR of work completed]
-* **file changed**:
-  - `[file_path_1]`
-  - `[file_path_2]`
-```
+Mandatory per-session logging to `logs/log-{devname}.md` is disabled for the final stage. Agents and developers are no longer required to append session logs.
 
 ## 5. Repository Conventions
 
@@ -79,8 +68,8 @@ After completing any task, sprint, or user prompt, appending one entry to `logs/
 
 # This is NOT the Next.js you know
 
-This version has breaking changes: APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
-This block is written and re-added by `next dev`: verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->

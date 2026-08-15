@@ -267,27 +267,43 @@ describe("account form", () => {
 });
 
 describe("demo password reset", () => {
-  it("requires matching new passwords before approving the demo reset", () => {
-    render(
-      <DemoPasswordResetForm
-        confirmLabel="Confirm new password"
-        mismatchMessage="Passwords must match."
-        newPasswordLabel="New password"
-        passwordRequirement="Use at least 8 characters."
-        shortMessage="Password is too short."
-        submitLabel="Set new password"
-        successMessage="Demo reset approved."
-      />
-    );
+  it("requires matching new passwords before approving the demo reset", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true })
+    }) as unknown as typeof fetch;
 
-    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "strongpass" } });
-    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "different" } });
-    fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
-    expect(screen.getByText("Passwords must match.")).toBeInTheDocument();
+    try {
+      render(
+        <DemoPasswordResetForm
+          confirmLabel="Confirm new password"
+          emailInvalidMessage="Enter an email address."
+          emailLabel="Email"
+          mismatchMessage="Passwords must match."
+          newPasswordLabel="New password"
+          passwordRequirement="Use at least 8 characters."
+          shortMessage="Password is too short."
+          submitLabel="Set new password"
+          successMessage="Demo reset approved."
+        />
+      );
 
-    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "strongpass" } });
-    fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
-    expect(screen.getByRole("status")).toHaveTextContent("Demo reset approved.");
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
+      fireEvent.change(screen.getByLabelText("New password"), { target: { value: "strongpass" } });
+      fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "different" } });
+      fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
+      expect(screen.getByText("Passwords must match.")).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "strongpass" } });
+      fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent("Demo reset approved.");
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 });
 

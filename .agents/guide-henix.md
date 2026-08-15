@@ -144,7 +144,6 @@ A frontend change is complete when:
 - Copy states what happened and what to do next.
 - Automated frontend checks pass.
 - Henix records any backend dependency as an interface need.
-- Relevant prompt work is appended to `logs/log-henix.md`.
 
 ## Handoff to Zaltech
 

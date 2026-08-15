@@ -87,7 +87,7 @@ describe("workspace calibration experience", () => {
     vi.restoreAllMocks();
   });
 
-  it("reuses the active stream and engine without reacquiring the camera", async () => {
+  it("reuses the active stream and engine without reacquiring the camera and allows instant calibration", async () => {
     const engine = createEngine();
     const { stream } = createStream();
     const getUserMedia = vi.fn();
@@ -113,9 +113,6 @@ describe("workspace calibration experience", () => {
       }
     });
 
-    await waitFor(() => {
-      expect(screen.getByText(/Step 1 of 6/)).toBeInTheDocument();
-    });
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(engine.factory).toHaveBeenCalledOnce();
     expect(screen.getByLabelText(m.onboarding_camera_preview_label({}, { locale: "en" }))).toHaveProperty(
@@ -123,21 +120,18 @@ describe("workspace calibration experience", () => {
       stream
     );
 
-    const poses = [
-      { yaw: 2, pitch: 3, roll: 0 },
-      { yaw: 6, pitch: 3, roll: 0 },
-      { yaw: -8, pitch: 3, roll: 0 },
-      { yaw: 2, pitch: 9, roll: 0 },
-      { yaw: 2, pitch: -3, roll: 0 },
-      { yaw: 2, pitch: 3, roll: 0 }
-    ];
-    let timestamp = 700;
+    // Instant calibrate button
+    const calibrateBtn = screen.getByRole("button", {
+      name: m.onboarding_calibration_start({}, { locale: "en" })
+    });
+    expect(calibrateBtn).toBeInTheDocument();
+
     act(() => {
-      for (const pose of poses) {
-        for (let index = 0; index < 12; index += 1) {
-          engine.emit({ ...frame(timestamp++), pose, poseDelta: pose });
-        }
-      }
+      calibrateBtn.click();
+    });
+
+    act(() => {
+      engine.emit(frame(700));
     });
 
     await waitFor(() => {
@@ -145,7 +139,6 @@ describe("workspace calibration experience", () => {
         screen.getByRole("button", { name: m.onboarding_calibration_done({}, { locale: "en" }) })
       ).toBeInTheDocument();
     });
-    expect(engine.factory).toHaveBeenCalledOnce();
 
     act(() => {
       screen

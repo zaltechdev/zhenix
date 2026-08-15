@@ -93,7 +93,6 @@ export function MailSurface({
             value={selected.senderDisplay}
           />
           <p className="aksa-mail__body">{selected.preview}</p>
-          <p className="aksa-hint">{m.mail_untrusted_note({}, options)}</p>
         </section>
       ) : null}
 
@@ -164,7 +163,6 @@ export function MailSurface({
           {m.mail_draft_create({}, options)}
         </button>
 
-        <p className="aksa-hint">{m.mail_no_send_note({}, options)}</p>
         {draftReady ? (
           <p className="aksa-inline-note" role="status">
             {m.mail_preview_draft_ready({}, options)}

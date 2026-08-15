@@ -86,9 +86,6 @@ export function ProductPreviewPanel({ locale }: { locale: Locale }) {
                 mode="welcome"
                 preview
               />
-              <p className="aksa-ai-disclaimer" role="note">
-                {m.workspace_ai_disclaimer({}, messageOptions)}
-              </p>
               <QuickStartSuggestions locale={locale} />
             </div>
 

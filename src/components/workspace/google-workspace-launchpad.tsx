@@ -1,7 +1,13 @@
 import Link from "next/link";
-import { ChevronRight, FileText, FolderOpen, Mail, Table2 } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
+import {
+  GoogleDocsIcon,
+  GoogleDriveIcon,
+  GoogleGmailIcon,
+  GoogleSheetsIcon
+} from "@/components/workspace/google-app-icons";
 
 export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
   const options = { locale };
@@ -11,7 +17,7 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
       href: "/workspace/documents",
       name: m.nav_documents({}, options),
       desc: m.home_docs_desc({}, options),
-      icon: FileText,
+      icon: GoogleDocsIcon,
       disabled: false,
       preview: false
     },
@@ -19,7 +25,7 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
       href: "/workspace/files",
       name: m.nav_files({}, options),
       desc: m.home_drive_desc({}, options),
-      icon: FolderOpen,
+      icon: GoogleDriveIcon,
       disabled: false,
       preview: false
     },
@@ -27,7 +33,7 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
       href: "/workspace/sheets",
       name: m.nav_sheets({}, options),
       desc: m.home_sheets_desc({}, options),
-      icon: Table2,
+      icon: GoogleSheetsIcon,
       disabled: false,
       preview: true
     },
@@ -35,7 +41,7 @@ export function GoogleWorkspaceLaunchpad({ locale }: { locale: Locale }) {
       href: "/workspace/mail",
       name: m.nav_mail({}, options),
       desc: m.home_gmail_desc({}, options),
-      icon: Mail,
+      icon: GoogleGmailIcon,
       disabled: false,
       preview: true
     }

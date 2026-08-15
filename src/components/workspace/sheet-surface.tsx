@@ -68,10 +68,6 @@ export function SheetSurface({
         )}
       </p>
 
-      {range.truncated ? (
-        <p className="aksa-inline-note">{m.sheets_truncated({}, options)}</p>
-      ) : null}
-
       <div className="aksa-table-scroll">
         <table className="aksa-table aksa-table--grid">
           <caption className="sr-only">{m.sheets_table_label({}, options)}</caption>
@@ -123,18 +119,14 @@ export function SheetSurface({
       ) : null}
 
       {showWriteControls ? (
-        <>
-          <button
-            className="aksa-button aksa-button--primary"
-            disabled={!canWrite}
-            onClick={() => onReviewWrite?.(range.a1Range)}
-            type="button"
-          >
-            {m.documents_review_edit({}, options)}
-          </button>
-
-          <p className="aksa-hint">{m.sheets_write_note({}, options)}</p>
-        </>
+        <button
+          className="aksa-button aksa-button--primary"
+          disabled={!canWrite}
+          onClick={() => onReviewWrite?.(range.a1Range)}
+          type="button"
+        >
+          {m.documents_review_edit({}, options)}
+        </button>
       ) : null}
     </div>
   );

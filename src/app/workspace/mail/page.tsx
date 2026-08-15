@@ -1,9 +1,10 @@
-import { GoogleScreenshotEmbed } from "@/components/workspace/google-screenshot-embed";
+import { Suspense } from "react";
+import { GoogleGmailView } from "@/components/workspace/google-gmail-view";
 
-export default async function MailPage() {
+export default function MailPage() {
   return (
-    <div className="aksa-surface">
-      <GoogleScreenshotEmbed app="gmail" />
-    </div>
+    <Suspense fallback={null}>
+      <GoogleGmailView />
+    </Suspense>
   );
 }

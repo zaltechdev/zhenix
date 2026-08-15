@@ -77,13 +77,6 @@ export function SearchSurface({
       aria-busy={searching}
       className={`aksa-search${submittedQuery === null && !hasArtifact ? " aksa-search--empty" : " aksa-search--has-query"}`}
     >
-      {mode === "live" ? (
-        <div className="aksa-search__disclosure">
-          <p className="aksa-disclosure">{m.search_disclosure({}, options)}</p>
-          <p className="aksa-hint">{m.search_privacy_note({}, options)}</p>
-        </div>
-      ) : null}
-
       <div className="aksa-search__composer">
         <CommandComposer
           inputLabel={m.search_query_label({}, options)}
@@ -110,8 +103,6 @@ export function SearchSurface({
           }
         </SurfaceState>
       </div>
-
-      {mode === "live" ? <p className="aksa-hint">{m.search_no_grounding_note({}, options)}</p> : null}
     </div>
   );
 }

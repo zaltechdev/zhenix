@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
@@ -70,9 +70,10 @@ function WorkspaceShellContent({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isSearchLanding = pathname === "/workspace/search" && !searchParams?.get("q");
   const isHome = pathname === "/workspace" || pathname === "/workspace/";
-  const isSearchPage = pathname.startsWith("/workspace/search");
-  const shouldRenderBottomComposer = !isHome && !isSearchPage;
+  const shouldRenderBottomComposer = !isHome && !isSearchLanding;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -205,9 +206,6 @@ function WorkspaceShellContent({
           {shouldRenderBottomComposer ? (
             <footer className="aksa-composer-footer">
               <CommandComposer locale={locale} />
-              <p className="aksa-ai-disclaimer" role="note">
-                {m.workspace_ai_disclaimer({}, options)}
-              </p>
             </footer>
           ) : null}
         </div>

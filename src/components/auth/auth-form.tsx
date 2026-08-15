@@ -21,6 +21,12 @@ function fieldErrorCopy(error: AuthFieldError, locale: Locale): string {
       return m.auth_field_email_invalid({}, options);
     case "auth_field_password_short":
       return m.auth_field_password_short({ min: String(PASSWORD_MIN_LENGTH) }, options);
+    case "auth_field_invalid_credentials":
+    case "error.invalid_credentials":
+      return m.auth_field_invalid_credentials({}, options);
+    case "auth_field_account_exists":
+    case "error.account_exists_or_failed":
+      return m.auth_field_account_exists({}, options);
     default:
       return m.auth_field_form_invalid({}, options);
   }

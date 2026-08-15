@@ -1183,6 +1183,15 @@ html.high-contrast .aksa-button--primary:disabled {
   font-size: 0.8125rem;
 }
 
+.aksa-composer__caption {
+  margin: var(--space-2) 0 0 0;
+  color: var(--color-aksa-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+
 .aksa-composer__field {
   display: flex;
   min-width: 0;
@@ -3663,6 +3672,36 @@ html.high-contrast .aksa-button--primary:disabled {
   transform: scaleX(-1);
 }
 
+.aksa-onboarding-tuning {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-aksa-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-aksa-surface-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.aksa-onboarding-tuning__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aksa-onboarding-tuning__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-aksa-text);
+  margin: 0;
+}
+
+.aksa-onboarding-tuning__description {
+  font-size: 0.875rem;
+  color: var(--color-aksa-muted);
+  margin: 0;
+}
+
 /* Persistent processing surface: keeps tracking live when the visual preview unmounts. */
 .aksa-camera-control-video {
   position: fixed;
@@ -4074,6 +4113,43 @@ html.high-contrast .aksa-button--primary:disabled {
   margin-top: var(--space-3);
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-aksa-line);
+}
+
+.aksa-field__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.aksa-onboarding-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.aksa-onboarding-input-row .aksa-input {
+  flex: 1 1 auto;
+}
+
+.aksa-onboarding-mic-button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+}
+
+.aksa-listening-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-aksa-teal, #47d2bc);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .aksa-onboarding-suggestions {

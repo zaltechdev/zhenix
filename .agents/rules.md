@@ -237,7 +237,6 @@ A change is not done until all of these hold.
 7. Accessibility checks pass on changed screens.
 8. Indonesian and English render correctly on changed screens.
 9. New shared patterns are documented in the owning document.
-10. `logs/log-{devname}.md` (e.g. `logs/log-henix.md` or `logs/log-zaltech.md`) has the session entry.
 
 Release is blocked when any primary demo path fabricates a result, skips confirmation for a consequential action, cannot report partial completion, leaks credentials or private data, exposes reasoning traces, fails an authorization check, or cannot recover from a timeout.
 
@@ -264,7 +263,6 @@ Release is blocked when any primary demo path fabricates a result, skips confirm
 | New or changed feature behavior | the matching `.agents/features/*.md` |
 | Verified frontend defect and fix | `.agents/debug-henix.md` |
 | Verified backend defect and fix | `.agents/debug-zaltech.md` |
-| Any completed prompt or sprint | `logs/log-{devname}.md` |
 
 Rules:
 

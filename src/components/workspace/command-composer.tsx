@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AudioLines, Eraser, Mic, MicOff, Send, Square, X } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
@@ -127,6 +127,8 @@ export function CommandComposer({
   const recognitionModeRef = useRef<"dictation" | "command" | null>(null);
   const [recognitionMode, setRecognitionMode] = useState<"dictation" | "command" | null>(null);
   const processedVoiceResultsRef = useRef(new Set<string>());
+  const pathname = usePathname();
+  const router = useRouter();
   const [confirmationPending, setConfirmationPending] = useState(false);
   const options = { locale };
 
@@ -354,6 +356,21 @@ export function CommandComposer({
       return;
     }
 
+    const searchMatch = state.text.trim().match(/^(?:search(?:\s+the\s+web)?(?:\s+(?:for|about))?|cari(?:\s+di\s+web)?(?:\s+(?:tentang|info))?|gugling)\s+(.+)$/i);
+    if (searchMatch?.[1]?.trim()) {
+      const q = encodeURIComponent(searchMatch[1].trim());
+      dispatch({ type: "clear" });
+      router.push(`/workspace/search?q=${q}`);
+      return;
+    }
+
+    if (pathname.startsWith("/workspace/search")) {
+      const q = encodeURIComponent(state.text.trim());
+      dispatch({ type: "clear" });
+      router.push(`/workspace/search?q=${q}`);
+      return;
+    }
+
     try {
       const contextDocumentId = state.result?.documentId ?? (typeof window === "undefined"
         ? null
@@ -385,7 +402,7 @@ export function CommandComposer({
         result: { outcome: "rejected", error: createAksaError("unavailable") }
       });
     }
-  }, [aksaActions, dispatch, locale, onSubmit, preview, state, submitCustom]);
+  }, [aksaActions, dispatch, locale, onSubmit, pathname, preview, router, state, submitCustom]);
 
   const taskState = displayedTaskState(state);
   const listening = recognitionMode !== null;
@@ -400,7 +417,6 @@ export function CommandComposer({
     state.localIntent !== null;
   const isNonIdle = taskState !== "idle";
 
-  const pathname = usePathname();
   let placeholder = m.composer_placeholder({}, options);
   if (pathname.includes("/slides")) {
     placeholder = m.composer_placeholder_slides({}, options);
@@ -492,46 +508,50 @@ export function CommandComposer({
       <div className="aksa-composer__controls">
         {offerVoice ? (
           <>
-            {voiceSettings.mode !== "commands" ? <button
-              aria-pressed={listeningMode === "dictation"}
-              className="aksa-button aksa-button--secondary"
-              disabled={listening && listeningMode !== "dictation"}
-              onClick={() =>
-                listeningMode === "dictation" ? stopListening() : startListening("dictation")
-              }
-              type="button"
-            >
-              {listeningMode === "dictation" ? (
-                <Square aria-hidden="true" className="aksa-icon" />
-              ) : (
-                <Mic aria-hidden="true" className="aksa-icon" />
-              )}
-              <span>
-                {listeningMode === "dictation"
-                  ? m.composer_stop_dictation({}, options)
-                  : m.composer_dictate_action({}, options)}
-              </span>
-            </button> : null}
-            {voiceSettings.mode !== "dictation" ? <button
-              aria-pressed={listeningMode === "command"}
-              className="aksa-button aksa-button--secondary"
-              disabled={listening && listeningMode !== "command"}
-              onClick={() =>
-                listeningMode === "command" ? stopListening() : startListening("command")
-              }
-              type="button"
-            >
-              {listeningMode === "command" ? (
-                <Square aria-hidden="true" className="aksa-icon" />
-              ) : (
-                <AudioLines aria-hidden="true" className="aksa-icon" />
-              )}
-              <span>
-                {listeningMode === "command"
-                  ? m.composer_stop_voice_commands({}, options)
-                  : m.composer_live_voice_action({}, options)}
-              </span>
-            </button> : null}
+            {voiceSettings.mode !== "commands" ? (
+              <button
+                aria-pressed={listeningMode === "dictation"}
+                className="aksa-button aksa-button--secondary"
+                disabled={listening && listeningMode !== "dictation"}
+                onClick={() =>
+                  listeningMode === "dictation" ? stopListening() : startListening("dictation")
+                }
+                type="button"
+              >
+                {listeningMode === "dictation" ? (
+                  <Square aria-hidden="true" className="aksa-icon" />
+                ) : (
+                  <Mic aria-hidden="true" className="aksa-icon" />
+                )}
+                <span>
+                  {listeningMode === "dictation"
+                    ? m.composer_stop_dictation({}, options)
+                    : m.composer_dictate_action({}, options)}
+                </span>
+              </button>
+            ) : null}
+            {voiceSettings.mode !== "dictation" ? (
+              <button
+                aria-pressed={listeningMode === "command"}
+                className="aksa-button aksa-button--secondary"
+                disabled={listening && listeningMode !== "command"}
+                onClick={() =>
+                  listeningMode === "command" ? stopListening() : startListening("command")
+                }
+                type="button"
+              >
+                {listeningMode === "command" ? (
+                  <Square aria-hidden="true" className="aksa-icon" />
+                ) : (
+                  <AudioLines aria-hidden="true" className="aksa-icon" />
+                )}
+                <span>
+                  {listeningMode === "command"
+                    ? m.composer_stop_voice_commands({}, options)
+                    : m.composer_live_voice_action({}, options)}
+                </span>
+              </button>
+            ) : null}
           </>
         ) : null}
 
@@ -575,6 +595,10 @@ export function CommandComposer({
           </span>
         </button>
       </div>
+
+      <p className="aksa-composer__caption">
+        {m.composer_ai_notice({}, options)}
+      </p>
 
       {listening && listeningMode ? (
         <p aria-live="polite" className="aksa-composer__voice-state" role="status">

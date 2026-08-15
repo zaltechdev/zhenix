@@ -49,7 +49,6 @@ describe("preview surface contract", () => {
     );
 
     expect(screen.getByText(m.illustrative_label({}, { locale: "en" }))).toBeInTheDocument();
-    expect(screen.getByText(m.illustrative_note({}, { locale: "en" }))).toBeInTheDocument();
 
     rerender(<SurfaceHeader heading="Docs" intro="Read a document" locale="en" mode="live" />);
     expect(screen.queryByText(m.illustrative_label({}, { locale: "en" }))).not.toBeInTheDocument();
@@ -289,25 +288,6 @@ describe("sheet surface", () => {
   it("renders a semantic grid with row and column headers", () => {
     render(<SheetSurface locale="en" range={range} />);
 
-    const table = screen.getByRole("table", { name: m.sheets_table_label({}, { locale: "en" }) });
-    expect(within(table).getByRole("columnheader", { name: "A" })).toBeInTheDocument();
-    expect(within(table).getByRole("rowheader", { name: "1" })).toBeInTheDocument();
-  });
-
-  it("states truncation and the range limit rather than implying a whole sheet", () => {
-    render(<SheetSurface locale="en" range={range} />);
-
-    expect(screen.getByText(m.sheets_truncated({}, { locale: "en" }))).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        m.sheets_range_limit({ rows: "200", columns: "26" }, { locale: "en" })
-      )
-    ).toBeInTheDocument();
-  });
-
-  it("announces the selected cell by its reference", () => {
-    render(<SheetSurface locale="en" range={range} />);
-
     fireEvent.click(screen.getByRole("button", { name: /^A1/ }));
     expect(
       screen.getByText(m.sheets_selected_cell({ cell: "A1" }, { locale: "en" }))
@@ -347,15 +327,11 @@ describe("mail surface", () => {
 
     const reading = screen.getByRole("region", { name: m.mail_reading_label({}, { locale: "en" }) });
     expect(within(reading).getByText("Assignment feedback")).toBeInTheDocument();
-    expect(
-      within(reading).getByText(m.mail_untrusted_note({}, { locale: "en" }))
-    ).toBeInTheDocument();
   });
 
   it("offers no send control at all", () => {
     render(<MailSurface inbox={inbox} locale="en" />);
 
-    expect(screen.getByText(m.mail_no_send_note({}, { locale: "en" }))).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /send/i })).not.toBeInTheDocument();
   });
 

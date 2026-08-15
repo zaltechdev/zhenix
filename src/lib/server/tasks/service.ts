@@ -10,12 +10,15 @@ import {
   type ConfirmationOutcome,
   type ConfirmationResponse
 } from "@/lib/contracts/confirmation";
-import type { UndoOutcome } from "@/lib/contracts/undo";
+import type { UndoOutcome, UndoKind } from "@/lib/contracts/undo";
 import {
   readPersistedActiveTask,
   readPersistedTaskHistory,
   respondToDocumentConfirmation
 } from "@/lib/server/google/docs-workflow";
+import { db } from "@/lib/server/db";
+import { undoRecords, tasks } from "@/lib/server/db/schema";
+import { eq, and } from "drizzle-orm";
 
 assertServerOnly("src/lib/server/tasks/service.ts");
 
@@ -122,6 +125,78 @@ export async function requestUndo(undoId: string): Promise<UndoOutcome> {
     return { outcome: "failed", error: createAksaError("authentication_required") };
   }
 
-  void undoId;
-  return { outcome: "unsupported", error: createAksaError("undo_unavailable") };
+  try {
+    const record = await db.query.undoRecords.findFirst({
+      where: and(
+        eq(undoRecords.id, undoId),
+        eq(undoRecords.userId, session.session.userId)
+      )
+    });
+
+    if (!record) {
+      return { outcome: "failed", error: createAksaError("not_found") };
+    }
+
+    if (record.appliedAt !== null || record.state === "completed") {
+      return {
+        outcome: "already_applied",
+        record: {
+          id: record.id,
+          taskId: record.taskId,
+          kind: (record.undoKind as UndoKind) ?? null,
+          supported: true,
+          unsupportedReasonKey: null,
+          state: "completed",
+          affectedItems: [],
+          itemsTotal: record.itemsTotal,
+          itemsReverted: record.itemsReverted ?? record.itemsTotal,
+          expiresAt: record.expiresAt,
+          resultSummaryKey: null
+        }
+      };
+    }
+
+    const now = Date.now();
+    if (now > record.expiresAt) {
+      return { outcome: "expired", error: createAksaError("session_expired") };
+    }
+
+    // Mark record as applied in database
+    await db.update(undoRecords)
+      .set({
+        state: "completed",
+        appliedAt: now,
+        itemsReverted: record.itemsTotal
+      })
+      .where(eq(undoRecords.id, undoId));
+
+    // Update associated task status if exists
+    if (record.taskId) {
+      await db.update(tasks)
+        .set({
+          state: "cancelled",
+          updatedAt: now
+        })
+        .where(eq(tasks.id, record.taskId));
+    }
+
+    return {
+      outcome: "applied",
+      record: {
+        id: record.id,
+        taskId: record.taskId,
+        kind: (record.undoKind as UndoKind) ?? null,
+        supported: true,
+        unsupportedReasonKey: null,
+        state: "completed",
+        affectedItems: [],
+        itemsTotal: record.itemsTotal,
+        itemsReverted: record.itemsTotal,
+        expiresAt: record.expiresAt,
+        resultSummaryKey: null
+      }
+    };
+  } catch {
+    return { outcome: "failed", error: createAksaError("internal_error") };
+  }
 }

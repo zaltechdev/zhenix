@@ -133,7 +133,7 @@ function createRealAuthGateway(): AuthGateway {
       } catch {
         return {
           outcome: "invalid_input",
-          fieldErrors: [{ field: "form", messageKey: "error.account_exists_or_failed" }]
+          fieldErrors: [{ field: "form", messageKey: "auth_field_account_exists" }]
         };
       }
     },
@@ -143,7 +143,7 @@ function createRealAuthGateway(): AuthGateway {
       if (!parsed.success) {
         return {
           outcome: "invalid_input",
-          fieldErrors: [{ field: "form", messageKey: "error.validation_failed" }]
+          fieldErrors: [{ field: "form", messageKey: "auth_field_form_invalid" }]
         };
       }
 
@@ -180,7 +180,7 @@ function createRealAuthGateway(): AuthGateway {
       } catch {
         return {
           outcome: "invalid_input",
-          fieldErrors: [{ field: "form", messageKey: "error.invalid_credentials" }]
+          fieldErrors: [{ field: "form", messageKey: "auth_field_invalid_credentials" }]
         };
       }
     },

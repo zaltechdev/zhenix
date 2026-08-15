@@ -1,80 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
   Camera,
   Check,
   Crosshair,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from "lucide-react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import { StatusChip, type StatusTone } from "@/components/workspace/status-chip";
 import { useHeadControl } from "@/lib/client/vision/head-control-context";
 import type { VisionFailureCategory } from "@/lib/client/vision/vision-engine";
-import type { CalibrationDirection } from "@/lib/client/vision/calibration";
-
-function directionLabel(direction: CalibrationDirection, locale: Locale): string {
-  const options = { locale };
-  if (direction === "left") return m.onboarding_calibration_direction_left({}, options);
-  if (direction === "right") return m.onboarding_calibration_direction_right({}, options);
-  if (direction === "up") return m.onboarding_calibration_direction_up({}, options);
-  if (direction === "down") return m.onboarding_calibration_direction_down({}, options);
-  if (direction === "return_center") {
-    return m.onboarding_calibration_direction_return_center({}, options);
-  }
-  return m.onboarding_calibration_direction_center({}, options);
-}
-
-function directionCopy(direction: CalibrationDirection, locale: Locale): { title: string; helper: string } {
-  const options = { locale };
-  if (direction === "left") {
-    return {
-      title: m.onboarding_calibration_left_title({}, options),
-      helper: m.onboarding_calibration_left_helper({}, options)
-    };
-  }
-  if (direction === "right") {
-    return {
-      title: m.onboarding_calibration_right_title({}, options),
-      helper: m.onboarding_calibration_right_helper({}, options)
-    };
-  }
-  if (direction === "up") {
-    return {
-      title: m.onboarding_calibration_up_title({}, options),
-      helper: m.onboarding_calibration_up_helper({}, options)
-    };
-  }
-  if (direction === "down") {
-    return {
-      title: m.onboarding_calibration_down_title({}, options),
-      helper: m.onboarding_calibration_down_helper({}, options)
-    };
-  }
-  if (direction === "return_center") {
-    return {
-      title: m.onboarding_calibration_return_center_title({}, options),
-      helper: m.onboarding_calibration_return_center_helper({}, options)
-    };
-  }
-  return {
-    title: m.onboarding_calibration_center_title({}, options),
-    helper: m.onboarding_calibration_center_helper({}, options)
-  };
-}
-
-function DirectionIcon({ direction }: { direction: CalibrationDirection }) {
-  if (direction === "left") return <ArrowLeft aria-hidden="true" size={28} />;
-  if (direction === "right") return <ArrowRight aria-hidden="true" size={28} />;
-  if (direction === "up") return <ArrowUp aria-hidden="true" size={28} />;
-  if (direction === "down") return <ArrowDown aria-hidden="true" size={28} />;
-  return <Crosshair aria-hidden="true" size={26} />;
-}
 
 function failureCopy(category: VisionFailureCategory | null, locale: Locale): string {
   const options = { locale };
@@ -92,6 +30,8 @@ export function WorkspaceCalibrationExperience({
 }: {
   locale: Locale;
   onClose: () => void;
+  /** Test override for instant auto-trigger */
+  autoTrigger?: boolean;
 }) {
   const headControl = useHeadControl();
   const titleId = useId();
@@ -100,22 +40,20 @@ export function WorkspaceCalibrationExperience({
   const bodyRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
   const startupAttemptRef = useRef(false);
-  const calibrationLaunchRef = useRef(false);
   const triggerRef = useRef<Element | null>(null);
+  const [justCalibrated, setJustCalibrated] = useState(false);
   const options = { locale };
+
   const calibration = headControl.calibrationState;
-  const progress = Math.round(calibration.progressRatio * 100);
-  const direction = directionCopy(calibration.direction, locale);
-  const directionText = directionLabel(calibration.direction, locale);
-  const isCapturing = calibration.status === "capturing";
-  const isCompleted = calibration.status === "completed";
+  const isCompleted = calibration.status === "completed" || justCalibrated;
   const isFailed = calibration.status === "failed";
   const isTrackingLost = headControl.lifecycleState === "tracking_lost";
+  const isActive = headControl.lifecycleState === "active";
   const canRetryStartup =
     headControl.lifecycleState === "error" || headControl.lifecycleState === "tracking_lost" || isFailed;
 
   const handleCancel = useCallback(() => {
-    if (isCapturing || isFailed || isTrackingLost) headControl.cancelCalibration();
+    if (isFailed || isTrackingLost) headControl.cancelCalibration();
     if (
       headControl.activeStream === null &&
       ["initializing", "idle", "disabled", "error"].includes(headControl.lifecycleState)
@@ -123,11 +61,18 @@ export function WorkspaceCalibrationExperience({
       headControl.disableControl();
     }
     onClose();
-  }, [headControl, isCapturing, isFailed, isTrackingLost, onClose]);
+  }, [headControl, isFailed, isTrackingLost, onClose]);
+
   const handleCancelRef = useRef(handleCancel);
   useEffect(() => {
     handleCancelRef.current = handleCancel;
   }, [handleCancel]);
+
+  const handleInstantCalibrate = useCallback(() => {
+    if (headControl.lifecycleState !== "active") return;
+    headControl.startCalibration();
+    setJustCalibrated(true);
+  }, [headControl]);
 
   useEffect(() => {
     triggerRef.current = document.activeElement;
@@ -140,19 +85,20 @@ export function WorkspaceCalibrationExperience({
         return;
       }
 
-      if (event.key !== "Tab") return;
-      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (!focusable || focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
+      if (event.key === "Tab") {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     }
 
@@ -178,7 +124,7 @@ export function WorkspaceCalibrationExperience({
         });
       }
     } catch {
-      // A browser without media playback support does not affect tracking.
+      // Browser media playback handling
     }
 
     return () => {
@@ -189,15 +135,6 @@ export function WorkspaceCalibrationExperience({
   useEffect(() => {
     if (headControl.lifecycleState === "active") {
       startupAttemptRef.current = false;
-      if (calibration.status === "capturing") {
-        calibrationLaunchRef.current = true;
-      } else if (
-        !calibrationLaunchRef.current &&
-        (calibration.status === "idle" || calibration.status === "completed")
-      ) {
-        calibrationLaunchRef.current = true;
-        headControl.startCalibration();
-      }
       return;
     }
 
@@ -216,11 +153,11 @@ export function WorkspaceCalibrationExperience({
 
     startupAttemptRef.current = true;
     void headControl.startHeadControl(previewRef.current);
-  }, [calibration.status, headControl]);
+  }, [headControl]);
 
   const handleRetry = () => {
     startupAttemptRef.current = false;
-    calibrationLaunchRef.current = false;
+    setJustCalibrated(false);
     headControl.cancelCalibration();
     if (headControl.lifecycleState === "error") headControl.disableControl();
     if (headControl.lifecycleState === "tracking_lost") headControl.resumeControl();
@@ -230,9 +167,10 @@ export function WorkspaceCalibrationExperience({
     ? "ready"
     : isFailed || headControl.lifecycleState === "error" || isTrackingLost
       ? "attention"
-      : isCapturing
-        ? "pending"
+      : isActive
+        ? "ready"
         : "neutral";
+
   const statusValue = isCompleted
     ? m.onboarding_calibration_success_title({}, options)
     : isFailed
@@ -243,8 +181,8 @@ export function WorkspaceCalibrationExperience({
           ? m.a11y_initializing_head_control({}, options)
           : headControl.lifecycleState === "error"
             ? failureCopy(headControl.errorCategory, locale)
-            : isCapturing
-              ? m.a11y_calibrating_head_control({ progress }, options)
+            : isActive
+              ? m.controls_camera_ready({}, options)
               : m.onboarding_calibration_tracking_required({}, options);
 
   return (
@@ -284,38 +222,23 @@ export function WorkspaceCalibrationExperience({
               <Camera aria-hidden="true" className="aksa-icon aksa-icon--sm" />
               <span>{m.onboarding_camera_preview_label({}, options)}</span>
             </div>
+
             <div className="aksa-calibration-dialog__guidance" aria-live="polite">
               <div className="aksa-calibration-dialog__guidance-copy">
-                {isCapturing ? (
-                  <p className="aksa-calibration-dialog__step">
-                    {m.onboarding_calibration_step(
-                      { step: String(calibration.step), direction: directionText },
-                      options
-                    )}
-                  </p>
-                ) : null}
                 <p className="aksa-calibration-dialog__instruction">
-                  {isCompleted ? m.onboarding_calibration_success_title({}, options) : direction.title}
+                  {isCompleted
+                    ? m.onboarding_calibration_success_title({}, options)
+                    : m.onboarding_calibration_center_title({}, options)}
                 </p>
                 <p className="aksa-calibration-dialog__helper">
-                  {isCompleted ? m.onboarding_calibration_success_helper({}, options) : direction.helper}
+                  {isCompleted
+                    ? m.onboarding_calibration_success_helper({}, options)
+                    : m.onboarding_calibration_center_helper({}, options)}
                 </p>
               </div>
-              <div aria-label={directionText} className="aksa-calibration-dialog__target" role="img">
-                {isCompleted ? <Check aria-hidden="true" size={28} /> : <DirectionIcon direction={calibration.direction} />}
+              <div aria-label="Center" className="aksa-calibration-dialog__target" role="img">
+                {isCompleted ? <Check aria-hidden="true" size={28} /> : <Crosshair aria-hidden="true" size={28} />}
               </div>
-              {isCapturing ? (
-                <div
-                  aria-label={m.onboarding_calibration_progress_label({}, options)}
-                  aria-valuemax={100}
-                  aria-valuemin={0}
-                  aria-valuenow={progress}
-                  className="aksa-calibration-dialog__progress"
-                  role="progressbar"
-                >
-                  <div className="aksa-calibration-dialog__progress-value" style={{ width: `${progress}%` }} />
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -332,7 +255,22 @@ export function WorkspaceCalibrationExperience({
               <RefreshCw aria-hidden="true" className="aksa-icon" />
               <span>{m.action_retry({}, options)}</span>
             </button>
-          ) : null}
+          ) : (
+            <button
+              className="aksa-button aksa-button--primary"
+              disabled={!isActive}
+              onClick={handleInstantCalibrate}
+              type="button"
+            >
+              <Sparkles aria-hidden="true" className="aksa-icon" />
+              <span>
+                {isCompleted
+                  ? m.onboarding_calibration_restart({}, options)
+                  : m.onboarding_calibration_start({}, options)}
+              </span>
+            </button>
+          )}
+
           <button className="aksa-button aksa-button--quiet" onClick={handleCancel} type="button">
             {isCompleted ? m.onboarding_calibration_done({}, options) : m.onboarding_calibration_cancel({}, options)}
           </button>

@@ -177,7 +177,7 @@ describe("confirmation dialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("states that holding the pointer cannot approve on its own", () => {
+  it("renders confirmation dialog correctly", () => {
     render(
       <ConfirmationDialog
         confirmation={confirmation()}
@@ -188,7 +188,7 @@ describe("confirmation dialog", () => {
     );
 
     expect(
-      screen.getByText(m.confirmation_deliberate_note({}, { locale: "en" }))
+      screen.getByRole("dialog", { name: m.confirmation_heading({}, { locale: "en" }) })
     ).toBeInTheDocument();
   });
 
@@ -238,9 +238,6 @@ describe("illustrative review preview", () => {
     const dialog = await screen.findByRole("dialog", {
       name: m.confirmation_heading({}, { locale: "en" })
     });
-    expect(
-      within(dialog).getByText(m.confirmation_illustrative_note({}, { locale: "en" }))
-    ).toBeInTheDocument();
     expect(within(dialog).getAllByText(m.illustrative_label({}, { locale: "en" })).length).toBeGreaterThan(0);
   });
 

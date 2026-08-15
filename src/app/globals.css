@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./workspace.css";
+@import "./google-suite.css";
 /* Force CSS HMR refresh */
 
 :root {
@@ -579,7 +580,7 @@ body {
 .landing-locale-switcher__dropdown {
   position: absolute;
   top: calc(100% + var(--space-2));
-  right: 0;
+  left: 0;
   z-index: 60;
   min-width: 170px;
   display: flex;

@@ -98,36 +98,32 @@ export function googleApiConfig() {
 }
 
 export function googleAiStudioStatus(): ConfigurationStatus {
-  return statusFor(["GOOGLE_AI_API_KEY", "GOOGLE_AI_MODEL"]);
+  return statusFor(["GOOGLE_AI_API_KEY"]);
 }
 
-export const ONBOARDING_GEMINI_MODEL = "gemini-3.1-flash-lite";
+export const ONBOARDING_GEMINI_MODEL = "claude-haiku-4.5";
 
-export function googleAiStudioClassifierConfig(): { apiKey: string; model: string } | null {
-  const apiKey = readSecret("GOOGLE_AI_API_KEY");
+export function googleAiStudioClassifierConfig(): { apiKey: string; model: string; baseUrl: string } | null {
+  const apiKey = readSecret("GOOGLE_AI_API_KEY") ?? readSecret("BAI_API_KEY");
   if (apiKey === null) return null;
 
   return {
     apiKey,
-    model: readSecret("GOOGLE_AI_MODEL") ?? ONBOARDING_GEMINI_MODEL
+    model: readSecret("GOOGLE_AI_MODEL") ?? readSecret("BAI_MODEL") ?? ONBOARDING_GEMINI_MODEL,
+    baseUrl: readSecret("BAI_BASE_URL") ?? "https://api.b.ai/v1"
   };
 }
 
 export function primaryProviderStatus(): ConfigurationStatus {
-  const vertex = vertexStatus();
-  if (vertex.configured) return vertex;
   return googleAiStudioStatus();
 }
 
 export function vertexStatus(): ConfigurationStatus {
-  return statusFor(["VERTEX_AI_PROJECT_ID", "VERTEX_AI_LOCATION", "VERTEX_AI_MODEL"]);
+  return { configured: false, missingKeys: ["VERTEX_AI_PROJECT_ID"] };
 }
 
 export function vertexConfig(): { project: string; location: string; model: string } | null {
-  const project = readSecret("VERTEX_AI_PROJECT_ID");
-  const location = readSecret("VERTEX_AI_LOCATION");
-  const model = readSecret("VERTEX_AI_MODEL");
-  return project && location && model ? { project, location, model } : null;
+  return null;
 }
 
 export function fallbackProviderStatus(): ConfigurationStatus {
@@ -138,10 +134,6 @@ export function fallbackProviderStatus(): ConfigurationStatus {
   ]);
 }
 
-/**
- * Grounded search rides on the primary provider's grounding feature, so it cannot
- * be configured independently of it.
- */
 export function groundedSearchStatus(): ConfigurationStatus {
   return primaryProviderStatus();
 }
@@ -158,10 +150,6 @@ export const executionConfigSchema = z.object({
 
 export type ExecutionConfig = z.infer<typeof executionConfigSchema>;
 
-/**
- * Limits are deployment configuration with documented defaults, never literals in
- * feature code. See `.agents/rules.md` section 10.
- */
 export function executionConfig(): ExecutionConfig {
   return executionConfigSchema.parse({
     maxIterations: readInteger("AI_MAX_ITERATIONS", 8),
@@ -174,10 +162,6 @@ export function executionConfig(): ExecutionConfig {
   });
 }
 
-/**
- * Content caps for the work surfaces. Values remain open questions VWQ-2 and
- * GWQ-6, so they are conservative and configurable rather than presented as final.
- */
 export function contentLimits() {
   return {
     documentBlockLimit: readInteger("AKSA_DOCUMENT_BLOCK_LIMIT", 400),

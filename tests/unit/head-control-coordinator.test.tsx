@@ -1021,7 +1021,7 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(click).toHaveBeenCalledTimes(2);
   });
 
-  it("requires active tracking, uses real frames, and clears calibration samples on loss", async () => {
+  it("requires active tracking and executes instant calibration upon frame arrival", async () => {
     const engine = createControllableEngine();
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <HeadControlProvider
@@ -1052,18 +1052,11 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(result.current.calibrationState.samplesCount).toBe(0);
 
     act(() => {
-      for (let index = 1; index <= 7; index += 1) {
-        engine.emit(visionFrame(600 + index * 100, { pose }));
-      }
-    });
-    expect(result.current.calibrationState.samplesCount).toBe(7);
-    act(() => {
       engine.emit(
-        visionFrame(1400, { lifecycleState: "tracking_lost", faceDetected: false, pose })
+        visionFrame(700, { lifecycleState: "tracking_lost", faceDetected: false, pose })
       );
     });
     expect(result.current.calibrationState.status).toBe("failed");
-    expect(result.current.calibrationState.samplesCount).toBe(0);
     expect(result.current.calibrationState.errorMessage).toBe("tracking_lost");
 
     act(() => {
@@ -1075,41 +1068,25 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     expect(result.current.lifecycleState).toBe("active");
     act(() => {
       result.current.startCalibration();
-      for (let index = 1; index <= 19; index += 1) {
-        engine.emit(visionFrame(2000 + index * 100, { pose }));
-      }
+      engine.emit(visionFrame(2100, { pose }));
     });
-    expect(result.current.calibrationState.status).toBe("capturing");
-    expect(result.current.calibrationState.samplesCount).toBe(7);
+    expect(result.current.calibrationState.status).toBe("completed");
     expect(result.current.neutralBaseline).toEqual(pose);
-
-    act(() => engine.emit(visionFrame(4000, { pose })));
-    expect(result.current.calibrationState.status).toBe("capturing");
-    expect(result.current.neutralBaseline).toEqual(pose);
-    expect(engine.setNeutralBaseline).toHaveBeenCalledTimes(2);
+    expect(engine.setNeutralBaseline).toHaveBeenCalled();
   });
 
-  it("calibration consumes unmirrored supplied frame poses and discards raw samples after completion", () => {
-    const calEngine = new CalibrationEngine(5);
+  it("instant calibration establishes baseline and range immediately", () => {
+    const calEngine = new CalibrationEngine();
     calEngine.start();
 
-    let timestamp = 0;
-    const capture = (pose: { yaw: number; pitch: number; roll: number }) => {
-      for (let index = 0; index < 5; index += 1) calEngine.addSample(pose, timestamp++);
-    };
-    capture({ yaw: -2, pitch: 4, roll: 0 });
-    capture({ yaw: 4, pitch: 4, roll: 0 });
-    capture({ yaw: -8, pitch: 4, roll: 0 });
-    capture({ yaw: -2, pitch: 9, roll: 0 });
-    capture({ yaw: -2, pitch: -3, roll: 0 });
-    capture({ yaw: -2, pitch: 4, roll: 0 });
+    const pose = { yaw: -2, pitch: 4, roll: 0 };
+    calEngine.addSample(pose, 100);
 
     const state = calEngine.getState();
     expect(state.status).toBe("completed");
     expect(state.baseline).toEqual({ yaw: -2, pitch: 4, roll: 0 });
-    expect(state.range).toEqual({ left: 6, right: 6, up: 5, down: 7 });
-    expect(state.samplesCount).toBe(0); // Raw sample array cleared
-    expect(state.deadZone).not.toBeNull(); // Dead zone computed from center step
+    expect(state.range).toEqual({ left: 10, right: 10, up: 10, down: 10 });
+    expect(state.deadZone).not.toBeNull();
   });
 
   it("fails a calibration attempt with no accepted frames by its bounded timeout", async () => {
@@ -1426,9 +1403,8 @@ describe("Head Control Coordinator Comprehensive Regression Suite", () => {
     });
     act(() => {
       result.current.startCalibration();
-      engine.emit(visionFrame(700));
     });
-    expect(result.current.calibrationState.samplesCount).toBe(1);
+    expect(result.current.calibrationState.status).toBe("capturing");
 
     act(() => engine.emitState("error", "stream_ended"));
 

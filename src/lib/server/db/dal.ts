@@ -3,8 +3,10 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { assertServerOnly } from "@/lib/server/server-guard";
 import { db, ensureLocalSchema } from "@/lib/server/db/client";
+import { hashPassword } from "better-auth/crypto";
 import {
   users,
+  accounts,
   workspaces,
   workspaceMembers,
   accessibilityProfiles,
@@ -353,3 +355,57 @@ export async function recordAuditLog(input: {
     createdAt: Date.now()
   });
 }
+
+/**
+ * Resets a user's password directly in the database with verified hashing.
+ */
+export async function resetUserPassword(
+  email: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: "user_not_found" | "failed" }> {
+  await ensureLocalSchema();
+  const normalizedEmail = email.trim().toLowerCase();
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, normalizedEmail)
+  });
+
+  if (!existingUser) {
+    return { success: false, error: "user_not_found" };
+  }
+
+  try {
+    const hashedPassword = await hashPassword(newPassword);
+    const existingAccount = await db.query.accounts.findFirst({
+      where: and(
+        eq(accounts.userId, existingUser.id),
+        eq(accounts.providerId, "credential")
+      )
+    });
+
+    const now = new Date();
+    if (existingAccount) {
+      await db
+        .update(accounts)
+        .set({
+          password: hashedPassword,
+          updatedAt: now
+        })
+        .where(eq(accounts.id, existingAccount.id));
+    } else {
+      await db.insert(accounts).values({
+        id: `acc_${existingUser.id.slice(0, 8)}_${Date.now()}`,
+        userId: existingUser.id,
+        accountId: existingUser.id,
+        providerId: "credential",
+        password: hashedPassword,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    return { success: true };
+  } catch {
+    return { success: false, error: "failed" };
+  }
+}
+

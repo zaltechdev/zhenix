@@ -1,9 +1,10 @@
-import { GoogleScreenshotEmbed } from "@/components/workspace/google-screenshot-embed";
+import { Suspense } from "react";
+import { GoogleSlidesView } from "@/components/workspace/google-slides-view";
 
-export default async function SlidesPage() {
+export default function SlidesPage() {
   return (
-    <div className="aksa-surface">
-      <GoogleScreenshotEmbed app="slides" />
-    </div>
+    <Suspense fallback={null}>
+      <GoogleSlidesView />
+    </Suspense>
   );
 }

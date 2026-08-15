@@ -107,10 +107,6 @@ export function ConfirmationDialog({
             {confirmationActionCopy(confirmation.action, locale)}
           </p>
 
-          {confirmation.illustrative ? (
-            <p className="aksa-hint">{m.confirmation_illustrative_note({}, options)}</p>
-          ) : null}
-
           {confirmation.preview ? (
             <>
               <h3 className="aksa-dialog__subheading">{m.confirmation_preview_heading({}, options)}</h3>
@@ -158,9 +154,6 @@ export function ConfirmationDialog({
                 : m.confirmation_undo_unsupported({}, options)
             }
           />
-
-          <p className="aksa-hint">{m.confirmation_expires({}, options)}</p>
-          <p className="aksa-hint">{m.confirmation_deliberate_note({}, options)}</p>
 
           {result ? (
             <div className="aksa-dialog__result">

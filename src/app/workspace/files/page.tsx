@@ -1,9 +1,10 @@
-import { GoogleScreenshotEmbed } from "@/components/workspace/google-screenshot-embed";
+import { Suspense } from "react";
+import { GoogleDriveView } from "@/components/workspace/google-drive-view";
 
-export default async function FilesPage() {
+export default function FilesPage() {
   return (
-    <div className="aksa-surface">
-      <GoogleScreenshotEmbed app="drive" />
-    </div>
+    <Suspense fallback={null}>
+      <GoogleDriveView />
+    </Suspense>
   );
 }

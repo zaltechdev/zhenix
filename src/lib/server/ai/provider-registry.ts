@@ -5,7 +5,6 @@ import {
   fallbackProviderStatus,
   googleAiStudioStatus,
   primaryProviderStatus,
-  vertexStatus,
   type ConfigurationStatus
 } from "@/lib/server/config/runtime-config";
 import type { AksaError } from "@/lib/contracts/errors";
@@ -91,17 +90,6 @@ function readTimeoutConfig(): TimeoutConfig {
 export function providerRegistry(): ProviderRegistry {
   return {
     resolve(role) {
-      const vertex = vertexStatus();
-      if (vertex.configured) {
-        return {
-          status: "ready",
-          providerId: "vertex_ai",
-          role,
-          retry: readRetryConfig(),
-          timeouts: readTimeoutConfig()
-        };
-      }
-
       const googleAi = googleAiStudioStatus();
       if (googleAi.configured) {
         return {
@@ -114,11 +102,6 @@ export function providerRegistry(): ProviderRegistry {
       }
 
       const fallback = fallbackProviderStatus();
-      /**
-       * The documented fallback is text only, so it cannot serve grounded search.
-       * Reporting `not_configured` is honest; answering research from model memory
-       * would not be.
-       */
       if (fallback.configured && role !== "search_grounded") {
         return {
           status: "ready",
@@ -132,7 +115,7 @@ export function providerRegistry(): ProviderRegistry {
       return {
         status: "not_configured",
         error: createAksaError("not_configured"),
-        missingKeys: vertex.missingKeys
+        missingKeys: googleAi.missingKeys
       };
     },
 

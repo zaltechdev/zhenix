@@ -59,7 +59,6 @@ export function CapabilitySummary({
       </ul>
 
       <BrowserCapabilities locale={locale} />
-      <p className="aksa-hint">{m.home_capability_note({}, options)}</p>
     </div>
   );
 }

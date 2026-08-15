@@ -1,9 +1,10 @@
-import { GoogleScreenshotEmbed } from "@/components/workspace/google-screenshot-embed";
+import { Suspense } from "react";
+import { GoogleSheetsView } from "@/components/workspace/google-sheets-view";
 
-export default async function SheetsPage() {
+export default function SheetsPage() {
   return (
-    <div className="aksa-surface">
-      <GoogleScreenshotEmbed app="sheets" />
-    </div>
+    <Suspense fallback={null}>
+      <GoogleSheetsView />
+    </Suspense>
   );
 }

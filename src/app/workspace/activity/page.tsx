@@ -21,7 +21,6 @@ export default async function ActivityPage() {
         <SurfaceState locale={locale} state={state}>
           {(feed) => <ActivityList events={feed.events} locale={locale} />}
         </SurfaceState>
-        <p className="aksa-hint">{m.activity_no_reasoning_note({}, options)}</p>
       </Panel>
     </div>
   );

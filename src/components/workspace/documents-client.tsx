@@ -144,7 +144,6 @@ export function DocumentsClient({ locale }: { locale: Locale }) {
         heading={m.documents_heading({}, options)}
         intro={m.documents_intro({}, options)}
       />
-
       {/* Checking connection */}
       {pageState.status === "checking_connection" ? (
         <div className="aksa-state-panel" data-tone="pending" role="status">

@@ -11,7 +11,8 @@ const pathname = vi.hoisted(() => ({ current: "/workspace" }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() })
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams()
 }));
 
 const session: SessionState = { status: "unavailable", error: createAksaError("not_configured") };
@@ -92,13 +93,10 @@ describe("workspace shell", () => {
     expect(main!.compareDocumentPosition(composer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("places the AI disclaimer below the composer", () => {
+  it("places the composer in the footer", () => {
     const { container } = renderShell();
     const composer = container.querySelector("#command-composer");
-    const disclaimer = container.querySelector(".aksa-ai-disclaimer");
     expect(composer).not.toBeNull();
-    expect(disclaimer).not.toBeNull();
-    expect(composer!.compareDocumentPosition(disclaimer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("lists every primary work surface with a visible label", () => {
@@ -146,7 +144,6 @@ describe("workspace shell", () => {
     expect(
       screen.getAllByRole("link", { name: m.nav_account({}, { locale: "en" }) }).length
     ).toBeGreaterThan(0);
-    expect(screen.getByText(m.workspace_ai_disclaimer({}, { locale: "en" }))).toBeInTheDocument();
     expect(
       document.querySelector(".aksa-header")?.querySelector('a[href="/workspace/account"]')
     ).toBeNull();
