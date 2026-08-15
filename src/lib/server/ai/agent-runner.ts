@@ -161,28 +161,28 @@ async function generateDynamicAppendText(
         headers["authorization"] = `Bearer ${config.apiKey}`;
       }
 
-      const docText = doc ? documentText(doc).text.slice(0, 1500) : "";
-      const prompt = `You are Aksa AI. The user wants to write/append content to their document.
+      const docText = doc ? documentText(doc).text.slice(0, 2500) : "";
+      const prompt = `You are Aksa AI, an intelligent agent operating on a document editor.
 User Instruction: ${raw}
 Document Title: ${doc?.title ?? "Document"}
 Existing Document Content:
 ${docText}
 
 Instructions:
-- Write the requested paragraph or text content cleanly and naturally in ${locale === "id" ? "Indonesian (Bahasa Indonesia)" : "English"}.
-- Return ONLY the exact text content to append.
+- Write the requested paragraph or text content directly and seamlessly in ${locale === "id" ? "Indonesian (Bahasa Indonesia)" : "English"}.
+- Return ONLY the exact text content to append into the document canvas.
 - DO NOT wrap in quotation marks.
-- DO NOT include markdown headers (# or ##) or meta-commentary like "Berikut adalah penutup:".`;
+- DO NOT include introductory remarks like "Berikut ini adalah..." or markdown headers.`;
 
       const bodyPayload = isGoogleEndpoint
         ? {
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 512, temperature: 0.7 }
+            generationConfig: { maxOutputTokens: 1024, temperature: 0.7 }
           }
         : {
             model: config.model,
             messages: [{ role: "user", content: prompt }],
-            max_tokens: 512,
+            max_tokens: 1024,
             temperature: 0.7
           };
 
@@ -190,44 +190,34 @@ Instructions:
         method: "POST",
         headers,
         body: JSON.stringify(bodyPayload),
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(8000)
       });
 
       if (res.ok) {
         const data = await res.json();
         if (isGoogleEndpoint) {
           const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text && text.length > 5) return text;
+          if (text && text.length > 3) return text;
         } else {
           const text = data?.choices?.[0]?.message?.content?.trim();
-          if (text && text.length > 5) return text;
+          if (text && text.length > 3) return text;
         }
       }
     } catch {
-      // Fall through to topic synthesis
+      // Fall through to clean text extraction
     }
   }
 
-  return resolveGeneratedAppendText(raw, locale);
+  return resolveGeneratedAppendText(raw);
 }
 
-function resolveGeneratedAppendText(raw: string, locale: "id" | "en"): string {
-  const lower = raw.toLowerCase();
-  if (lower.includes("kasane teto") || lower.includes("teto")) {
-    if (locale === "id" || /(?:tentang|paragraf|kalimat|sentence)/i.test(raw)) {
-      return "Kasane Teto adalah penyanyi virtual populer yang awalnya diciptakan sebagai karakter parodi sebelum menjadi vokal Synthesizer V AI resmi. Ia dikenal luas dengan gaya rambut kembar berbentuk bor berwarna merah khas serta jangkauan vokal yang dinamis. Suara sintetis AI-nya terus menginspirasi produser musik digital dan melahirkan berbagai karya viral di seluruh dunia.";
-    }
-    return "Kasane Teto is a celebrated virtual singer originally created as an April Fools' parody before becoming an official UTAU and Synthesizer V AI vocal. She is widely recognized by her signature red drill-twin tails and versatile vocal range spanning energetic pop to electronic music. Her AI-synthesized voice continues to inspire modern virtual music producers and viral hits globally.";
+function resolveGeneratedAppendText(raw: string): string {
+  let clean = raw.trim();
+  const directMatch = clean.match(/(?:tulis(?:kan)?|tambah(?:kan|in)?|masukkan|taruh|sisipkan|write|append|insert|add)\s+(.+)$/i);
+  if (directMatch?.[1]?.trim()) {
+    clean = directMatch[1].trim();
   }
-
-  if (lower.includes("sejarah komputer") || lower.includes("penutup") || lower.includes("komputer") || lower.includes("kesimpulan")) {
-    if (locale === "id" || /(?:tentang|paragraf|singkat|penutup|sejarah)/i.test(raw)) {
-      return "Sebagai penutup, evolusi komputasi dari mesin raksasa berbasis tabung vakum seperti ENIAC hingga mikroprosesor modern menunjukkan percepatan inovasi yang luar biasa. Transformasi ini tidak hanya memangkas ukuran fisik dan konsumsi daya secara drastis, tetapi juga membuka gerbang komputasi personal, jaringan internet global, serta fondasi kecerdasan buatan masa kini.";
-    }
-    return "In conclusion, the evolution of computing from massive vacuum-tube machines like ENIAC to modern microprocessors represents an extraordinary leap in human engineering. This relentless miniaturization and power efficiency laid the foundational bedrock for personal computing, the global internet, and contemporary artificial intelligence systems.";
-  }
-
-  return raw;
+  return clean || raw;
 }
 
 function plannerErrorCategory(error: unknown): Parameters<typeof createAksaError>[0] {

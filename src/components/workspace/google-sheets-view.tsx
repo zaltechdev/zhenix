@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Undo,
   Redo,
@@ -44,6 +44,25 @@ export function GoogleSheetsView() {
   const handleCellChange = (cellId: string, value: string) => {
     setGridData((prev) => ({ ...prev, [cellId]: value }));
   };
+
+  useEffect(() => {
+    const handleSheetUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ cell?: string; value: string; values?: Record<string, string> }>;
+      const detail = customEvent.detail;
+      if (!detail) return;
+
+      if (detail.values) {
+        setGridData((prev) => ({ ...prev, ...detail.values }));
+      } else if (detail.cell && detail.value !== undefined) {
+        handleCellChange(detail.cell, detail.value);
+      }
+    };
+
+    window.addEventListener("aksa:sheet_update", handleSheetUpdate);
+    return () => {
+      window.removeEventListener("aksa:sheet_update", handleSheetUpdate);
+    };
+  }, []);
 
   return (
     <div className="gsuite-container">

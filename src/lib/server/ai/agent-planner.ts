@@ -268,8 +268,9 @@ async function planWithGemini(
             }) }]
           }],
           generationConfig: {
-            maxOutputTokens: 256,
-            responseFormat: { text: { mimeType: "application/json", schema: AGENT_GEMINI_RESPONSE_SCHEMA } }
+            maxOutputTokens: 1024,
+            responseMimeType: "application/json",
+            responseSchema: AGENT_GEMINI_RESPONSE_SCHEMA
           }
         }
       : {

@@ -426,6 +426,8 @@ export function CommandComposer({
 
   const decideConfirmation = useCallback(async (decision: ConfirmationDecision) => {
     if (!state.confirmation || confirmationPending) return;
+    const pendingText = state.confirmation.preview;
+    const documentId = state.confirmation.scopeItems?.[0]?.id;
     setConfirmationPending(true);
     try {
       const response = await fetch("/api/commands/confirm", {
@@ -441,6 +443,17 @@ export function CommandComposer({
           ? result.data
           : { outcome: "unavailable", error: createAksaError("unavailable") }
       });
+
+      if (decision === "approve" && pendingText && typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("aksa:document_append", {
+            detail: {
+              text: pendingText,
+              documentId
+            }
+          })
+        );
+      }
     } catch {
       dispatch({
         type: "confirmation_result",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Undo,
   Redo,
@@ -44,6 +44,56 @@ export function GoogleDocsView() {
   const [alignment, setAlignment] = useState<"left" | "center" | "right" | "justify">("left");
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("First page");
+
+  useEffect(() => {
+    // Initial fetch from API
+    async function loadDoc() {
+      try {
+        const res = await fetch("/api/google/docs/demo-doc-tugas-kelompok");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "ready" && data.data) {
+            setDocTitle(data.data.title || "Tugas Kelompok");
+            const blocks = data.data.blocks;
+            if (Array.isArray(blocks) && blocks.length > 0) {
+              const fullText = blocks.map((b: { plainText: string }) => b.plainText).filter(Boolean).join("\n\n");
+              if (fullText) {
+                setDocContent(fullText);
+              }
+            }
+          }
+        }
+      } catch {
+        // Fallback to initial state
+      }
+    }
+    void loadDoc();
+
+    // Listen to live agent document updates
+    const handleDocumentAppend = (event: Event) => {
+      const customEvent = event as CustomEvent<{ text: string; documentId?: string }>;
+      const textToAppend = customEvent.detail?.text;
+      if (!textToAppend) return;
+
+      setDocContent((prev) => {
+        const separator = prev.endsWith("\n\n") ? "" : prev.endsWith("\n") ? "\n" : "\n\n";
+        return `${prev}${separator}${textToAppend}`;
+      });
+
+      // Auto scroll canvas to bottom
+      setTimeout(() => {
+        const scrollEl = document.querySelector(".gsuite-canvas-scroll");
+        if (scrollEl) {
+          scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: "smooth" });
+        }
+      }, 50);
+    };
+
+    window.addEventListener("aksa:document_append", handleDocumentAppend);
+    return () => {
+      window.removeEventListener("aksa:document_append", handleDocumentAppend);
+    };
+  }, []);
 
   return (
     <div className="gsuite-container">

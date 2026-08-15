@@ -1118,14 +1118,12 @@ export async function respondToDocumentConfirmation(
   await insertActivity(context, row.taskId, "confirmation_approved", "documents_activity_review", [reviewItem], null);
   const access = await accessTokenOrError(context.userId, "docs_write");
   if ("error" in access || payload.data.documentId === DEMO_DOC_ID) {
-    const updatedBlocks = [
-      ...DEMO_DOCUMENT.blocks,
-      createDemoBlock(id("block"), payload.data.appendText)
-    ];
+    const newBlock = createDemoBlock(id("block"), payload.data.appendText);
+    DEMO_DOCUMENT.blocks = [...DEMO_DOCUMENT.blocks, newBlock];
     const updatedDoc: AksaDocumentModel = {
       ...DEMO_DOCUMENT,
       revisionId: `rev_demo_${Date.now()}`,
-      blocks: updatedBlocks
+      blocks: DEMO_DOCUMENT.blocks
     };
     const task = await finishMutation(context, row.taskId, null, reviewItem, true);
     return { outcome: "completed", document: updatedDoc, task };

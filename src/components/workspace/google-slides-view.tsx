@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Undo,
   Redo,
@@ -58,11 +58,52 @@ export function GoogleSlidesView() {
 
   const activeSlide = slides[activeSlideIndex] || slides[0];
 
-  const handleUpdateSlideText = (field: "title" | "subtitle" | "content" | "notes", val: string) => {
+  const handleUpdateSlideText = useCallback((field: "title" | "subtitle" | "content" | "notes", val: string) => {
     setSlides((prev) =>
       prev.map((s, idx) => (idx === activeSlideIndex ? { ...s, [field]: val } : s))
     );
-  };
+  }, [activeSlideIndex]);
+
+  useEffect(() => {
+    const handleSlideAppend = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        title?: string;
+        subtitle?: string;
+        content?: string;
+        notes?: string;
+      }>;
+      const detail = customEvent.detail;
+      if (!detail) return;
+
+      const newSlide: SlideItem = {
+        id: Date.now(),
+        title: detail.title || "Slide Baru",
+        subtitle: detail.subtitle,
+        content: detail.content || "Konten presentasi",
+        notes: detail.notes || ""
+      };
+
+      setSlides((prev) => [...prev, newSlide]);
+      setActiveSlideIndex((prevIndex) => prevIndex + 1);
+    };
+
+    const handleSlideUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        field: "title" | "subtitle" | "content" | "notes";
+        value: string;
+      }>;
+      const detail = customEvent.detail;
+      if (!detail) return;
+      handleUpdateSlideText(detail.field, detail.value);
+    };
+
+    window.addEventListener("aksa:slide_append", handleSlideAppend);
+    window.addEventListener("aksa:slide_update", handleSlideUpdate);
+    return () => {
+      window.removeEventListener("aksa:slide_append", handleSlideAppend);
+      window.removeEventListener("aksa:slide_update", handleSlideUpdate);
+    };
+  }, [handleUpdateSlideText]);
 
   return (
     <div className="gsuite-container">
