@@ -11,15 +11,8 @@ declare global {
   var aksaDevelopmentAuthSecret: string | undefined;
 }
 
-const configuredSecret = process.env.AUTH_SECRET?.trim();
-const developmentSecret = process.env.NODE_ENV === "development"
-  ? (globalThis.aksaDevelopmentAuthSecret ??= randomBytes(32).toString("base64url"))
-  : undefined;
-const authSecret = configuredSecret || developmentSecret;
-
-if (!authSecret && process.env.NODE_ENV !== "test") {
-  throw new Error("auth_unavailable");
-}
+const configuredSecret = process.env.AUTH_SECRET?.trim() || process.env.BETTER_AUTH_SECRET?.trim();
+const authSecret = configuredSecret || (globalThis.aksaDevelopmentAuthSecret ??= randomBytes(32).toString("base64url"));
 
 function configuredValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
