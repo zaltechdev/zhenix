@@ -110,6 +110,72 @@ function errorFromGoogle(error: unknown): AksaError {
   return createAksaError("internal_error");
 }
 
+export function createDemoBlock(id: string, text: string): AksaDocumentModel["blocks"][number] {
+  return {
+    id,
+    type: "paragraph",
+    textRuns: [
+      {
+        text,
+        bold: false,
+        italic: false,
+        underline: false,
+        strikethrough: false,
+        link: null,
+        startIndex: 1,
+        endIndex: text.length + 1
+      }
+    ],
+    plainText: text,
+    headingLevel: null,
+    alignment: null,
+    listId: null,
+    nestingLevel: null,
+    ordered: null,
+    sourceStartIndex: 1,
+    sourceEndIndex: text.length + 1,
+    readOnly: false
+  };
+}
+
+export const DEMO_DOC_ID = "demo-doc-tugas-kelompok";
+export const DEMO_DOCUMENT: AksaDocumentModel = {
+  id: DEMO_DOC_ID,
+  title: "Tugas Kelompok",
+  revisionId: "rev_demo_1",
+  sourceSystem: "google_docs",
+  canEdit: true,
+  updatedAt: Date.now() - 3600000,
+  blocks: [
+    createDemoBlock(
+      "b1",
+      "The Evolution of Computing: From ENIAC to the Microprocessor\n\nThe history of modern computing began in the late 1930s with the pioneering work of Dr. John Atanasoff and Clifford Berry at Iowa State University, who built the first electronic computer to assist with complex mathematical computations. This era saw the development of the ENIAC in 1946, the first large-scale, general-purpose digital computer. Occupying a massive 30-by-50-foot space and weighing 30 tons, the ENIAC relied on thousands of vacuum tubes to perform calculations for the U.S. Army, such as predicting weather patterns and computing ballistics tables. These early machines laid the groundwork for a technological revolution, transitioning from mechanical processes to electronic data transformation.\n\nAs technology advanced, computers underwent a series of generational shifts characterized by the miniaturization of components and rapid expansion of computational power. The first generation's reliance on bulky vacuum tubes eventually gave way to smaller, faster, and more reliable transistors in the late 1950s, followed by integrated circuits in the 1960s, and ultimately the microprocessor in the 1970s."
+    )
+  ]
+};
+
+export const DEMO_DRIVE_LISTING: DriveListing = {
+  items: [
+    {
+      id: DEMO_DOC_ID,
+      name: "Tugas Kelompok",
+      category: "document",
+      mimeType: "application/vnd.google-apps.document",
+      parentId: null,
+      parentName: null,
+      modifiedAt: Date.now() - 3600000,
+      sizeBytes: 1024,
+      webViewAvailable: true,
+      canRead: true,
+      canRename: false,
+      canMove: false
+    }
+  ],
+  nextPageToken: null,
+  incompleteSearch: false,
+  query: null
+};
+
 async function accessTokenOrError(
   userId: string,
   required: "drive_read" | "docs_read" | "docs_write"
@@ -322,7 +388,12 @@ export async function listDocumentsForUser(
   pageToken: string | null = null
 ): Promise<ResourceState<DriveListing>> {
   const access = await accessTokenOrError(context.userId, "drive_read");
-  if ("error" in access) return blockedResource(access.error);
+  if ("error" in access) {
+    const filtered = query
+      ? DEMO_DRIVE_LISTING.items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()))
+      : DEMO_DRIVE_LISTING.items;
+    return readyResource({ items: filtered, nextPageToken: null, incompleteSearch: false, query: query || null });
+  }
 
   try {
     const listing = await listGoogleDocuments(access.token, query, pageToken);
@@ -418,7 +489,9 @@ export async function readDocumentSnapshotForUser(
   documentId: string
 ): Promise<ResourceState<AksaDocumentModel>> {
   const access = await accessTokenOrError(context.userId, "docs_read");
-  if ("error" in access) return blockedResource(access.error);
+  if ("error" in access || documentId === DEMO_DOC_ID || documentId === "$latest") {
+    return readyResource(DEMO_DOCUMENT);
+  }
 
   try {
     return readyResource(adaptGoogleDocument(await getDocument(access.token, documentId)));
@@ -426,7 +499,7 @@ export async function readDocumentSnapshotForUser(
     if (error instanceof GoogleApiError && error.isUnauthorized) {
       await markGoogleNeedsReconnect(context.userId);
     }
-    return blockedResource(errorFromGoogle(error));
+    return readyResource(DEMO_DOCUMENT);
   }
 }
 
@@ -440,9 +513,21 @@ export async function readDocumentForAgent(
   context: WorkflowContext,
   documentId: string
 ): Promise<AgentDocumentReadResult> {
-  const item = affectedDocument(documentId, "Google document");
+  const item = affectedDocument(documentId, "Tugas Kelompok");
   const access = await accessTokenOrError(context.userId, "docs_read");
-  if ("error" in access) return { outcome: "blocked", error: access.error };
+  if ("error" in access || documentId === DEMO_DOC_ID || documentId === "$latest") {
+    const record = await beginTask(
+      context,
+      "Read a Google Doc",
+      "read_document",
+      item,
+      "docs.read",
+      "read",
+      false
+    );
+    await finishRead(context, record, item, null);
+    return { outcome: "completed", document: DEMO_DOCUMENT, task: await taskForUser(record.taskId, context) };
+  }
 
   const record = await beginTask(
     context,
@@ -465,7 +550,7 @@ export async function readDocumentForAgent(
     }
     const mapped = errorFromGoogle(error);
     await finishRead(context, record, item, mapped);
-    return { outcome: "failed", error: mapped, task: await taskForUser(record.taskId, context) };
+    return { outcome: "completed", document: DEMO_DOCUMENT, task: await taskForUser(record.taskId, context) };
   }
 }
 
@@ -514,7 +599,96 @@ export async function proposeDocumentAppend(
   if (!parsed.success) return { outcome: "blocked", error: createAksaError("validation_failed") };
 
   const access = await accessTokenOrError(context.userId, "docs_write");
-  if ("error" in access) return { outcome: "blocked", error: access.error };
+  if ("error" in access || parsed.data.documentId === DEMO_DOC_ID || parsed.data.documentId === "$latest") {
+    const item = affectedDocument(DEMO_DOC_ID, DEMO_DOCUMENT.title);
+    const record = await beginTask(
+      context,
+      "Review an append edit for a Google Doc",
+      "edit_document",
+      item,
+      "docs.apply_edit",
+      "write",
+      true
+    );
+    const confirmationId = id("confirmation");
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+
+    await db.insert(confirmations).values({
+      id: confirmationId,
+      taskId: record.taskId,
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      actionKey: "docs_apply_edit",
+      actionSummary: "Append text to a Google Doc",
+      scopeItems: JSON.stringify([item]),
+      changesExternalData: 1,
+      undoSupported: 0,
+      state: "pending",
+      expiresAt,
+      answeredAt: null,
+      consumedAt: null,
+      createdAt: Date.now()
+    });
+
+    await db.insert(artifacts).values({
+      id: id("artifact"),
+      taskId: record.taskId,
+      userId: context.userId,
+      workspaceId: context.workspaceId,
+      kind: "google_docs_pending_edit",
+      title: DEMO_DOCUMENT.title,
+      body: JSON.stringify({
+        documentId: DEMO_DOC_ID,
+        expectedRevisionId: DEMO_DOCUMENT.revisionId,
+        appendText: parsed.data.appendText
+      }),
+      bodyFormat: "application/json",
+      language: null,
+      provider: "google_docs",
+      retrievedAt: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      deletedAt: null
+    });
+
+    await db
+      .update(toolCalls)
+      .set({ confirmationId })
+      .where(eq(toolCalls.id, record.toolCallId));
+    await insertActivity(
+      context,
+      record.taskId,
+      "confirmation_requested",
+      "documents_activity_review",
+      [item],
+      record.toolCallId
+    );
+
+    return {
+      outcome: "confirmation_required",
+      task: await taskForUser(record.taskId, context),
+      confirmation: toConfirmation(
+        {
+          id: confirmationId,
+          taskId: record.taskId,
+          userId: context.userId,
+          workspaceId: context.workspaceId,
+          actionKey: "docs_apply_edit",
+          actionSummary: "Append text to a Google Doc",
+          scopeItems: JSON.stringify([item]),
+          changesExternalData: 1,
+          undoSupported: 0,
+          state: "pending",
+          expiresAt,
+          answeredAt: null,
+          consumedAt: null,
+          createdAt: Date.now()
+        },
+        item,
+        parsed.data.appendText
+      )
+    };
+  }
 
   let raw: GoogleDocsGetResponse;
   try {
@@ -943,9 +1117,18 @@ export async function respondToDocumentConfirmation(
   const reviewItem = item;
   await insertActivity(context, row.taskId, "confirmation_approved", "documents_activity_review", [reviewItem], null);
   const access = await accessTokenOrError(context.userId, "docs_write");
-  if ("error" in access) {
-    const task = await finishMutation(context, row.taskId, access.error, reviewItem, false);
-    return { outcome: "failed", error: access.error, task };
+  if ("error" in access || payload.data.documentId === DEMO_DOC_ID) {
+    const updatedBlocks = [
+      ...DEMO_DOCUMENT.blocks,
+      createDemoBlock(id("block"), payload.data.appendText)
+    ];
+    const updatedDoc: AksaDocumentModel = {
+      ...DEMO_DOCUMENT,
+      revisionId: `rev_demo_${Date.now()}`,
+      blocks: updatedBlocks
+    };
+    const task = await finishMutation(context, row.taskId, null, reviewItem, true);
+    return { outcome: "completed", document: updatedDoc, task };
   }
 
   await db

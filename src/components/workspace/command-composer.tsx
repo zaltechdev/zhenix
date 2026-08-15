@@ -301,17 +301,13 @@ export function CommandComposer({
       if (transcript !== "") {
         dispatch({ type: "transcript_updated", transcript });
         const finalCandidates = finalTranscriptAlternativesFromEvent(event);
-        if (
-          mode === "command" &&
-          finalCandidates.length > 0 &&
-          (onSubmit || preview || aksaActions)
-        ) {
+        if (mode === "command" && finalCandidates.length > 0) {
           const resultKey = `${event.resultIndex}:${finalCandidates.join("\u0000")}`;
           if (processedVoiceResultsRef.current.has(resultKey)) return;
           processedVoiceResultsRef.current.add(resultKey);
           if (onSubmit || preview) {
             void submitCustom(finalCandidates[0], finalCandidates[0]);
-          } else if (aksaActions) {
+          } else {
             dispatch({ type: "submit_started" });
             void executeVoiceIntent(finalCandidates[0], finalCandidates.slice(1));
           }
@@ -319,18 +315,35 @@ export function CommandComposer({
       }
     };
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
-      if (recognitionRef.current === recognition) {
-        recognitionRef.current = null;
-        recognitionModeRef.current = null;
-        setRecognitionMode(null);
-      }
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null;
+          recognitionModeRef.current = null;
+          setRecognitionMode(null);
+        }
         dispatch({ type: "voice_denied" });
         return;
       }
-      dispatch({ type: "voice_failed" });
+      if (event.error !== "no-speech") {
+        dispatch({ type: "voice_failed" });
+      }
     };
     recognition.onend = () => {
+      if (recognitionModeRef.current === "command" && recognitionRef.current === recognition) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          // Restart instance if browser invalidated
+          recognitionRef.current = null;
+          setTimeout(() => {
+            if (recognitionModeRef.current === "command") {
+              startListening("command");
+            }
+          }, 100);
+          return;
+        }
+      }
       if (recognitionRef.current !== recognition) return;
       recognitionRef.current = null;
       recognitionModeRef.current = null;

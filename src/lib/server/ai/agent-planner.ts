@@ -122,7 +122,7 @@ function deterministicPlan(request: AgentPlannerRequest): AgentPlan | null {
   if (request.contextDocumentId === null && !hasDocumentReference(text)) return null;
 
   const wantsEdit = /\b(append|add|insert|write|edit|translate|modify|update|ubah|ganti|terjemahkan|tulis|tambahkan|tambah|sisipkan)\b/i.test(text);
-  const wantsRead = /\b(open|read|show|find|search|locate|summarize|summarise|review|buka|baca|lihat|cari|temukan|rangkum|ringkas)\b/i.test(text);
+  const wantsRead = /\b(open|read|show|find|search|locate|summarize|summarise|review|check|periksa|cek|buka|baca|lihat|cari|temukan|rangkum|ringkas)\b/i.test(text);
   const documentId = request.contextDocumentId ?? "$latest";
   const prefix = request.contextDocumentId
     ? []
