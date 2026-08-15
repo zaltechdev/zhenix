@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { m } from "@/paraglide/messages.js";
 import type { Locale } from "@/paraglide/runtime.js";
 import type { Confirmation, ConfirmationDecision } from "@/lib/contracts/confirmation";
@@ -34,10 +34,26 @@ export function ConfirmationDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const options = { locale };
+  const [countdown, setCountdown] = useState(5);
 
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
+
+  useEffect(() => {
+    if (confirmation.illustrative || result || confirmation.canApprove === false) return;
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          onDecision("approve");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [confirmation.canApprove, confirmation.illustrative, onDecision, result]);
 
   useEffect(() => {
     bodyRef.current?.focus();
@@ -166,6 +182,11 @@ export function ConfirmationDialog({
         </div>
 
         <div className="aksa-dialog__actions">
+          {countdown > 0 && !result && !confirmation.illustrative && confirmation.canApprove ? (
+            <span aria-live="polite" className="aksa-hint aksa-dialog__timer" role="status" style={{ marginRight: "auto", alignSelf: "center", fontSize: "0.8125rem" }}>
+              ⚡ Auto-confirm in {countdown}s
+            </span>
+          ) : null}
           <button
             className="aksa-button aksa-button--quiet"
             disabled={!confirmation.canCancel}

@@ -126,10 +126,13 @@ export function CommandComposer({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionModeRef = useRef<"dictation" | "command" | null>(null);
   const [recognitionMode, setRecognitionMode] = useState<"dictation" | "command" | null>(null);
-  const processedVoiceResultsRef = useRef(new Set<string>());
   const pathname = usePathname();
   const router = useRouter();
+  const processedVoiceResultsRef = useRef(new Set<string>());
   const [confirmationPending, setConfirmationPending] = useState(false);
+  const [liveCountdown, setLiveCountdown] = useState<number | null>(null);
+  const liveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const liveCandidateRef = useRef<{ text: string; alternatives: string[] } | null>(null);
   const options = { locale };
 
   useEffect(() => {
@@ -305,12 +308,54 @@ export function CommandComposer({
           const resultKey = `${event.resultIndex}:${finalCandidates.join("\u0000")}`;
           if (processedVoiceResultsRef.current.has(resultKey)) return;
           processedVoiceResultsRef.current.add(resultKey);
-          if (onSubmit || preview) {
-            void submitCustom(finalCandidates[0], finalCandidates[0]);
-          } else {
-            dispatch({ type: "submit_started" });
-            void executeVoiceIntent(finalCandidates[0], finalCandidates.slice(1));
+
+          const commandLocale = recognitionLocale(voiceSettings, locale);
+          const hasLocalIntent = finalCandidates.some(
+            (c) => matchAksaIntent(c, commandLocale) !== null
+          );
+
+          if (hasLocalIntent) {
+            if (onSubmit || preview) {
+              void submitCustom(finalCandidates[0], finalCandidates[0]);
+            } else {
+              dispatch({ type: "submit_started" });
+              void executeVoiceIntent(finalCandidates[0], finalCandidates.slice(1));
+            }
+            return;
           }
+
+          liveCandidateRef.current = {
+            text: finalCandidates[0],
+            alternatives: finalCandidates.slice(1)
+          };
+
+          if (liveTimerRef.current) {
+            clearInterval(liveTimerRef.current);
+          }
+
+          setLiveCountdown(3);
+          let remaining = 3;
+          liveTimerRef.current = setInterval(() => {
+            remaining -= 1;
+            if (remaining <= 0) {
+              if (liveTimerRef.current) {
+                clearInterval(liveTimerRef.current);
+                liveTimerRef.current = null;
+              }
+              setLiveCountdown(null);
+              const candidate = liveCandidateRef.current;
+              if (candidate) {
+                if (onSubmit || preview) {
+                  void submitCustom(candidate.text, candidate.text);
+                } else {
+                  dispatch({ type: "submit_started" });
+                  void executeVoiceIntent(candidate.text, candidate.alternatives);
+                }
+              }
+            } else {
+              setLiveCountdown(remaining);
+            }
+          }, 1000);
         }
       }
     };
@@ -365,6 +410,11 @@ export function CommandComposer({
   }, [aksaActions, dispatch, executeVoiceIntent, locale, onSubmit, preview, submitCustom, voiceSettings]);
 
   const stopListening = useCallback(() => {
+    if (liveTimerRef.current) {
+      clearInterval(liveTimerRef.current);
+      liveTimerRef.current = null;
+    }
+    setLiveCountdown(null);
     recognitionRef.current?.stop();
   }, []);
 
@@ -627,7 +677,9 @@ export function CommandComposer({
         <p aria-live="polite" className="aksa-composer__voice-state" role="status">
           {listeningMode === "dictation"
             ? m.composer_dictation_listening({}, options)
-            : m.composer_live_voice_listening({}, options)}
+            : liveCountdown !== null
+              ? `⚡ Auto-executing in ${liveCountdown}s...`
+              : m.composer_live_voice_listening({}, options)}
         </p>
       ) : null}
 
@@ -675,9 +727,9 @@ export function CommandComposer({
         <ConfirmationDialog
           confirmation={{
             ...state.confirmation,
-            canApprove: !confirmationPending && state.confirmation.canApprove,
-            canCancel: !confirmationPending && state.confirmation.canCancel,
-            canEdit: !confirmationPending && state.confirmation.canEdit
+            canApprove: !confirmationPending && (state.confirmation.canApprove ?? true),
+            canCancel: !confirmationPending && (state.confirmation.canCancel ?? true),
+            canEdit: !confirmationPending && (state.confirmation.canEdit ?? true)
           }}
           locale={locale}
           onClose={() => void decideConfirmation("cancel")}
